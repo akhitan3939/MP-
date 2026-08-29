@@ -127,11 +127,11 @@ export const Footer: React.FC = () => {
             <div className="space-y-1.5 text-[#EAD8B1] font-medium">
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-[#D4A017]" />
-                <span>+91 97521 09876 (10 AM - 7 PM)</span>
+                <span>+91 .... (10 AM - 7 PM)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#D4A017]" />
-                <span>support@mpparikshasetu.in</span>
+                <span>mpparikshasetu.support@gmail.com</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#D4A017]" />
