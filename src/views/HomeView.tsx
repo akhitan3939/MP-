@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { TestCard } from '../components/TestCard';
 import { BannerCarousel } from '../components/BannerCarousel';
 import { SocialMediaSection } from '../components/SocialMediaSection';
+import { SocialLiveTicker } from '../components/SocialLiveTicker';
 import { 
   Sparkles, 
   Trophy, 

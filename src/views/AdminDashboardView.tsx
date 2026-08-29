@@ -107,6 +107,7 @@ export const AdminDashboardView: React.FC = () => {
     navMenuItems,
     topNavItems,
     bottomNavItems,
+    footerNavItems,
     saveNavMenuItem,
     deleteNavMenuItem,
     toggleNavMenuItemActive,
@@ -147,7 +148,7 @@ export const AdminDashboardView: React.FC = () => {
   const [searchStudents, setSearchStudents] = useState('');
   const [searchQuestions, setSearchQuestions] = useState('');
   const [searchMenus, setSearchMenus] = useState('');
-  const [menuPlacementFilter, setMenuPlacementFilter] = useState<'all' | 'top' | 'bottom' | 'both'>('all');
+  const [menuPlacementFilter, setMenuPlacementFilter] = useState<'all' | 'top' | 'footer' | 'bottom' | 'both'>('all');
   const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('all');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
 
@@ -1047,6 +1048,10 @@ export const AdminDashboardView: React.FC = () => {
                       <span className="font-mono font-black text-base text-amber-800 dark:text-amber-300">{topNavItems.length}</span>
                     </div>
                     <div className="px-3.5 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-amber-200 dark:border-amber-800 text-center shadow-xs">
+                      <span className="text-[10px] uppercase font-black text-stone-400 block">🔻 फुटर मेन्यू</span>
+                      <span className="font-mono font-black text-base text-emerald-800 dark:text-emerald-300">{footerNavItems.length}</span>
+                    </div>
+                    <div className="px-3.5 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-amber-200 dark:border-amber-800 text-center shadow-xs">
                       <span className="text-[10px] uppercase font-black text-stone-400 block">📱 निचला मोबाइल</span>
                       <span className="font-mono font-black text-base text-indigo-700 dark:text-indigo-400">{bottomNavItems.length}</span>
                     </div>
@@ -1074,7 +1079,17 @@ export const AdminDashboardView: React.FC = () => {
                           : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
                       }`}
                     >
-                      🔝 केवल शीर्ष हेडर ({navMenuItems.filter(m => m.placement === 'top' || m.placement === 'both').length})
+                      🔝 शीर्ष हेडर ({navMenuItems.filter(m => m.placement === 'top' || m.placement === 'both' || m.placement === 'all').length})
+                    </button>
+                    <button
+                      onClick={() => setMenuPlacementFilter('footer')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                        menuPlacementFilter === 'footer'
+                          ? 'bg-[#7A2A1E] text-white shadow-xs'
+                          : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      🔻 फुटर मेन्यू ({navMenuItems.filter(m => m.placement === 'footer' || m.placement === 'both' || m.placement === 'bottom' || m.placement === 'all').length})
                     </button>
                     <button
                       onClick={() => setMenuPlacementFilter('bottom')}
@@ -1084,7 +1099,7 @@ export const AdminDashboardView: React.FC = () => {
                           : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
                       }`}
                     >
-                      📱 केवल निचला मोबाइल/फुटर ({navMenuItems.filter(m => m.placement === 'bottom' || m.placement === 'both').length})
+                      📱 मोबाइल बॉटम बार ({navMenuItems.filter(m => m.placement === 'bottom' || m.placement === 'all').length})
                     </button>
                     <button
                       onClick={() => setMenuPlacementFilter('both')}
@@ -1094,7 +1109,7 @@ export const AdminDashboardView: React.FC = () => {
                           : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
                       }`}
                     >
-                      ✨ दोनों ({navMenuItems.filter(m => m.placement === 'both').length})
+                      ✨ हेडर + फुटर ({navMenuItems.filter(m => m.placement === 'both' || m.placement === 'all').length})
                     </button>
                   </div>
 
@@ -1122,7 +1137,15 @@ export const AdminDashboardView: React.FC = () => {
                         const matchSearch = m.labelHi.toLowerCase().includes(searchMenus.toLowerCase()) ||
                           (m.labelEn || '').toLowerCase().includes(searchMenus.toLowerCase()) ||
                           m.targetValue.toLowerCase().includes(searchMenus.toLowerCase());
-                        const matchPlace = menuPlacementFilter === 'all' ? true : m.placement === menuPlacementFilter;
+                        const matchPlace = menuPlacementFilter === 'all' 
+                          ? true 
+                          : menuPlacementFilter === 'top'
+                          ? (m.placement === 'top' || m.placement === 'both' || m.placement === 'all')
+                          : menuPlacementFilter === 'footer'
+                          ? (m.placement === 'footer' || m.placement === 'both' || m.placement === 'bottom' || m.placement === 'all')
+                          : menuPlacementFilter === 'bottom'
+                          ? (m.placement === 'bottom' || m.placement === 'all')
+                          : (m.placement === 'both' || m.placement === 'all');
                         return matchSearch && matchPlace;
                       }).length
                     } लिंक्स)</span>
@@ -1134,9 +1157,9 @@ export const AdminDashboardView: React.FC = () => {
                         labelHi: '',
                         labelEn: '',
                         iconName: 'Compass',
-                        placement: 'top',
+                        placement: 'footer',
                         targetType: 'view',
-                        targetValue: 'freeMockTest',
+                        targetValue: 'catalog',
                         externalUrl: '',
                         badgeTextHi: '',
                         badgeTextEn: '',
@@ -1160,7 +1183,15 @@ export const AdminDashboardView: React.FC = () => {
                         (m.labelEn || '').toLowerCase().includes(searchMenus.toLowerCase()) ||
                         m.targetValue.toLowerCase().includes(searchMenus.toLowerCase()) ||
                         (m.badgeTextHi || '').toLowerCase().includes(searchMenus.toLowerCase());
-                      const matchPlace = menuPlacementFilter === 'all' ? true : m.placement === menuPlacementFilter;
+                      const matchPlace = menuPlacementFilter === 'all' 
+                        ? true 
+                        : menuPlacementFilter === 'top'
+                        ? (m.placement === 'top' || m.placement === 'both' || m.placement === 'all')
+                        : menuPlacementFilter === 'footer'
+                        ? (m.placement === 'footer' || m.placement === 'both' || m.placement === 'bottom' || m.placement === 'all')
+                        : menuPlacementFilter === 'bottom'
+                        ? (m.placement === 'bottom' || m.placement === 'all')
+                        : (m.placement === 'both' || m.placement === 'all');
                       return matchSearch && matchPlace;
                     })
                     .sort((a, b) => a.order - b.order)
@@ -1249,13 +1280,19 @@ export const AdminDashboardView: React.FC = () => {
                                 <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
                                   item.placement === 'top'
                                     ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300'
+                                    : item.placement === 'footer'
+                                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300'
                                     : item.placement === 'bottom'
                                     ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-300 border border-indigo-300'
-                                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300'
+                                    : item.placement === 'both'
+                                    ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-900 dark:text-purple-300 border border-purple-300'
+                                    : 'bg-rose-100 dark:bg-rose-950/60 text-rose-900 dark:text-rose-300 border border-rose-300'
                                 }`}>
                                   {item.placement === 'top' && '🔝 शीर्ष हेडर मेन्यू'}
+                                  {item.placement === 'footer' && '🔻 फुटर मेन्यू लिंक्स'}
                                   {item.placement === 'bottom' && '📱 निचला मोबाइल नेव'}
-                                  {item.placement === 'both' && '✨ शीर्ष व निचला दोनों'}
+                                  {item.placement === 'both' && '✨ हेडर व फुटर दोनों'}
+                                  {item.placement === 'all' && '🌐 समस्त मेन्यू (All)'}
                                 </span>
 
                                 <span>•</span>
@@ -1323,7 +1360,7 @@ export const AdminDashboardView: React.FC = () => {
                     <Eye className="w-4 h-4" />
                     <span>लाइव मेन्यू पूर्वावलोकन (Live Dynamic Menu Preview)</span>
                   </div>
-                  <span className="text-[11px] font-mono text-stone-400">Header & Mobile Bottom Bar Simulation</span>
+                  <span className="text-[11px] font-mono text-stone-400">Header, Footer & Mobile Bar Simulation</span>
                 </div>
 
                 <div className="space-y-4 text-xs">
@@ -1354,10 +1391,32 @@ export const AdminDashboardView: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Footer Links Preview */}
+                  <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
+                    <span className="text-[10px] font-mono text-emerald-300 font-bold uppercase tracking-wider">
+                      2. फुटर त्वरित नेविगेशन लिंक्स (Footer Quick Navigation Live Preview):
+                    </span>
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      {footerNavItems.map(item => (
+                        <div
+                          key={item.id}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] font-bold shadow-xs ${
+                            item.highlight
+                              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500'
+                              : 'bg-stone-900 text-stone-300 border-stone-800'
+                          }`}
+                        >
+                          <DynamicNavIcon name={item.iconName} className="w-3 h-3 text-emerald-400" />
+                          <span>{item.labelHi}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Bottom Mobile Bar Preview */}
                   <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
                     <span className="text-[10px] font-mono text-indigo-300 font-bold uppercase tracking-wider">
-                      2. मोबाइल निचला नेविगेशन बार (Mobile Bottom App Bar Preview):
+                      3. मोबाइल निचला नेविगेशन बार (Mobile Bottom App Bar Preview):
                     </span>
                     <div className="grid grid-flow-col auto-cols-fr gap-1 bg-stone-900 p-2 rounded-2xl border border-stone-800 max-w-lg">
                       {bottomNavItems.map(item => (
@@ -3335,8 +3394,10 @@ export const AdminDashboardView: React.FC = () => {
                     className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
                   >
                     <option value="top">🔝 शीर्ष हेडर मेन्यू (Top Header)</option>
-                    <option value="bottom">📱 निचला मोबाइल नेव / फुटर (Bottom Menu)</option>
-                    <option value="both">✨ शीर्ष व निचला दोनों (Both Top & Bottom)</option>
+                    <option value="footer">🔻 फुटर मेन्यू लिंक्स (Footer Quick Navigation)</option>
+                    <option value="bottom">📱 निचला मोबाइल नेव (Mobile Bottom Navigation)</option>
+                    <option value="both">✨ शीर्ष हेडर एवं फुटर दोनों (Top Header & Footer)</option>
+                    <option value="all">🌐 समस्त मेन्यू (Header, Mobile & Footer)</option>
                   </select>
                 </div>
 

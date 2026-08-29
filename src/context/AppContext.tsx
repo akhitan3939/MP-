@@ -39,6 +39,7 @@ interface AppContextType {
   navMenuItems: NavigationMenuItem[];
   topNavItems: NavigationMenuItem[];
   bottomNavItems: NavigationMenuItem[];
+  footerNavItems: NavigationMenuItem[];
   enrolledSeriesIds: string[];
   bookmarkedQuestionIds: string[];
   theme: ThemeMode;
@@ -244,13 +245,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const currentUser = users.find(u => u.id === currentUserId) || null;
   const enrolledSeriesIds = currentUser ? (enrolledMap[currentUser.id] || []) : [];
 
-  // Top and Bottom dynamic menu items
+  // Top, Bottom and Footer dynamic menu items
   const topNavItems = navMenuItems
-    .filter(m => (m.placement === 'top' || m.placement === 'both') && m.isActive)
+    .filter(m => (m.placement === 'top' || m.placement === 'both' || m.placement === 'all') && m.isActive)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const bottomNavItems = navMenuItems
-    .filter(m => (m.placement === 'bottom' || m.placement === 'both') && m.isActive)
+    .filter(m => (m.placement === 'bottom' || m.placement === 'both' || m.placement === 'all') && m.isActive)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const footerNavItems = navMenuItems
+    .filter(m => (m.placement === 'footer' || m.placement === 'bottom' || m.placement === 'both' || m.placement === 'all') && m.isActive)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const showToast = (msg: string) => {
@@ -1010,6 +1015,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         navMenuItems,
         topNavItems,
         bottomNavItems,
+        footerNavItems,
         enrolledSeriesIds,
         bookmarkedQuestionIds: bookmarkedIds,
         theme,

@@ -319,7 +319,7 @@ export interface OfflineNote {
   sampleContentHi: string;
 }
 
-export type MenuPlacement = 'top' | 'bottom' | 'both';
+export type MenuPlacement = 'top' | 'bottom' | 'footer' | 'both' | 'all';
 export type MenuTargetType = 'view' | 'category' | 'modal' | 'external';
 
 export interface NavigationMenuItem {

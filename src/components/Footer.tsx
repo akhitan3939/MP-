@@ -19,7 +19,7 @@ import {
 import { DynamicNavIcon } from '../utils/navIcons';
 
 export const Footer: React.FC = () => {
-  const { lang, navigate, openNotesModal, openAuthModal, bottomNavItems, handleNavAction, platformSettings } = useApp();
+  const { lang, navigate, openNotesModal, openAuthModal, footerNavItems, handleNavAction, platformSettings } = useApp();
 
   const fbUrl = platformSettings?.facebookUrl || 'https://facebook.com/groups/mpparikshasetu';
   const instaUrl = platformSettings?.instagramUrl || 'https://instagram.com/mpparikshasetu_official';
@@ -90,25 +90,25 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Col 3: Student Tools & Dynamic Bottom Menus */}
+          {/* Col 3: Student Tools & Dynamic Footer Menus */}
           <div className="space-y-2.5">
             <h4 className="font-display font-black text-sm uppercase tracking-wider text-[#D4A017]">
-              {lang === 'hi' ? 'छात्र सुविधाएँ व मेन्यू' : 'Student Resources & Menu'}
+              {lang === 'hi' ? 'महत्वपूर्ण लिंक्स व मेन्यू' : 'Important Links & Menu'}
             </h4>
             <ul className="space-y-1.5 text-white/80 font-bold text-xs">
-              {bottomNavItems.map((item) => {
+              {footerNavItems.map((item) => {
                 const label = lang === 'hi' ? item.labelHi : item.labelEn;
                 const badge = lang === 'hi' ? item.badgeTextHi : item.badgeTextEn;
                 return (
                   <li key={item.id}>
                     <button 
                       onClick={() => handleNavAction(item)} 
-                      className="hover:text-[#D4A017] transition flex items-center gap-1.5 text-left cursor-pointer"
+                      className="hover:text-[#D4A017] transition flex items-center gap-1.5 text-left cursor-pointer group"
                     >
-                      <DynamicNavIcon name={item.iconName} className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
-                      <span>{label}</span>
+                      <DynamicNavIcon name={item.iconName} className="w-3.5 h-3.5 text-[#D4A017] shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="group-hover:translate-x-0.5 transition-transform">{label}</span>
                       {badge && (
-                        <span className="px-1 py-0.2 bg-[#D4A017] text-[#2D2424] text-[8px] font-black rounded ml-1">
+                        <span className="px-1.5 py-0.5 bg-[#D4A017] text-[#2D2424] text-[8px] font-black rounded ml-1 uppercase">
                           {badge}
                         </span>
                       )}

@@ -10,6 +10,7 @@ import { NotesModal } from './components/NotesModal';
 import { StudyReminderModal } from './components/StudyReminderModal';
 import { CertificateModal } from './components/CertificateModal';
 import { ShareModal } from './components/ShareModal';
+import { SocialSidePanel } from './components/SocialSidePanel';
 
 // Views
 import { HomeView } from './views/HomeView';
@@ -57,13 +58,14 @@ const MainAppContent: React.FC = () => {
         {activeView === 'admin' && <AdminDashboardView />}
       </main>
 
-      {/* 4. Global Modals */}
+      {/* 4. Global Modals & Live Social Side Panel */}
       <RazorpayModal />
       <AuthModal />
       <NotesModal />
       <StudyReminderModal />
       <CertificateModal />
       <ShareModal />
+      <SocialSidePanel />
 
       {/* 5. Mobile Dynamic Bottom App Bar */}
       <BottomNavBar />
