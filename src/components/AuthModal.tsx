@@ -40,9 +40,9 @@ export const AuthModal: React.FC = () => {
   const [targetExam, setTargetExam] = useState('MP Patwari 2026');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Admin form fields
-  const [adminUsername, setAdminUsername] = useState('admin');
-  const [adminPassword, setAdminPassword] = useState('admin');
+  // Admin form fields (Empty by default for manual entry)
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
 
   // Forgot password form fields & state
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -62,6 +62,8 @@ export const AuthModal: React.FC = () => {
       setMode(authModalMode || 'login');
       setErrorMsg('');
       setShowPassword(false);
+      setAdminUsername('');
+      setAdminPassword('');
       setShowNewPassword(false);
       setShowConfirmNewPassword(false);
       setForgotStep(1);
@@ -156,12 +158,6 @@ export const AuthModal: React.FC = () => {
     setEmailOrUsername('aspirant');
     setPassword('student123');
     login('aspirant', 'student123', 'student');
-  };
-
-  const handleOneClickDemoAdmin = () => {
-    setAdminUsername('admin');
-    setAdminPassword('admin');
-    login('admin', 'admin', 'admin');
   };
 
   // Forgot Password: Step 1 Submit (Find Account & Generate OTP)
@@ -403,8 +399,9 @@ export const AuthModal: React.FC = () => {
                   type="text"
                   value={adminUsername}
                   onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="admin"
+                  placeholder="अपना एडमिन यूज़रनेम दर्ज करें"
                   required
+                  autoComplete="username"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -420,8 +417,9 @@ export const AuthModal: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="admin"
+                  placeholder="अपना पासवर्ड दर्ज करें"
                   required
+                  autoComplete="current-password"
                   className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-emerald-500"
                 />
                 <button
@@ -432,18 +430,6 @@ export const AuthModal: React.FC = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </div>
-
-            {/* Quick 1-click admin login helper */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-stone-500 font-medium">डिफ़ॉल्ट क्रेडेंशियल्स: admin / admin</span>
-              <button
-                type="button"
-                onClick={handleOneClickDemoAdmin}
-                className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-[11px] font-bold cursor-pointer transition"
-              >
-                ⚡ 1-क्लिक ऑटो-फिल
-              </button>
             </div>
 
             <button

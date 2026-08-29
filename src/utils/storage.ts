@@ -25,7 +25,7 @@ import {
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
-  USERS: 'mp_setu_users_v1',
+  USERS: 'mp_setu_users_v3',
   CURRENT_USER_ID: 'mp_setu_current_user_v1',
   TEST_SERIES: 'mp_setu_test_series_v4',
   QUESTIONS: 'mp_setu_questions_v3',
@@ -196,11 +196,14 @@ export const StorageService = {
     const raw = getStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
     const list = Array.isArray(raw) ? raw : INITIAL_USERS;
     return list.map(u => {
-      if (u.name && (u.name.toLowerCase().includes('akhilesh') || u.name.includes('अखिलेश') || u.email?.includes('korsne'))) {
+      if (u.role === 'admin' || u.id === 'usr_admin') {
         return {
           ...u,
-          name: 'परीक्षार्थी (Aspirant)',
-          email: 'student@mppariksha.in',
+          name: 'प्रशासक (Akhilesh Korsne)',
+          username: 'akhitan_3939',
+          password: 'Tanmayee*1234',
+          email: 'akhitan3939@mppariksha.in',
+          role: 'admin' as const
         };
       }
       return u;

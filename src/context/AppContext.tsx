@@ -261,7 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       (u.username && u.username.toLowerCase() === cleanId)
     );
 
-    if (!found && role === 'admin' && (cleanId === 'admin' || cleanId === 'admin@mppariksha.in')) {
+    if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin')) {
       found = users.find(u => u.role === 'admin');
     }
 

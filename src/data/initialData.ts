@@ -8,11 +8,11 @@ import { getAgriQuestionsForSet } from './agriSetsData';
 export const INITIAL_USERS: UserProfile[] = [
   {
     id: 'usr_admin',
-    name: 'प्रशासक (Admin Director)',
-    username: 'admin',
-    email: 'admin@mppariksha.in',
+    name: 'प्रशासक (Akhilesh Korsne)',
+    username: 'akhitan_3939',
+    email: 'akhitan3939@mppariksha.in',
     phone: '9893012345',
-    password: 'admin',
+    password: 'Tanmayee*1234',
     role: 'admin',
     district: 'भोपाल (Bhopal)',
     targetExam: 'All MP Exams Management',
