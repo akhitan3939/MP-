@@ -1,0 +1,6 @@
+{
+  "name": "MP परीक्षा सेतु — MP Govt Exam Test Series & CBT Platform",
+  "description": "Comprehensive Madhya Pradesh Govt Exam Preparation Platform with CBT Test Series, AI Answer Evaluation, Razorpay Payment Gateway, Admin Sales & Test Management, Leaderboard, Bilingual Support, and Offline Notes.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

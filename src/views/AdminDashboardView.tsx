@@ -1,0 +1,2272 @@
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { 
+  LayoutDashboard,
+  Image as ImageIcon,
+  BookPlus,
+  Target,
+  FileQuestion,
+  Users,
+  CreditCard,
+  Ticket,
+  BellRing,
+  Send,
+  FileText,
+  Settings,
+  ShieldAlert,
+  Search,
+  Plus,
+  Trash2,
+  Edit,
+  CheckCircle2,
+  RotateCcw,
+  Download,
+  Printer,
+  Eye,
+  Lock,
+  Unlock,
+  Sliders,
+  Check,
+  ExternalLink,
+  Sparkles,
+  TrendingUp,
+  IndianRupee,
+  Layers,
+  AlertCircle,
+  Phone,
+  Mail,
+  MessageSquare,
+  Key,
+  Award,
+  ChevronRight,
+  Menu,
+  X as CloseIcon,
+  RefreshCw,
+  Clock,
+  CheckSquare
+} from 'lucide-react';
+import { 
+  TestSeries, 
+  Question, 
+  Announcement, 
+  Coupon, 
+  UserProfile, 
+  SiteBanner, 
+  PlatformSettings, 
+  OfflineNote, 
+  MockSetMetadata 
+} from '../types';
+
+type AdminModuleTab = 
+  | 'OVERVIEW'
+  | 'BANNERS'
+  | 'SERIES'
+  | 'MOCK_SETS'
+  | 'QUESTIONS'
+  | 'STUDENTS'
+  | 'ORDERS'
+  | 'COUPONS'
+  | 'ANNOUNCEMENTS'
+  | 'BROADCAST'
+  | 'NOTES'
+  | 'SETTINGS';
+
+export const AdminDashboardView: React.FC = () => {
+  const { 
+    orders, 
+    testSeries, 
+    questions, 
+    users, 
+    announcements, 
+    coupons, 
+    siteBanners,
+    platformSettings,
+    notes,
+    saveTestSeries, 
+    deleteTestSeries, 
+    toggleTestSeriesActive,
+    saveQuestion, 
+    deleteQuestion, 
+    saveAnnouncement, 
+    deleteAnnouncement, 
+    saveCoupon, 
+    deleteCoupon, 
+    saveSiteBanner,
+    deleteSiteBanner,
+    savePlatformSettings,
+    saveNote,
+    deleteNote,
+    refundOrder, 
+    toggleUserAccess, 
+    toggleUserRole,
+    resetStudentPassword,
+    grantStudentXp,
+    broadcastPushNotification, 
+    enrolledSeriesIds, 
+    lang, 
+    showToast,
+    navigate
+  } = useApp();
+
+  // Active Admin Navigation Tab (All buttons on LEFT side)
+  const [activeTab, setActiveTab] = useState<AdminModuleTab>('OVERVIEW');
+  const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
+
+  // Search States
+  const [searchOrders, setSearchOrders] = useState('');
+  const [searchStudents, setSearchStudents] = useState('');
+  const [searchQuestions, setSearchQuestions] = useState('');
+  const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('all');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
+
+  // Edit / Modal States
+  const [editingBanner, setEditingBanner] = useState<Partial<SiteBanner> | null>(null);
+  const [editingSeries, setEditingSeries] = useState<Partial<TestSeries> | null>(null);
+  const [editingQuestion, setEditingQuestion] = useState<Partial<Question> | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Partial<Announcement> | null>(null);
+  const [editingCoupon, setEditingCoupon] = useState<Partial<Coupon> | null>(null);
+  const [editingNote, setEditingNote] = useState<Partial<OfflineNote> | null>(null);
+  const [editingSettings, setEditingSettings] = useState<PlatformSettings>({ ...platformSettings });
+  
+  // Password Reset Modal
+  const [passwordModalUser, setPasswordModalUser] = useState<UserProfile | null>(null);
+  const [newPasswordVal, setNewPasswordVal] = useState('123456');
+
+  // Bonus XP Modal
+  const [xpModalUser, setXpModalUser] = useState<UserProfile | null>(null);
+  const [bonusXpVal, setBonusXpVal] = useState<number>(500);
+
+  // Push Broadcast
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+
+  // 1. Sales & Metric Calculations
+  const successfulOrders = orders.filter(o => o.status === 'SUCCESS');
+  const totalRevenue = successfulOrders.reduce((sum, o) => sum + o.finalAmount, 0);
+  const totalGstCollected = successfulOrders.reduce((sum, o) => sum + o.gstAmount, 0);
+  const totalDiscountsGiven = successfulOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
+  const refundCount = orders.filter(o => o.status === 'REFUNDED').length;
+  const aov = successfulOrders.length > 0 ? Math.round(totalRevenue / successfulOrders.length) : 0;
+
+  // Preset Thumbnail & Banner library for quick 1-click selection
+  const IMAGE_PRESETS = [
+    { name: 'म.प्र. पटवारी 2026 (Modern Tech)', url: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1200&auto=format&fit=crop&q=80' },
+    { name: 'MPPSC सिविल सेवा (Library Books)', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200&auto=format&fit=crop&q=80' },
+    { name: 'MP पुलिस सब-इंस्पेक्टर (Uniform Batch)', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&auto=format&fit=crop&q=80' },
+    { name: 'म.प्र. वनरक्षक / जेल प्रहरी (Forest Theme)', url: 'https://images.unsplash.com/photo-1516214104703-d870798883c5?w=1200&auto=format&fit=crop&q=80' },
+    { name: 'MP ESB व्यापम ग्रुप-4 (Classroom)', url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200&auto=format&fit=crop&q=80' },
+    { name: 'MP शिक्षक पात्रता परीक्षा TET (Books & Chalk)', url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&auto=format&fit=crop&q=80' },
+  ];
+
+  // Handler: Save Banner
+  const handleSaveBanner = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBanner?.titleHi || !editingBanner?.imageUrl) {
+      showToast('⚠️ कृपया बैनर का शीर्षक व इमेज URL दर्ज करें');
+      return;
+    }
+
+    const newBanner: SiteBanner = {
+      id: editingBanner.id || `ban_${Date.now()}`,
+      titleHi: editingBanner.titleHi || '',
+      titleEn: editingBanner.titleEn || editingBanner.titleHi,
+      subtitleHi: editingBanner.subtitleHi || '',
+      subtitleEn: editingBanner.subtitleEn || editingBanner.subtitleHi,
+      imageUrl: editingBanner.imageUrl || '',
+      badgeText: editingBanner.badgeText || '💥 विशेष घोषणा',
+      buttonTextHi: editingBanner.buttonTextHi || 'अभी देखें',
+      buttonTextEn: editingBanner.buttonTextEn || 'View Now',
+      targetView: editingBanner.targetView || 'catalog',
+      targetId: editingBanner.targetId || '',
+      isActive: editingBanner.isActive ?? true,
+      order: Number(editingBanner.order || (siteBanners.length + 1))
+    };
+
+    saveSiteBanner(newBanner);
+    setEditingBanner(null);
+  };
+
+  // Handler: Save Series (Including Thumbnail & Banner URL)
+  const handleSaveSeries = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSeries?.titleHi || !editingSeries?.price) {
+      showToast('⚠️ शीर्षक एवं मूल्य अनिवार्य हैं');
+      return;
+    }
+
+    const newSeries: TestSeries = {
+      id: editingSeries.id || `ts_custom_${Date.now()}`,
+      titleHi: editingSeries.titleHi || '',
+      titleEn: editingSeries.titleEn || editingSeries.titleHi,
+      category: editingSeries.category || 'patwari',
+      department: editingSeries.department || 'Govt of MP',
+      departmentHi: editingSeries.departmentHi || 'म.प्र. शासन',
+      price: Number(editingSeries.price),
+      originalPrice: Number(editingSeries.originalPrice || editingSeries.price * 2),
+      totalTests: Number(editingSeries.totalTests || 20),
+      durationMinutes: Number(editingSeries.durationMinutes || 180),
+      totalMarks: Number(editingSeries.totalMarks || 200),
+      totalQuestions: Number(editingSeries.totalQuestions || 200),
+      negativeMarking: Number(editingSeries.negativeMarking || 0),
+      isActive: editingSeries.isActive ?? true,
+      isFreeDemoAvailable: editingSeries.isFreeDemoAvailable ?? true,
+      freeTestsCount: Number(editingSeries.freeTestsCount || 1),
+      isFeatured: editingSeries.isFeatured ?? true,
+      rating: Number(editingSeries.rating || 4.9),
+      enrolledCount: Number(editingSeries.enrolledCount || 0),
+      pdfNotesCount: Number(editingSeries.pdfNotesCount || 15),
+      thumbnailUrl: editingSeries.thumbnailUrl || IMAGE_PRESETS[0].url,
+      bannerUrl: editingSeries.bannerUrl || IMAGE_PRESETS[0].url,
+      badgeTagHi: editingSeries.badgeTagHi || '🔥 म.प्र. नंबर-1 टेस्ट सीरीज़',
+      badgeTagEn: editingSeries.badgeTagEn || 'Top Choice',
+      descriptionHi: editingSeries.descriptionHi || 'मध्यप्रदेश शासन द्वारा आयोजित परीक्षा के 100% नवीनतम पाठ्यक्रम पर आधारित संपूर्ण टेस्ट सीरीज़।',
+      descriptionEn: editingSeries.descriptionEn || 'Full syllabus test series strictly aligned with latest commission exam standards.',
+      featuresHi: editingSeries.featuresHi || ['20 फुल मॉक सेट्स (200 Qs)', 'Google AI व्यक्तिगत व्याख्या', 'ऑल-एमपी लाइव मेरिट रैंक', 'हस्तलिखित ई-नोट्स PDF'],
+      featuresEn: editingSeries.featuresEn || ['20 Full Mock Sets', 'Google AI Analysis', 'All-MP Live Merit', 'Handwritten PDF Notes'],
+      syllabus: editingSeries.syllabus || [
+        { section: 'MP General Knowledge', sectionHi: 'म.प्र. सामान्य ज्ञान', questionsCount: 25, marks: 25 },
+        { section: 'General Hindi', sectionHi: 'सामान्य हिन्दी', questionsCount: 25, marks: 25 },
+        { section: 'General Mathematics', sectionHi: 'सामान्य गणित', questionsCount: 25, marks: 25 },
+        { section: 'General English', sectionHi: 'सामान्य अंग्रेजी', questionsCount: 25, marks: 25 },
+        { section: 'Computer Science', sectionHi: 'कंप्यूटर विज्ञान', questionsCount: 25, marks: 25 },
+        { section: 'General Management', sectionHi: 'सामान्य प्रबंधन', questionsCount: 25, marks: 25 },
+        { section: 'General Science', sectionHi: 'सामान्य विज्ञान', questionsCount: 25, marks: 25 },
+        { section: 'General Reasoning', sectionHi: 'सामान्य तार्किक योग्यता', questionsCount: 25, marks: 25 }
+      ]
+    };
+
+    saveTestSeries(newSeries);
+    setEditingSeries(null);
+  };
+
+  // Handler: Save Question
+  const handleSaveQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingQuestion?.questionHi || editingQuestion.correctOption === undefined) {
+      showToast('⚠️ प्रश्न का हिंदी पाठ एवं सही विकल्प चुनना अनिवार्य है');
+      return;
+    }
+
+    const optHi = editingQuestion.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
+    const optEn = editingQuestion.optionsEn || ['Option A', 'Option B', 'Option C', 'Option D'];
+
+    const newQ: Question = {
+      id: editingQuestion.id || `q_custom_${Date.now()}`,
+      seriesId: editingQuestion.seriesId || testSeries[0]?.id || 'ts_patwari_2026',
+      section: editingQuestion.section || 'General Studies',
+      subject: editingQuestion.subject || 'म.प्र. सामान्य ज्ञान',
+      topic: editingQuestion.topic || 'General Topic',
+      difficulty: editingQuestion.difficulty || 'medium',
+      questionHi: editingQuestion.questionHi || '',
+      questionEn: editingQuestion.questionEn || editingQuestion.questionHi,
+      imageUrl: editingQuestion.imageUrl ? editingQuestion.imageUrl.trim() : undefined,
+      imageCaption: editingQuestion.imageCaption ? editingQuestion.imageCaption.trim() : undefined,
+      options: optHi.map((text, i) => ({
+        id: `opt_${i}`,
+        textHi: text,
+        textEn: optEn[i] || text
+      })),
+      optionsHi: optHi,
+      optionsEn: optEn,
+      correctOptionIndex: Number(editingQuestion.correctOption),
+      correctOption: Number(editingQuestion.correctOption),
+      explanationHi: editingQuestion.explanationHi || 'विस्तृत व्याख्या उपलब्ध है।',
+      explanationEn: editingQuestion.explanationEn || 'Detailed solution available.',
+      marks: Number(editingQuestion.marks || 1),
+      negativeMarks: Number(editingQuestion.negativeMarks || 0)
+    };
+
+    saveQuestion(newQ);
+    setEditingQuestion(null);
+  };
+
+  // Handler: Save Announcement
+  const handleSaveAnnouncement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAnnouncement?.titleHi) return;
+
+    const newAnn: Announcement = {
+      id: editingAnnouncement.id || `ann_${Date.now()}`,
+      titleHi: editingAnnouncement.titleHi || '',
+      titleEn: editingAnnouncement.titleEn || editingAnnouncement.titleHi,
+      tag: editingAnnouncement.tag || 'VACANCY',
+      linkTextHi: editingAnnouncement.linkTextHi || 'अभी देखें',
+      linkTextEn: editingAnnouncement.linkTextEn || 'View Now',
+      isPinned: editingAnnouncement.isPinned ?? true,
+      publishedAt: new Date().toISOString()
+    };
+
+    saveAnnouncement(newAnn);
+    setEditingAnnouncement(null);
+  };
+
+  // Handler: Save Coupon
+  const handleSaveCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCoupon?.code || !editingCoupon?.discountValue) return;
+
+    const newC: Coupon = {
+      code: (editingCoupon.code || '').toUpperCase().trim(),
+      discountType: editingCoupon.discountType || 'flat',
+      discountValue: Number(editingCoupon.discountValue),
+      minAmount: Number(editingCoupon.minAmount || 199),
+      validTill: editingCoupon.validTill || '2026-12-31',
+      isActive: editingCoupon.isActive ?? true
+    };
+
+    saveCoupon(newC);
+    setEditingCoupon(null);
+  };
+
+  // Handler: Save Note / PDF
+  const handleSaveNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingNote?.titleHi) return;
+
+    const newNote: OfflineNote = {
+      id: editingNote.id || `note_${Date.now()}`,
+      titleHi: editingNote.titleHi || '',
+      titleEn: editingNote.titleEn || editingNote.titleHi,
+      category: editingNote.category || 'मध्यप्रदेश सामान्य ज्ञान',
+      fileSize: editingNote.fileSize || '3.5 MB',
+      pages: Number(editingNote.pages || 24),
+      downloadCount: Number(editingNote.downloadCount || 120),
+      summaryHi: editingNote.summaryHi || 'एमपी परीक्षा हेतु महत्वपूर्ण हस्तलिखित नोट्स।',
+      summaryEn: editingNote.summaryEn || 'Handwritten study material for MP exams.',
+      sampleContentHi: editingNote.sampleContentHi || 'महत्वपूर्ण तथ्य, नदियाँ, जलप्रपात, खनिज व इतिहास।'
+    };
+
+    saveNote(newNote);
+    setEditingNote(null);
+  };
+
+  // Broadcast push message
+  const handleBroadcast = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle || !broadcastMsg) return;
+    broadcastPushNotification(broadcastTitle, broadcastMsg);
+    setBroadcastTitle('');
+    setBroadcastMsg('');
+  };
+
+  // Export Sales CSV
+  const handleExportCsv = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + ["Order ID,Payment ID,Candidate,Email,Phone,Series,Amount,Discount,Final,Status,Date"]
+      .concat(orders.map(o => `${o.orderId},${o.razorpayPaymentId},${o.userName},${o.userEmail},${o.userPhone},"${o.seriesTitle}",${o.amount},${o.discount},${o.finalAmount},${o.status},${o.createdAt}`))
+      .join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `MP_Pariksha_Setu_Sales_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('📊 सेल्स रिपोर्ट CSV डाउनलोड हो गई।');
+  };
+
+  // Navigation Items for the LEFT SIDEBAR
+  const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
+    { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
+    { id: 'BANNERS', label: 'बैनर व थंबनेल प्रबंधक', subLabel: 'Hero Banners & Posters', icon: ImageIcon, count: siteBanners.length, badgeColor: 'bg-indigo-600' },
+    { id: 'SERIES', label: 'टेस्ट सीरीज़ व पैकेज', subLabel: 'Packages & Pricing', icon: BookPlus, count: testSeries.length, badgeColor: 'bg-[#7A2A1E]' },
+    { id: 'MOCK_SETS', label: '20 मॉक सेट्स CMS', subLabel: 'Sets 1-20 Controller', icon: Target, count: 20, badgeColor: 'bg-emerald-700' },
+    { id: 'QUESTIONS', label: 'प्रश्न बैंक CMS', subLabel: 'Questions & Solutions', icon: FileQuestion, count: questions.length, badgeColor: 'bg-amber-600' },
+    { id: 'STUDENTS', label: 'छात्र व एक्सेस नियंत्रण', subLabel: 'Students & Role Access', icon: Users, count: users.length, badgeColor: 'bg-blue-600' },
+    { id: 'ORDERS', label: 'रेज़रपे ऑर्डर्स व लेन-देन', subLabel: 'Transactions & Refunds', icon: CreditCard, count: orders.length, badgeColor: 'bg-teal-600' },
+    { id: 'COUPONS', label: 'कूपन व डिस्काउंट कोड्स', subLabel: 'Promo Codes & Offers', icon: Ticket, count: coupons.length, badgeColor: 'bg-purple-600' },
+    { id: 'ANNOUNCEMENTS', label: 'भर्ती टिकर व सूचनाएँ', subLabel: 'News & Vacancy Alerts', icon: BellRing, count: announcements.length, badgeColor: 'bg-rose-600' },
+    { id: 'BROADCAST', label: 'लाइव पुश ब्रॉडकास्ट', subLabel: 'Instant Student Alerts', icon: Send },
+    { id: 'NOTES', label: 'ई-नोट्स व पीडीएफ CMS', subLabel: 'Handwritten PDF Material', icon: FileText, count: notes.length, badgeColor: 'bg-cyan-700' },
+    { id: 'SETTINGS', label: 'प्लेटफ़ॉर्म सेटिंग्स', subLabel: 'Site Branding & Gateway', icon: Settings },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] dark:bg-stone-950 text-[#2D2424] dark:text-stone-100">
+      
+      {/* Mobile Top Bar to toggle Sidebar */}
+      <div className="lg:hidden flex items-center justify-between p-4 bg-[#7A2A1E] text-white border-b-2 border-[#D4A017] sticky top-0 z-30">
+        <div className="flex items-center gap-2.5">
+          <ShieldAlert className="w-5 h-5 text-[#D4A017]" />
+          <span className="font-black text-sm tracking-wide">सुपर एडमिन कंसोल</span>
+        </div>
+        <button
+          onClick={() => setIsSidebarMobileOpen(!isSidebarMobileOpen)}
+          className="p-2 rounded-xl bg-[#5E1F16] border border-[#D4A017]/50 text-[#D4A017] hover:bg-[#963E2F]"
+        >
+          {isSidebarMobileOpen ? <CloseIcon className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Main Container with LEFT SIDEBAR & RIGHT CONTENT */}
+      <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 flex flex-col lg:flex-row gap-6">
+        
+        {/* ========================================================= */}
+        {/* LEFT SIDEBAR: ALL ADMIN BUTTONS & MODULES DOCKED HERE */}
+        {/* ========================================================= */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-stone-900 border-r-2 lg:border-2 border-[#EAD8B1] dark:border-stone-800 lg:rounded-3xl p-4 lg:p-5 shadow-2xl lg:shadow-md flex flex-col justify-between transition-transform duration-300
+          lg:static lg:w-80 lg:translate-x-0 lg:h-fit lg:sticky lg:top-6
+          ${isSidebarMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
+          <div className="space-y-4">
+            
+            {/* Admin Profile & Root Header */}
+            <div className="p-4 rounded-2xl bg-[#7A2A1E] text-white border-2 border-[#D4A017] border-b-4 shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#D4A017] flex items-center justify-center text-black font-black shadow">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-black text-sm text-white leading-tight">सुपर एडमिनिस्ट्रेटर</h2>
+                    <span className="text-[10px] text-[#EAD8B1] font-mono font-bold tracking-wide">
+                      ALL MP ROOTS ACCESS
+                    </span>
+                  </div>
+                </div>
+                {/* Mobile close button */}
+                <button
+                  onClick={() => setIsSidebarMobileOpen(false)}
+                  className="lg:hidden p-1.5 text-stone-300 hover:text-white"
+                >
+                  <CloseIcon className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-white/20 flex items-center justify-between text-[11px]">
+                <span className="text-[#EAD8B1]">कुल बिक्री राजस्व:</span>
+                <span className="font-mono font-black text-emerald-300">₹{totalRevenue.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Navigation Header */}
+            <div className="px-2 flex items-center justify-between text-[11px] font-black uppercase tracking-wider text-stone-500 dark:text-stone-400">
+              <span>प्रबंधन मॉड्यूल (Left Menu)</span>
+              <span className="text-[10px] font-mono text-[#7A2A1E] dark:text-[#D4A017]">{SIDEBAR_NAV_ITEMS.length} टूल्स</span>
+            </div>
+
+            {/* Sidebar Buttons List */}
+            <nav className="space-y-1.5 max-h-[calc(100vh-280px)] lg:max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+              {SIDEBAR_NAV_ITEMS.map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsSidebarMobileOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border-2 ${
+                      isActive 
+                        ? 'bg-[#7A2A1E] text-white border-[#D4A017] border-b-4 border-r-4 shadow-md translate-x-1' 
+                        : 'bg-[#FDFBF7] dark:bg-stone-800/60 border-[#EAD8B1] dark:border-stone-800 text-[#2D2424] dark:text-stone-200 hover:border-[#7A2A1E] dark:hover:border-[#D4A017] hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`p-2 rounded-xl shrink-0 ${
+                        isActive 
+                          ? 'bg-[#D4A017] text-black shadow-xs' 
+                          : 'bg-white dark:bg-stone-700 text-[#7A2A1E] dark:text-[#D4A017] border border-[#EAD8B1] dark:border-stone-600'
+                      }`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="truncate">
+                        <div className="text-xs font-black leading-snug truncate">{item.label}</div>
+                        <div className={`text-[10px] truncate ${isActive ? 'text-[#EAD8B1]' : 'text-stone-400'}`}>
+                          {item.subLabel}
+                        </div>
+                      </div>
+                    </div>
+
+                    {item.count !== undefined && (
+                      <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full shrink-0 ml-2 ${
+                        isActive ? 'bg-[#D4A017] text-black' : (item.badgeColor || 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200')
+                      }`}>
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Quick Actions at Bottom of Sidebar */}
+          <div className="pt-4 border-t border-[#EAD8B1] dark:border-stone-800 space-y-2">
+            <button
+              onClick={handleExportCsv}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black shadow-xs border border-emerald-500"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>सेल्स रिपोर्ट CSV डाउनलोड</span>
+            </button>
+            <button
+              onClick={() => navigate('cbtExam', { seriesId: 'ts_patwari_2026', setNumber: 1 })}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:text-black dark:hover:text-white text-[11px] font-bold"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>छात्र CBT टेस्ट पोर्टल खोलें</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ========================================================= */}
+        {/* RIGHT MAIN CONTENT AREA: DYNAMICALLY SWITCHED BY LEFT TABS */}
+        {/* ========================================================= */}
+        <main className="flex-1 min-w-0 space-y-6">
+
+          {/* Top Banner Header */}
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#7A2A1E]/10 dark:bg-[#D4A017]/20 text-[#7A2A1E] dark:text-[#D4A017] text-[11px] font-black uppercase tracking-wider">
+                  सक्रिय मॉड्यूल: {SIDEBAR_NAV_ITEMS.find(i => i.id === activeTab)?.label}
+                </span>
+                <span className="text-xs text-stone-400">•</span>
+                <span className="text-xs font-mono text-stone-500">Live Database Synced</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-[#2D2424] dark:text-white mt-1">
+                {activeTab === 'OVERVIEW' && '📊 समग्र विश्लेषण व राजस्व मेट्रिक्स'}
+                {activeTab === 'BANNERS' && '🖼️ होमपेज बैनर, पोस्टर्स व थंबनेल प्रबंधक (CMS)'}
+                {activeTab === 'SERIES' && '📚 टेस्ट सीरीज़, पैकेज व पाठ्यक्रम नियंत्रण'}
+                {activeTab === 'MOCK_SETS' && '🎯 20 फुल मॉक सेट्स प्रबंधक (Set 1–20)'}
+                {activeTab === 'QUESTIONS' && '📝 प्रश्न बैंक CMS (द्विभाषी प्रश्न व व्याख्या)'}
+                {activeTab === 'STUDENTS' && '👥 छात्र विवरण, रोल स्विच व एक्सेस नियंत्रण'}
+                {activeTab === 'ORDERS' && '💳 रेज़रपे ऑर्डर्स, जीएसटी व रिफंड प्रबंधन'}
+                {activeTab === 'COUPONS' && '🏷️ डिस्काउंट कूपन्स व प्रोमो कोड्स'}
+                {activeTab === 'ANNOUNCEMENTS' && '📢 भर्ती अधिसूचनाएँ व फ्लैश टिकर'}
+                {activeTab === 'BROADCAST' && '🔔 समस्त छात्रों को लाइव पुश नोटिफिकेशन'}
+                {activeTab === 'NOTES' && '📄 हस्तलिखित नोट्स व पीडीएफ सामग्री CMS'}
+                {activeTab === 'SETTINGS' && '⚙️ प्लेटफ़ॉर्म सेटिंग्स, हेल्पडेस्क व पेमेंट गेटवे'}
+              </h2>
+            </div>
+
+            {/* Quick Action Button for current tab */}
+            <div className="flex items-center gap-2">
+              {activeTab === 'BANNERS' && (
+                <button
+                  onClick={() => setEditingBanner({
+                    titleHi: '',
+                    titleEn: '',
+                    subtitleHi: '',
+                    subtitleEn: '',
+                    imageUrl: IMAGE_PRESETS[0].url,
+                    badgeText: '🔥 विशेष ऑफर',
+                    buttonTextHi: 'अभी देखें',
+                    buttonTextEn: 'View Now',
+                    targetView: 'cbtExam',
+                    targetId: 'ts_patwari_2026',
+                    isActive: true,
+                    order: siteBanners.length + 1
+                  })}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>नया बैनर जोड़ें</span>
+                </button>
+              )}
+
+              {activeTab === 'SERIES' && (
+                <button
+                  onClick={() => setEditingSeries({
+                    titleHi: '',
+                    titleEn: '',
+                    category: 'patwari',
+                    price: 199,
+                    originalPrice: 499,
+                    totalTests: 20,
+                    thumbnailUrl: IMAGE_PRESETS[0].url,
+                    bannerUrl: IMAGE_PRESETS[0].url,
+                    isFreeDemoAvailable: true,
+                    freeTestsCount: 1
+                  })}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>नई टेस्ट सीरीज़ बनाएँ</span>
+                </button>
+              )}
+
+              {activeTab === 'QUESTIONS' && (
+                <button
+                  onClick={() => setEditingQuestion({
+                    seriesId: testSeries[0]?.id || 'ts_patwari_2026',
+                    section: 'MP General Knowledge',
+                    subject: 'म.प्र. सामान्य ज्ञान',
+                    topic: 'मध्यप्रदेश इतिहास व भूगोल',
+                    questionHi: '',
+                    questionEn: '',
+                    optionsHi: ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'],
+                    optionsEn: ['Option A', 'Option B', 'Option C', 'Option D'],
+                    correctOption: 0,
+                    explanationHi: '',
+                    marks: 1,
+                    negativeMarks: 0
+                  })}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>नया प्रश्न जोड़ें</span>
+                </button>
+              )}
+
+              {activeTab === 'COUPONS' && (
+                <button
+                  onClick={() => setEditingCoupon({
+                    code: 'MP2026',
+                    discountType: 'flat',
+                    discountValue: 50,
+                    minAmount: 199,
+                    validTill: '2026-12-31',
+                    isActive: true
+                  })}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>नया कूपन कोड बनाएँ</span>
+                </button>
+              )}
+
+              {activeTab === 'ANNOUNCEMENTS' && (
+                <button
+                  onClick={() => setEditingAnnouncement({
+                    titleHi: '',
+                    titleEn: '',
+                    tag: 'VACANCY',
+                    linkTextHi: 'आधिकारिक सूचना देखें',
+                    linkTextEn: 'View Notification',
+                    isPinned: true
+                  })}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>नई भर्ती सूचना जोड़ें</span>
+                </button>
+              )}
+
+              {activeTab === 'NOTES' && (
+                <button
+                  onClick={() => setEditingNote({
+                    titleHi: '',
+                    titleEn: '',
+                    category: 'मध्यप्रदेश सामान्य ज्ञान',
+                    fileSize: '4.2 MB',
+                    pages: 32,
+                    summaryHi: '',
+                    sampleContentHi: ''
+                  })}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>नया ई-नोट / PDF जोड़ें</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* TAB 1: OVERVIEW & GMV ANALYTICS */}
+          {/* ========================================================= */}
+          {activeTab === 'OVERVIEW' && (
+            <div className="space-y-6">
+              {/* Metric Cards Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 border-b-4 border-r-4 border-[#7A2A1E] rounded-2xl shadow-sm">
+                  <span className="text-[11px] uppercase font-black tracking-wider text-stone-500">सकल बिक्री (Gross GMV)</span>
+                  <div className="font-mono font-black text-3xl text-emerald-700 dark:text-emerald-400 mt-1">
+                    ₹{totalRevenue.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] text-stone-500 mt-1 font-bold">{successfulOrders.length} सफल भुगतान</div>
+                </div>
+
+                <div className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 border-b-4 border-r-4 border-indigo-700 rounded-2xl shadow-sm">
+                  <span className="text-[11px] uppercase font-black tracking-wider text-stone-500">कुल पंजीकृत छात्र</span>
+                  <div className="font-mono font-black text-3xl text-indigo-700 dark:text-indigo-400 mt-1">
+                    {users.length}
+                  </div>
+                  <div className="text-[11px] text-stone-500 mt-1 font-bold">55 म.प्र. जिलों से सक्रिय</div>
+                </div>
+
+                <div className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 border-b-4 border-r-4 border-amber-600 rounded-2xl shadow-sm">
+                  <span className="text-[11px] uppercase font-black tracking-wider text-stone-500">प्रश्न बैंक क्षमता</span>
+                  <div className="font-mono font-black text-3xl text-amber-600 dark:text-amber-400 mt-1">
+                    {questions.length}+
+                  </div>
+                  <div className="text-[11px] text-stone-500 mt-1 font-bold">8 विषयों में द्विभाषी हल</div>
+                </div>
+
+                <div className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 border-b-4 border-r-4 border-teal-700 rounded-2xl shadow-sm">
+                  <span className="text-[11px] uppercase font-black tracking-wider text-stone-500">औसत ऑर्डर मूल्य (AOV)</span>
+                  <div className="font-mono font-black text-3xl text-teal-700 dark:text-teal-400 mt-1">
+                    ₹{aov}
+                  </div>
+                  <div className="text-[11px] text-stone-500 mt-1 font-bold">₹{totalDiscountsGiven} कूपन छूट दी गई</div>
+                </div>
+              </div>
+
+              {/* Quick Jump Modules */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <h3 className="text-base font-black text-[#2D2424] dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#D4A017]" />
+                  <span>त्वरित नियंत्रण केंद्र (Quick Access Hub)</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => setActiveTab('BANNERS')}
+                    className="p-4 rounded-2xl bg-[#FDFBF7] dark:bg-stone-800/80 border-2 border-[#EAD8B1] hover:border-[#7A2A1E] text-left transition group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <ImageIcon className="w-6 h-6 text-indigo-600" />
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:translate-x-1 transition" />
+                    </div>
+                    <div className="font-black text-sm mt-2">बैनर व थंबनेल बदलें</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">होमपेज कैरोसेल व पैकेज पोस्टर्स CMS</div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('MOCK_SETS')}
+                    className="p-4 rounded-2xl bg-[#FDFBF7] dark:bg-stone-800/80 border-2 border-[#EAD8B1] hover:border-[#7A2A1E] text-left transition group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Target className="w-6 h-6 text-emerald-600" />
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:translate-x-1 transition" />
+                    </div>
+                    <div className="font-black text-sm mt-2">20 मॉक सेट्स मैनेज करें</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">Set #1 डेमो व Set #2-20 लॉकिंग</div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('STUDENTS')}
+                    className="p-4 rounded-2xl bg-[#FDFBF7] dark:bg-stone-800/80 border-2 border-[#EAD8B1] hover:border-[#7A2A1E] text-left transition group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Users className="w-6 h-6 text-blue-600" />
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:translate-x-1 transition" />
+                    </div>
+                    <div className="font-black text-sm mt-2">छात्र एक्सेस व रोल बदलें</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">1-क्लिक टेस्ट अनलॉक व पासवर्ड रीसेट</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent Orders Overview */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-black text-base">हाल के सफल रेज़रपे ट्रांजेक्शन (Recent Purchases)</h3>
+                  <button
+                    onClick={() => setActiveTab('ORDERS')}
+                    className="text-xs font-black text-[#7A2A1E] dark:text-[#D4A017] hover:underline"
+                  >
+                    सभी {orders.length} ऑर्डर देखें →
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-stone-200 dark:border-stone-800 text-stone-500 uppercase text-[10px] font-black">
+                        <th className="py-2.5 px-3">ऑर्डर ID</th>
+                        <th className="py-2.5 px-3">परीक्षार्थी</th>
+                        <th className="py-2.5 px-3">टेस्ट सीरीज़</th>
+                        <th className="py-2.5 px-3">राशि</th>
+                        <th className="py-2.5 px-3">स्थिति</th>
+                        <th className="py-2.5 px-3">दिनांक</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
+                      {orders.slice(0, 5).map(o => (
+                        <tr key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40">
+                          <td className="py-2.5 px-3 font-mono font-bold text-[#7A2A1E] dark:text-[#D4A017]">{o.orderId}</td>
+                          <td className="py-2.5 px-3 font-bold">{o.userName} ({o.userPhone})</td>
+                          <td className="py-2.5 px-3">{o.seriesTitle}</td>
+                          <td className="py-2.5 px-3 font-mono font-black text-emerald-600">₹{o.finalAmount}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                              o.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            }`}>
+                              {o.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-stone-400 font-mono text-[11px]">
+                            {new Date(o.createdAt).toLocaleDateString('hi-IN')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 2: BANNERS & THUMBNAILS CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'BANNERS' && (
+            <div className="space-y-6">
+              
+              {/* Info & Preset Selector */}
+              <div className="p-5 bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-200 dark:border-indigo-800 rounded-3xl space-y-3">
+                <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-300 font-black text-sm">
+                  <ImageIcon className="w-5 h-5 text-indigo-600" />
+                  <span>होमपेज बैनर एवं टेस्ट पैकेज थंबनेल नियंत्रण (Visual Asset Management)</span>
+                </div>
+                <p className="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                  यहाँ से आप वेबसाइट के होमपेज पर चलने वाले **स्लाइडर बैनर्स**, **प्रमोशनल पोस्टर्स**, और प्रत्येक टेस्ट सीरीज़ के **थंबनेल इमेज** को सीधे जोड़, हटा या अपडेट कर सकते हैं। आप कोई भी कस्टम Image URL पेस्ट कर सकते हैं अथवा नीचे दिए गए आधिकारिक MP प्रीसेट्स में से चुन सकते हैं।
+                </p>
+                
+                {/* Image Presets Chips */}
+                <div className="pt-2">
+                  <span className="text-[11px] font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wider">
+                    त्वरित प्रीसेट इमेजेस (1-Click Presets):
+                  </span>
+                  <div className="flex flex-wrap gap-2 mt-1.5">
+                    {IMAGE_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          navigator.clipboard?.writeText(preset.url);
+                          showToast(`✅ URL कॉपी किया: ${preset.name}`);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-indigo-300 dark:border-indigo-700 text-xs font-bold text-indigo-900 dark:text-indigo-200 hover:bg-indigo-600 hover:text-white transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <span>{preset.name}</span>
+                        <span className="text-[10px] opacity-60">(Copy URL)</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Existing Banners Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {siteBanners.map(banner => (
+                  <div 
+                    key={banner.id}
+                    className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl overflow-hidden shadow-md flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Banner Image Preview */}
+                      <div className="relative h-44 w-full bg-stone-200 dark:bg-stone-800 overflow-hidden">
+                        <img 
+                          src={banner.imageUrl} 
+                          alt={banner.titleHi}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        
+                        {/* Badges on top */}
+                        <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                          <span className="bg-[#D4A017] text-black text-[10px] font-black px-2.5 py-1 rounded-full shadow">
+                            {banner.badgeText || '💥 बैनर'}
+                          </span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                            banner.isActive ? 'bg-emerald-600 text-white' : 'bg-stone-600 text-white'
+                          }`}>
+                            {banner.isActive ? 'सक्रिय (Active)' : 'निष्क्रिय (Hidden)'}
+                          </span>
+                        </div>
+
+                        <div className="absolute bottom-3 left-3 right-3 text-white">
+                          <h4 className="font-black text-sm line-clamp-1">{banner.titleHi}</h4>
+                          <p className="text-[11px] text-stone-300 line-clamp-1">{banner.subtitleHi}</p>
+                        </div>
+                      </div>
+
+                      {/* Banner Details */}
+                      <div className="p-4 space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-stone-500 font-mono text-[11px]">
+                          <span>क्रम संख्या (Order): #{banner.order}</span>
+                          <span>टारगेट: {banner.targetView}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-stone-50 dark:bg-stone-800 font-mono text-[10px] text-stone-600 dark:text-stone-400 truncate">
+                          URL: {banner.imageUrl}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="p-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                      <button
+                        onClick={() => setEditingBanner({ ...banner })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>संपादित करें</span>
+                      </button>
+                      <button
+                        onClick={() => deleteSiteBanner(banner.id)}
+                        className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100"
+                        title="हटाएँ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 3: TEST SERIES PACKAGES CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'SERIES' && (
+            <div className="space-y-6">
+              <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 border-2 border-[#D4A017] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <div className="font-black text-amber-950 dark:text-amber-300 flex items-center gap-1.5 text-sm">
+                    <Sparkles className="w-4 h-4 text-[#7A2A1E] dark:text-[#D4A017]" />
+                    <span>होमपेज परीक्षा विजिबिलिटी नियंत्रक (Active / Inactive Controller)</span>
+                  </div>
+                  <p className="text-stone-600 dark:text-stone-400">
+                    जिस परीक्षा को आप <strong>सक्रिय (Active)</strong> करेंगे, वही वेबसाइट के होमपेज व कैटलॉग पर छात्रों को दिखेगी और वे उसे खरीद सकेंगे। <strong>निष्क्रिय (Inactive)</strong> करने पर वह तुरंत छिप जाएगी।
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {testSeries.map(series => {
+                  const isLive = series.isActive !== false;
+                  return (
+                    <div 
+                      key={series.id}
+                      className={`bg-white dark:bg-stone-900 border-2 rounded-3xl overflow-hidden shadow-md flex flex-col justify-between transition-all ${
+                        isLive 
+                          ? 'border-[#EAD8B1] dark:border-stone-800' 
+                          : 'border-rose-300 dark:border-rose-900/60 opacity-85'
+                      }`}
+                    >
+                      <div>
+                        {/* Package Cover Thumbnail */}
+                        <div className="relative h-44 w-full bg-stone-200 dark:bg-stone-800 overflow-hidden">
+                          <img 
+                            src={series.thumbnailUrl || IMAGE_PRESETS[0].url} 
+                            alt={series.titleHi}
+                            className={`w-full h-full object-cover ${!isLive ? 'grayscale-40' : ''}`}
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                          
+                          <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                            <span className="bg-[#7A2A1E] text-[#D4A017] text-[10px] font-black px-2.5 py-1 rounded-full border border-[#D4A017]/40 shadow">
+                              {series.departmentHi}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {isLive ? (
+                                <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> सक्रिय (LIVE)
+                                </span>
+                              ) : (
+                                <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow flex items-center gap-1">
+                                  <Lock className="w-3 h-3" /> छिपा हुआ (INACTIVE)
+                                </span>
+                              )}
+                              <span className="bg-[#D4A017] text-black text-[10px] font-black px-2 py-0.5 rounded shadow">
+                                ₹{series.price}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="absolute bottom-3 left-3 right-3 text-white">
+                            <h4 className="font-black text-sm line-clamp-1">{series.titleHi}</h4>
+                            <p className="text-[11px] text-stone-300 font-mono">
+                              {series.totalTests} टेस्ट • {series.totalQuestions} Qs • {series.durationMinutes} मिनट
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Series Content info */}
+                        <div className="p-4 space-y-2.5 text-xs">
+                          {/* Active / Inactive Status Bar */}
+                          <div className={`p-2.5 rounded-xl border flex items-center justify-between ${
+                            isLive 
+                              ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' 
+                              : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'
+                          }`}>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-2.5 h-2.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                              <span className={`font-black text-[11px] ${isLive ? 'text-emerald-800 dark:text-emerald-300' : 'text-rose-800 dark:text-rose-300'}`}>
+                                {isLive ? 'छात्र होमपेज पर देख व खरीद सकते हैं' : 'होमपेज से छिपा हुआ (खरीद बंद)'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => toggleTestSeriesActive(series.id)}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition ${
+                                isLive
+                                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              }`}
+                            >
+                              {isLive ? 'निष्क्रिय करें' : 'सक्रिय करें'}
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between text-stone-500 font-medium pt-1">
+                            <span>डेमो टेस्ट:</span>
+                            <span className="font-bold text-emerald-600">
+                              {series.isFreeDemoAvailable ? `हाँ (${series.freeTestsCount || 1} मुफ़्त)` : 'नहीं'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-stone-500 font-medium">
+                            <span>अनुभाग (Sections):</span>
+                            <span className="font-bold">{series.syllabus.length} विषय</span>
+                          </div>
+                          <div className="flex items-center justify-between text-stone-500 font-medium">
+                            <span>ई-नोट्स PDF:</span>
+                            <span className="font-bold">{series.pdfNotesCount || 10} फाइल्स</span>
+                          </div>
+                          <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-2 pt-1 border-t border-stone-100 dark:border-stone-800">
+                            {series.descriptionHi}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="p-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => setEditingSeries({ ...series })}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
+                        >
+                          <Edit className="w-3.5 h-3.5 text-[#7A2A1E] dark:text-[#D4A017]" />
+                          <span>संपादित करें / थंबनेल</span>
+                        </button>
+                        <button
+                          onClick={() => deleteTestSeries(series.id)}
+                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100"
+                          title="हटाएँ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 4: 20 MOCK SETS MANAGEMENT */}
+          {/* ========================================================= */}
+          {activeTab === 'MOCK_SETS' && (
+            <div className="space-y-6">
+              <div className="p-5 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-800 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-black text-sm">
+                    <Target className="w-5 h-5 text-emerald-600" />
+                    <span>म.प्र. पटवारी 2026 — 20 फुल मॉक सेट्स नियंत्रक (20 Mock Sets Engine)</span>
+                  </div>
+                  <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                    प्रत्येक सेट में 200 प्रश्न (8 विषय) व 180 मिनट का वास्तविक CBT सिमुलेटर शामिल है। सेट #1 पूर्णतः मुफ़्त डेमो है, और सेट #2 से #20 नामांकित छात्रों हेतु सुरक्षित हैं।
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('cbtExam', { seriesId: 'ts_patwari_2026', setNumber: 1 })}
+                  className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black shrink-0"
+                >
+                  छात्र सेट चयन स्क्रीन देखें →
+                </button>
+              </div>
+
+              {/* 20 Sets Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                {Array.from({ length: 20 }, (_, idx) => {
+                  const setNum = idx + 1;
+                  const isDemo = setNum === 1;
+
+                  return (
+                    <div 
+                      key={setNum}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                        isDemo 
+                          ? 'bg-amber-50/80 dark:bg-amber-950/30 border-[#D4A017] shadow-sm' 
+                          : 'bg-white dark:bg-stone-900 border-[#EAD8B1] dark:border-stone-800 shadow-xs'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-mono font-black px-2 py-0.5 rounded ${
+                            isDemo ? 'bg-[#D4A017] text-black' : 'bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300'
+                          }`}>
+                            SET #{setNum}
+                          </span>
+                          {isDemo ? (
+                            <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400">🎁 DEMO</span>
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-stone-400" />
+                          )}
+                        </div>
+
+                        <div className="font-black text-sm mt-2 text-[#2D2424] dark:text-white">
+                          मॉक टेस्ट #{setNum}
+                        </div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">200 प्रश्न • 200 अंक</div>
+                        <div className="text-[10px] text-stone-400 font-mono mt-0.5">समय: 180 मिनट</div>
+                      </div>
+
+                      <div className="mt-4 pt-2.5 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5">
+                        <button
+                          onClick={() => navigate('cbtExam', { seriesId: 'ts_patwari_2026', setNumber: setNum })}
+                          className="flex-1 py-1.5 rounded-lg bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] text-[10px] font-black text-center"
+                        >
+                          टेस्ट लॉन्च करें
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 5: QUESTION BANK CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'QUESTIONS' && (
+            <div className="space-y-6">
+              
+              {/* Search & Filter Bar */}
+              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                  <input 
+                    type="text"
+                    placeholder="प्रश्न पाठ, विषय या टॉपिक खोजें..."
+                    value={searchQuestions}
+                    onChange={(e) => setSearchQuestions(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none focus:border-[#7A2A1E]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={selectedSubjectFilter}
+                    onChange={(e) => setSelectedSubjectFilter(e.target.value)}
+                    className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold"
+                  >
+                    <option value="all">सभी विषय ({questions.length})</option>
+                    <option value="म.प्र. सामान्य ज्ञान">म.प्र. सामान्य ज्ञान</option>
+                    <option value="सामान्य हिन्दी">सामान्य हिन्दी</option>
+                    <option value="सामान्य गणित">सामान्य गणित</option>
+                    <option value="कंप्यूटर विज्ञान">कंप्यूटर विज्ञान</option>
+                    <option value="सामान्य प्रबंधन">सामान्य प्रबंधन</option>
+                    <option value="सामान्य विज्ञान">सामान्य विज्ञान</option>
+                    <option value="सामान्य तार्किक योग्यता">तार्किक योग्यता</option>
+                    <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Questions List */}
+              <div className="space-y-4">
+                {questions
+                  .filter(q => {
+                    const matchesSearch = !searchQuestions || 
+                      q.questionHi.toLowerCase().includes(searchQuestions.toLowerCase()) ||
+                      (q.subject && q.subject.toLowerCase().includes(searchQuestions.toLowerCase()));
+                    const matchesSubject = selectedSubjectFilter === 'all' || q.subject === selectedSubjectFilter;
+                    return matchesSearch && matchesSubject;
+                  })
+                  .slice(0, 40)
+                  .map((q, idx) => (
+                    <div 
+                      key={q.id}
+                      className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-[#7A2A1E] text-[#D4A017] text-[10px] font-mono font-black px-2 py-0.5 rounded">
+                            Q#{idx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-stone-500">
+                            {q.subject || q.section} • {q.topic}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingQuestion({ ...q })}
+                            className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300"
+                            title="संपादित करें"
+                          >
+                            <Edit className="w-4 h-4 text-[#7A2A1E]" />
+                          </button>
+                          <button
+                            onClick={() => deleteQuestion(q.id)}
+                            className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 hover:bg-rose-100"
+                            title="हटाएँ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Question Text */}
+                      <p className="font-bold text-sm text-[#2D2424] dark:text-stone-100 leading-relaxed">
+                        {q.questionHi}
+                      </p>
+
+                      {/* Diagram Image if any */}
+                      {q.imageUrl && (
+                        <div className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl max-w-sm">
+                          <img src={q.imageUrl} alt="Question diagram" className="rounded-lg max-h-36 object-contain" />
+                        </div>
+                      )}
+
+                      {/* Options Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
+                        {(q.optionsHi || q.options?.map(o => o.textHi) || []).map((optText, oIdx) => {
+                          const isCorrect = (q.correctOption ?? q.correctOptionIndex) === oIdx;
+                          return (
+                            <div 
+                              key={oIdx}
+                              className={`p-2.5 rounded-xl border flex items-center gap-2 ${
+                                isCorrect 
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-900 dark:text-emerald-200' 
+                                  : 'bg-stone-50 dark:bg-stone-800/40 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300'
+                              }`}
+                            >
+                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                isCorrect ? 'bg-emerald-600 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600'
+                              }`}>
+                                {String.fromCharCode(65 + oIdx)}
+                              </span>
+                              <span className="truncate">{optText}</span>
+                              {isCorrect && <Check className="w-3.5 h-3.5 text-emerald-600 ml-auto" />}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Explanation */}
+                      {q.explanationHi && (
+                        <div className="p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl text-[11px] text-amber-950 dark:text-amber-200">
+                          <span className="font-black text-[#7A2A1E] dark:text-[#D4A017]">व्याख्या: </span>
+                          {q.explanationHi}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 6: STUDENTS & ACCESS CONTROL */}
+          {/* ========================================================= */}
+          {activeTab === 'STUDENTS' && (
+            <div className="space-y-6">
+              {/* Search Bar */}
+              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex items-center justify-between">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                  <input 
+                    type="text"
+                    placeholder="छात्र का नाम, जिला, मोबाइल नंबर या ईमेल खोजें..."
+                    value={searchStudents}
+                    onChange={(e) => setSearchStudents(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Students Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {users
+                  .filter(u => !searchStudents || 
+                    u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                    u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                    u.email.toLowerCase().includes(searchStudents.toLowerCase())
+                  )
+                  .map(user => {
+                    const isAdmin = user.role === 'admin';
+                    const enrolledCount = (enrolledSeriesIds || []).length;
+
+                    return (
+                      <div 
+                        key={user.id}
+                        className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col justify-between space-y-4"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black text-sm shadow">
+                                {user.name.charAt(0)}
+                              </div>
+                              <div>
+                                <h4 className="font-black text-sm text-[#2D2424] dark:text-white flex items-center gap-1.5">
+                                  <span>{user.name}</span>
+                                  {isAdmin && (
+                                    <span className="px-2 py-0.5 rounded bg-[#D4A017] text-black text-[10px] font-black font-mono">
+                                      ADMIN
+                                    </span>
+                                  )}
+                                </h4>
+                                <div className="text-[11px] text-stone-500">{user.email} • {user.phone}</div>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => toggleUserRole(user.id)}
+                              className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${
+                                isAdmin 
+                                  ? 'bg-rose-50 text-rose-700 border-rose-300' 
+                                  : 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                              }`}
+                            >
+                              {isAdmin ? 'रोल: छात्र करें' : 'रोल: एडमिन बनाएँ'}
+                            </button>
+                          </div>
+
+                          <div className="p-3 bg-stone-50 dark:bg-stone-800 rounded-2xl text-xs space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-stone-500">गृह जिला (District):</span>
+                              <span className="font-bold">{user.district}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-stone-500">लक्ष्य परीक्षा:</span>
+                              <span className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{user.targetExam}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-stone-500">XP व स्ट्रीक:</span>
+                              <span className="font-mono font-bold text-amber-600">{user.xp || 0} XP • 🔥 {user.streak || 0} Days</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Student Actions Bar */}
+                        <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => toggleUserAccess(user.id, 'ts_patwari_2026')}
+                            className="flex-1 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black flex items-center justify-center gap-1.5"
+                          >
+                            <Unlock className="w-3.5 h-3.5" />
+                            <span>पटवारी 2026 अनलॉक / लॉक</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setPasswordModalUser(user);
+                              setNewPasswordVal('123456');
+                            }}
+                            className="py-2 px-3 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
+                            title="पासवर्ड रीसेट"
+                          >
+                            <Key className="w-3.5 h-3.5 text-stone-600 dark:text-stone-300" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setXpModalUser(user);
+                              setBonusXpVal(500);
+                            }}
+                            className="py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-xs font-bold"
+                            title="बोनस XP दें"
+                          >
+                            <Award className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 7: RAZORPAY ORDERS & REFUNDS */}
+          {/* ========================================================= */}
+          {activeTab === 'ORDERS' && (
+            <div className="space-y-6">
+              {/* Search Bar */}
+              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex items-center justify-between">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                  <input 
+                    type="text"
+                    placeholder="ऑर्डर ID, रेज़रपे पेमेंट ID या छात्र का नाम खोजें..."
+                    value={searchOrders}
+                    onChange={(e) => setSearchOrders(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Orders Table */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-stone-50 dark:bg-stone-800 border-b-2 border-stone-200 dark:border-stone-700 text-stone-500 uppercase text-[10px] font-black">
+                        <th className="py-3 px-4">ऑर्डर ID व इनवॉइस</th>
+                        <th className="py-3 px-4">रेज़रपे Payment ID</th>
+                        <th className="py-3 px-4">परीक्षार्थी विवरण</th>
+                        <th className="py-3 px-4">सीरीज़ पैकेज</th>
+                        <th className="py-3 px-4">राशि व छूट</th>
+                        <th className="py-3 px-4">स्थिति</th>
+                        <th className="py-3 px-4">एक्शन</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
+                      {orders
+                        .filter(o => !searchOrders || 
+                          o.orderId.toLowerCase().includes(searchOrders.toLowerCase()) ||
+                          o.razorpayPaymentId.toLowerCase().includes(searchOrders.toLowerCase()) ||
+                          o.userName.toLowerCase().includes(searchOrders.toLowerCase())
+                        )
+                        .map(order => (
+                          <tr key={order.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40">
+                            <td className="py-3.5 px-4">
+                              <div className="font-mono font-bold text-[#7A2A1E] dark:text-[#D4A017]">{order.orderId}</div>
+                              <div className="text-[10px] text-stone-400 font-mono">{order.invoiceNumber}</div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-[11px] text-stone-600 dark:text-stone-300">
+                              {order.razorpayPaymentId}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold">{order.userName}</div>
+                              <div className="text-[10px] text-stone-400">{order.userPhone}</div>
+                            </td>
+                            <td className="py-3.5 px-4 max-w-xs truncate">{order.seriesTitle}</td>
+                            <td className="py-3.5 px-4 font-mono">
+                              <div className="font-black text-emerald-600">₹{order.finalAmount}</div>
+                              {order.discount > 0 && <div className="text-[10px] text-rose-500">-₹{order.discount} छूट</div>}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                                order.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              {order.status === 'SUCCESS' ? (
+                                <button
+                                  onClick={() => refundOrder(order.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-[10px] font-black"
+                                >
+                                  रिफंड करें
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-stone-400 font-bold">रिफंडेड</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 8: COUPONS & PROMOS */}
+          {/* ========================================================= */}
+          {activeTab === 'COUPONS' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {coupons.map(coupon => (
+                  <div 
+                    key={coupon.code}
+                    className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col justify-between space-y-4"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-black text-base px-3 py-1 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          {coupon.code}
+                        </span>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                          coupon.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'
+                        }`}>
+                          {coupon.isActive ? 'सक्रिय' : 'बंद'}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 space-y-1 text-xs">
+                        <div className="font-bold text-sm text-[#2D2424] dark:text-white">
+                          {coupon.discountType === 'percentage' ? `${coupon.discountValue}% छूट` : `₹${coupon.discountValue} फ्लैट छूट`}
+                        </div>
+                        <div className="text-stone-500">न्यूनतम ऑर्डर: ₹{coupon.minAmount}</div>
+                        <div className="text-stone-400 font-mono text-[11px]">वैधता: {coupon.validTill}</div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                      <button
+                        onClick={() => setEditingCoupon({ ...coupon })}
+                        className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>संपादित करें</span>
+                      </button>
+                      <button
+                        onClick={() => deleteCoupon(coupon.code)}
+                        className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                        title="हटाएँ"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 9: ANNOUNCEMENTS & RECRUITMENT TICKER */}
+          {/* ========================================================= */}
+          {activeTab === 'ANNOUNCEMENTS' && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                {announcements.map(ann => (
+                  <div 
+                    key={ann.id}
+                    className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center font-black shrink-0">
+                        <BellRing className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-black font-mono">
+                            {ann.tag}
+                          </span>
+                          {ann.isPinned && (
+                            <span className="text-[10px] font-black text-amber-600">📌 PINNED TICKER</span>
+                          )}
+                        </div>
+                        <h4 className="font-bold text-sm text-[#2D2424] dark:text-white mt-1">
+                          {ann.titleHi}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setEditingAnnouncement({ ...ann })}
+                        className="p-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
+                      >
+                        <Edit className="w-4 h-4 text-stone-700 dark:text-stone-300" />
+                      </button>
+                      <button
+                        onClick={() => deleteAnnouncement(ann.id)}
+                        className="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 10: BROADCAST PUSH NOTIFICATIONS */}
+          {/* ========================================================= */}
+          {activeTab === 'BROADCAST' && (
+            <div className="max-w-2xl bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 shadow-sm space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">समस्त छात्रों को लाइव पुश नोटिफिकेशन</h3>
+                  <p className="text-xs text-stone-500">
+                    यहाँ से भेजा गया संदेश सभी 55 जिलों के परीक्षार्थियों के स्क्रीन पर तुरंत दिखाई देगा।
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleBroadcast} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-stone-500 mb-1">
+                    संदेश शीर्षक (Notification Title)
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="उदा: 🔥 MP पटवारी सेट #2 लाइव हो गया है!"
+                    value={broadcastTitle}
+                    onChange={(e) => setBroadcastTitle(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-stone-500 mb-1">
+                    संदेश विवरण (Broadcast Message Body)
+                  </label>
+                  <textarea 
+                    rows={4}
+                    required
+                    placeholder="उदा: सभी परीक्षार्थी आज ही 180 मिनट का नया मॉक टेस्ट दें और ऑल-एमपी रैंक में अपना स्थान देखें..."
+                    value={broadcastMsg}
+                    onChange={(e) => setBroadcastMsg(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-xs uppercase tracking-wider border-2 border-[#D4A017] shadow-md transition"
+                >
+                  🚀 लाइव ब्रॉडकास्ट संदेश भेजें (Broadcast Now)
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 11: STUDY NOTES & PDF CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'NOTES' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {notes.map(note => (
+                  <div 
+                    key={note.id}
+                    className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col justify-between space-y-4"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300">
+                          {note.category}
+                        </span>
+                        <span className="text-[10px] font-mono text-stone-400">{note.fileSize}</span>
+                      </div>
+
+                      <h4 className="font-bold text-sm text-[#2D2424] dark:text-white mt-2">
+                        {note.titleHi}
+                      </h4>
+                      <p className="text-[11px] text-stone-500 mt-1 line-clamp-2">{note.summaryHi}</p>
+                    </div>
+
+                    <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-stone-400">{note.pages} पृष्ठ • {note.downloadCount} डाउनलोड</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingNote({ ...note })}
+                          className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200"
+                        >
+                          <Edit className="w-3.5 h-3.5 text-stone-700 dark:text-stone-300" />
+                        </button>
+                        <button
+                          onClick={() => deleteNote(note.id)}
+                          className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 12: PLATFORM SETTINGS & BRANDING */}
+          {/* ========================================================= */}
+          {activeTab === 'SETTINGS' && (
+            <div className="max-w-3xl bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-stone-100 dark:border-stone-800">
+                <div className="w-11 h-11 rounded-2xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black shadow">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-[#2D2424] dark:text-white">प्लेटफ़ॉर्म ब्रांडिंग व गेटवे सेटिंग्स</h3>
+                  <p className="text-xs text-stone-500">हेल्पलाइन, टिकर टेक्स्ट, AI इवैल्यूएशन व पेमेंट मोड कॉन्फ़िगर करें।</p>
+                </div>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  savePlatformSettings(editingSettings);
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-black uppercase text-stone-500 mb-1">पोर्टल का नाम (Site Title)</label>
+                    <input 
+                      type="text"
+                      value={editingSettings.siteTitle}
+                      onChange={(e) => setEditingSettings({ ...editingSettings, siteTitle: e.target.value })}
+                      className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-black uppercase text-stone-500 mb-1">हेल्पलाइन WhatsApp नंबर</label>
+                    <input 
+                      type="text"
+                      value={editingSettings.helplineWhatsapp}
+                      onChange={(e) => setEditingSettings({ ...editingSettings, helplineWhatsapp: e.target.value })}
+                      className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">शीर्ष घोषणा टिकर टेक्स्ट (Hindi Ticker)</label>
+                  <input 
+                    type="text"
+                    value={editingSettings.topTickerTextHi}
+                    onChange={(e) => setEditingSettings({ ...editingSettings, topTickerTextHi: e.target.value })}
+                    className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-medium"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-black uppercase text-stone-500 mb-1">सपोर्ट ईमेल</label>
+                    <input 
+                      type="email"
+                      value={editingSettings.supportEmail}
+                      onChange={(e) => setEditingSettings({ ...editingSettings, supportEmail: e.target.value })}
+                      className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-black uppercase text-stone-500 mb-1">रेज़रपे पेमेंट गेटवे मोड</label>
+                    <select
+                      value={editingSettings.paymentGatewayMode}
+                      onChange={(e) => setEditingSettings({ ...editingSettings, paymentGatewayMode: e.target.value as any })}
+                      className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                    >
+                      <option value="LIVE">LIVE (वास्तविक भुगतान)</option>
+                      <option value="TEST">TEST SANDBOX (परीक्षण)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Toggles */}
+                <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={editingSettings.enableAiEvaluation}
+                      onChange={(e) => setEditingSettings({ ...editingSettings, enableAiEvaluation: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                    />
+                    <span className="font-bold">Google AI शैक्षणिक विश्लेषण व 7-दिवसीय अध्ययन योजना सक्रिय रखें</span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={editingSettings.topTickerEnabled}
+                      onChange={(e) => setEditingSettings({ ...editingSettings, topTickerEnabled: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                    />
+                    <span className="font-bold">शीर्ष स्क्रॉलिंग फ्लैश टिकर बार प्रदर्शित करें</span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 rounded-2xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-sm uppercase tracking-wider border-2 border-[#D4A017] shadow-md transition"
+                >
+                  💾 सेटिंग्स सहेजें (Save Configuration)
+                </button>
+              </form>
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* ========================================================= */}
+      {/* MODAL 1: BANNER CREATE / EDIT MODAL */}
+      {/* ========================================================= */}
+      {editingBanner && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-indigo-600" />
+                <span>{editingBanner.id ? 'बैनर संपादित करें' : 'नया होमपेज बैनर जोड़ें'}</span>
+              </h3>
+              <button 
+                onClick={() => setEditingBanner(null)} 
+                className="p-1 text-stone-400 hover:text-black dark:hover:text-white"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBanner} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">बैनर शीर्षक (Hindi Title)</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="उदा: MP पटवारी 2026 महाभर्ती — 20 फुल मॉक टेस्ट"
+                  value={editingBanner.titleHi || ''}
+                  onChange={(e) => setEditingBanner({ ...editingBanner, titleHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">उप-शीर्षक (Hindi Subtitle)</label>
+                <input 
+                  type="text"
+                  placeholder="उदा: 200 प्रश्न प्रति टेस्ट • Google AI रिपोर्ट • ऑल-एमपी रैंक"
+                  value={editingBanner.subtitleHi || ''}
+                  onChange={(e) => setEditingBanner({ ...editingBanner, subtitleHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                />
+              </div>
+
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">इमेज URL (Image URL / Poster)</label>
+                <input 
+                  type="url"
+                  required
+                  placeholder="https://..."
+                  value={editingBanner.imageUrl || ''}
+                  onChange={(e) => setEditingBanner({ ...editingBanner, imageUrl: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono"
+                />
+              </div>
+
+              {/* Live Image Preview */}
+              {editingBanner.imageUrl && (
+                <div className="p-2 rounded-2xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 overflow-hidden">
+                  <span className="text-[10px] font-bold text-stone-500 block mb-1">लाइव इमेज पूर्वावलोकन (Preview):</span>
+                  <img 
+                    src={editingBanner.imageUrl} 
+                    alt="Preview" 
+                    className="w-full h-32 object-cover rounded-xl"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">बैज टैग (Badge)</label>
+                  <input 
+                    type="text"
+                    placeholder="🔥 बेस्ट सेलर"
+                    value={editingBanner.badgeText || ''}
+                    onChange={(e) => setEditingBanner({ ...editingBanner, badgeText: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">क्रम संख्या (Order)</label>
+                  <input 
+                    type="number"
+                    value={editingBanner.order || 1}
+                    onChange={(e) => setEditingBanner({ ...editingBanner, order: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingBanner(null)}
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-sm"
+                >
+                  💾 बैनर सहेजें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 2: TEST SERIES CREATE / EDIT WITH THUMBNAIL */}
+      {/* ========================================================= */}
+      {editingSeries && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+                <BookPlus className="w-5 h-5 text-[#7A2A1E]" />
+                <span>{editingSeries.id ? 'टेस्ट सीरीज़ व थंबनेल संपादित करें' : 'नई टेस्ट सीरीज़ बनाएँ'}</span>
+              </h3>
+              <button 
+                onClick={() => setEditingSeries(null)} 
+                className="p-1 text-stone-400 hover:text-black dark:hover:text-white"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSeries} className="space-y-4 text-xs max-h-[75vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">सीरीज़ शीर्षक (Hindi Title)</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="उदा: म.प्र. पटवारी 2026 संपूर्ण मॉक टेस्ट सीरीज़"
+                  value={editingSeries.titleHi || ''}
+                  onChange={(e) => setEditingSeries({ ...editingSeries, titleHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                />
+              </div>
+
+              {/* Thumbnail & Banner Image inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">थंबनेल इमेज URL (Card Thumbnail)</label>
+                  <input 
+                    type="url"
+                    placeholder="https://..."
+                    value={editingSeries.thumbnailUrl || ''}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, thumbnailUrl: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">बैज टैग (Badge Tag)</label>
+                  <input 
+                    type="text"
+                    placeholder="🔥 म.प्र. नंबर-1 सीरीज़"
+                    value={editingSeries.badgeTagHi || ''}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, badgeTagHi: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Thumbnail live preview */}
+              {editingSeries.thumbnailUrl && (
+                <div className="p-2 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+                  <span className="text-[10px] font-bold text-stone-500 block mb-1">थंबनेल पूर्वावलोकन (Preview):</span>
+                  <img 
+                    src={editingSeries.thumbnailUrl} 
+                    alt="Thumbnail preview" 
+                    className="h-28 w-full object-cover rounded-lg"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">ऑफर मूल्य (₹)</label>
+                  <input 
+                    type="number"
+                    required
+                    value={editingSeries.price || ''}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, price: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold text-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">मूल कीमत (₹)</label>
+                  <input 
+                    type="number"
+                    value={editingSeries.originalPrice || ''}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, originalPrice: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-stone-400 line-through"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">कुल टेस्ट</label>
+                  <input 
+                    type="number"
+                    value={editingSeries.totalTests || 20}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, totalTests: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">समय (मिनट)</label>
+                  <input 
+                    type="number"
+                    value={editingSeries.durationMinutes || 180}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, durationMinutes: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">विवरण (Description)</label>
+                <textarea 
+                  rows={3}
+                  value={editingSeries.descriptionHi || ''}
+                  onChange={(e) => setEditingSeries({ ...editingSeries, descriptionHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-[#D4A017]/60 flex items-center justify-between">
+                <div>
+                  <div className="font-black text-amber-950 dark:text-amber-200 text-xs">
+                    वेबसाइट होमपेज विजिबिलिटी (Live Status)
+                  </div>
+                  <div className="text-[11px] text-stone-600 dark:text-stone-400">
+                    सक्रिय रखने पर छात्र होमपेज व कैटलॉग पर देख व खरीद सकेंगे।
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingSeries.isActive !== false}
+                    onChange={(e) => setEditingSeries({ ...editingSeries, isActive: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingSeries(null)}
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-sm"
+                >
+                  💾 टेस्ट सीरीज़ सहेजें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 3: QUESTION CREATE / EDIT MODAL */}
+      {/* ========================================================= */}
+      {editingQuestion && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+                <FileQuestion className="w-5 h-5 text-amber-600" />
+                <span>{editingQuestion.id ? 'प्रश्न संपादित करें' : 'नया प्रश्न जोड़ें'}</span>
+              </h3>
+              <button 
+                onClick={() => setEditingQuestion(null)} 
+                className="p-1 text-stone-400 hover:text-black dark:hover:text-white"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuestion} className="space-y-4 text-xs max-h-[75vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">विषय (Subject)</label>
+                  <select
+                    value={editingQuestion.subject || 'म.प्र. सामान्य ज्ञान'}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, subject: e.target.value, section: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  >
+                    <option value="म.प्र. सामान्य ज्ञान">म.प्र. सामान्य ज्ञान</option>
+                    <option value="सामान्य हिन्दी">सामान्य हिन्दी</option>
+                    <option value="सामान्य गणित">सामान्य गणित</option>
+                    <option value="कंप्यूटर विज्ञान">कंप्यूटर विज्ञान</option>
+                    <option value="सामान्य प्रबंधन">सामान्य प्रबंधन</option>
+                    <option value="सामान्य विज्ञान">सामान्य विज्ञान</option>
+                    <option value="सामान्य तार्किक योग्यता">सामान्य तार्किक योग्यता</option>
+                    <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">टॉपिक (Topic)</label>
+                  <input 
+                    type="text"
+                    placeholder="उदा: नदियाँ व जलप्रपात"
+                    value={editingQuestion.topic || ''}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, topic: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">प्रश्न का हिंदी पाठ (Question in Hindi)</label>
+                <textarea 
+                  rows={3}
+                  required
+                  placeholder="प्रश्न यहाँ लिखें..."
+                  value={editingQuestion.questionHi || ''}
+                  onChange={(e) => setEditingQuestion({ ...editingQuestion, questionHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                />
+              </div>
+
+              {/* 4 Options */}
+              <div className="space-y-2">
+                <label className="block font-black uppercase text-stone-500">4 बहुविकल्पीय उत्तर (4 Options)</label>
+                {['A', 'B', 'C', 'D'].map((letter, idx) => {
+                  const opts = editingQuestion.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
+                  const isCorrect = (editingQuestion.correctOption ?? 0) === idx;
+
+                  return (
+                    <div key={idx} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingQuestion({ ...editingQuestion, correctOption: idx })}
+                        className={`w-8 h-8 rounded-xl font-black text-xs shrink-0 ${
+                          isCorrect ? 'bg-emerald-600 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600'
+                        }`}
+                        title="सही उत्तर के रूप में सेट करें"
+                      >
+                        {letter}
+                      </button>
+                      <input 
+                        type="text"
+                        required
+                        value={opts[idx] || ''}
+                        onChange={(e) => {
+                          const updated = [...opts];
+                          updated[idx] = e.target.value;
+                          setEditingQuestion({ ...editingQuestion, optionsHi: updated });
+                        }}
+                        className={`flex-1 p-2 rounded-xl border text-xs font-medium ${
+                          isCorrect ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800'
+                        }`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">विस्तृत व्याख्या व ट्रिक्स (Detailed Solution)</label>
+                <textarea 
+                  rows={3}
+                  placeholder="हल एवं महत्वपूर्ण ट्रिक्स यहाँ लिखें..."
+                  value={editingQuestion.explanationHi || ''}
+                  onChange={(e) => setEditingQuestion({ ...editingQuestion, explanationHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingQuestion(null)}
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-sm"
+                >
+                  💾 प्रश्न सहेजें
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 4: PASSWORD RESET MODAL */}
+      {/* ========================================================= */}
+      {passwordModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+              <Key className="w-5 h-5 text-stone-700 dark:text-stone-300" />
+              <span>पासवर्ड रीसेट — {passwordModalUser.name}</span>
+            </h3>
+            <p className="text-xs text-stone-500">
+              इस छात्र के लिए नया पासवर्ड सेट करें:
+            </p>
+            <input 
+              type="text"
+              value={newPasswordVal}
+              onChange={(e) => setNewPasswordVal(e.target.value)}
+              className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold text-sm"
+            />
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPasswordModalUser(null)}
+                className="w-1/3 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-xs font-bold"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetStudentPassword(passwordModalUser.id, newPasswordVal);
+                  setPasswordModalUser(null);
+                }}
+                className="w-2/3 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs"
+              >
+                नया पासवर्ड लागू करें
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 5: BONUS XP MODAL */}
+      {/* ========================================================= */}
+      {xpModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+              <Award className="w-5 h-5 text-amber-600" />
+              <span>बोनस XP प्रदान करें — {xpModalUser.name}</span>
+            </h3>
+            <p className="text-xs text-stone-500">
+              छात्र के खाते में जोड़ने हेतु XP अंक दर्ज करें:
+            </p>
+            <input 
+              type="number"
+              value={bonusXpVal}
+              onChange={(e) => setBonusXpVal(Number(e.target.value))}
+              className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold text-sm text-amber-600"
+            />
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setXpModalUser(null)}
+                className="w-1/3 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-xs font-bold"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  grantStudentXp(xpModalUser.id, bonusXpVal);
+                  setXpModalUser(null);
+                }}
+                className="w-2/3 py-2 rounded-xl bg-amber-600 text-white font-black text-xs"
+              >
+                +XP छात्र को जोड़ें
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
