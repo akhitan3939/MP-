@@ -17,12 +17,27 @@ import {
   AlertCircle, 
   ArrowLeft,
   Share2,
-  Bookmark
+  Bookmark,
+  Flame,
+  Gift,
+  TrendingDown,
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import { Question } from '../types';
 
 export const ResultAnalyticsView: React.FC = () => {
-  const { attempts, questions, viewParams, openCertificateModal, navigate, lang, toggleBookmarkQuestion, bookmarkedQuestionIds } = useApp();
+  const { 
+    attempts, 
+    questions, 
+    viewParams, 
+    openCertificateModal, 
+    openShareModal,
+    navigate, 
+    lang, 
+    toggleBookmarkQuestion, 
+    bookmarkedQuestionIds 
+  } = useApp();
   
   const attemptId = viewParams?.attemptId;
   const attempt = attempts.find(a => a.id === attemptId) || attempts[0];
@@ -123,17 +138,31 @@ export const ResultAnalyticsView: React.FC = () => {
             <span>{lang === 'hi' ? 'डैशबोर्ड पर वापस जाएँ' : 'Back to Dashboard'}</span>
           </button>
           <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-stone-900 dark:text-white">
-            {lang === 'hi' ? 'परीक्षा परिणाम व Google AI विस्तृत विश्लेषण' : 'Test Result & AI Comprehensive Analytics'}
+            {lang === 'hi' ? 'परीक्षा परिणाम व AI विस्तृत विश्लेषण' : 'Test Result & AI Comprehensive Analytics'}
           </h1>
           <p className="text-xs text-stone-500 dark:text-stone-400">
             {attempt.seriesTitle} • संपन्न: {new Date(attempt.completedAt).toLocaleString('hi-IN')}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => openShareModal({
+              seriesTitle: attempt.seriesTitle,
+              score: attempt.score,
+              totalMarks: attempt.totalMarks,
+              rank: attempt.rank,
+              url: window.location.href
+            })}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition cursor-pointer"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>{lang === 'hi' ? 'WhatsApp पर शेयर (+50 XP)' : 'Share Result (+50 XP)'}</span>
+          </button>
+
           <button
             onClick={() => openCertificateModal(attempt)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-xl text-xs shadow-md transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-extrabold rounded-xl text-xs shadow-md transition cursor-pointer"
           >
             <Award className="w-4 h-4" />
             <span>{lang === 'hi' ? 'प्रमाणपत्र / स्कोरकार्ड' : 'Download Certificate'}</span>
@@ -141,7 +170,7 @@ export const ResultAnalyticsView: React.FC = () => {
 
           <button
             onClick={() => navigate('cbtExam', { id: attempt.seriesId })}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white font-bold rounded-xl text-xs shadow transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-stone-900 dark:bg-stone-800 hover:bg-stone-800 text-white font-bold rounded-xl text-xs shadow transition cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
             <span>{lang === 'hi' ? 'पुनः टेस्ट दें' : 'Re-attempt Test'}</span>
@@ -206,13 +235,79 @@ export const ResultAnalyticsView: React.FC = () => {
             {Math.floor(attempt.durationSeconds / 60)}m {attempt.durationSeconds % 60}s
           </div>
           <div className="text-xs text-stone-500 mt-1">
-            प्रति प्रश्न औसत: {(attempt.durationSeconds / attempt.totalQuestions).toFixed(1)}s
+            प्रति प्रश्न औसत: {(attempt.durationSeconds / (attempt.totalQuestions || 100)).toFixed(1)}s
           </div>
         </div>
 
       </div>
 
-      {/* 2. Google AI In-Depth Evaluation Section */}
+      {/* 1.1 GAMIFIED XP REWARDS & PENALTY BREAKDOWN CARD */}
+      <div className="bg-gradient-to-r from-amber-500/15 via-stone-900 to-amber-950/40 border-2 border-amber-500/60 rounded-3xl p-6 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400 text-stone-950 font-black text-xs">
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>{lang === 'hi' ? 'XP रिवॉर्ड व पेनाल्टी रिपोर्ट' : 'XP Points & Penalty Breakdown'}</span>
+          </div>
+          <h3 className="font-display font-black text-xl text-stone-900 dark:text-white">
+            {lang === 'hi' ? 'इस टेस्ट से आपका अर्जित कुल XP' : 'Total XP Earned From This Attempt'}
+          </h3>
+          <p className="text-xs text-stone-600 dark:text-stone-300 max-w-xl">
+            {lang === 'hi'
+              ? 'सही उत्तरों पर +10 XP पुरस्कार, गलत उत्तरों पर -5 XP पेनाल्टी, और स्ट्रीक बोनस लागू किया गया है।'
+              : 'Correct answers reward +10 XP, incorrect answers penalize -5 XP with streak bonuses.'}
+          </p>
+        </div>
+
+        {/* Breakdown Badges */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0 w-full md:w-auto">
+          {/* Correct XP */}
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl text-center">
+            <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>सही उत्तर (+10)</span>
+            </div>
+            <div className="font-mono font-black text-xl text-emerald-600 dark:text-emerald-400 mt-0.5">
+              +{attempt.xpBreakdown?.correctXp !== undefined ? attempt.xpBreakdown.correctXp : (attempt.correctAnswers || 0) * 10} XP
+            </div>
+          </div>
+
+          {/* Penalty XP */}
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-700/60 rounded-2xl text-center">
+            <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-300">
+              <TrendingDown className="w-3.5 h-3.5" />
+              <span>गलत पेनाल्टी (-5)</span>
+            </div>
+            <div className="font-mono font-black text-xl text-rose-600 dark:text-rose-400 mt-0.5">
+              -{attempt.xpBreakdown?.penaltyXp !== undefined ? attempt.xpBreakdown.penaltyXp : (attempt.incorrectAnswers || 0) * 5} XP
+            </div>
+          </div>
+
+          {/* Streak Bonus */}
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/60 rounded-2xl text-center">
+            <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+              <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              <span>स्ट्रीक बोनस</span>
+            </div>
+            <div className="font-mono font-black text-xl text-amber-600 dark:text-amber-400 mt-0.5">
+              +{attempt.xpBreakdown?.streakBonus || 25} XP
+            </div>
+          </div>
+
+          {/* Net XP */}
+          <div className="p-3 bg-stone-900 dark:bg-white text-white dark:text-stone-950 border border-amber-500 rounded-2xl text-center shadow-md">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 dark:text-amber-600">
+              नेट XP स्कोर
+            </div>
+            <div className="font-mono font-black text-xl mt-0.5">
+              {attempt.xpBreakdown?.netXp !== undefined 
+                ? (attempt.xpBreakdown.netXp >= 0 ? `+${attempt.xpBreakdown.netXp}` : `${attempt.xpBreakdown.netXp}`)
+                : `+150`} XP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. AI In-Depth Evaluation Section */}
       <div className="bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 text-white rounded-3xl p-6 sm:p-8 border-2 border-amber-500/50 shadow-xl space-y-6">
         
         {/* Section Header */}
@@ -223,10 +318,10 @@ export const ResultAnalyticsView: React.FC = () => {
             </div>
             <div>
               <h2 className="font-display font-extrabold text-xl sm:text-2xl text-white">
-                Google AI विस्तृत रिपोर्ट एवं सुधार योजना
+                AI विस्तृत रिपोर्ट एवं सुधार योजना
               </h2>
               <p className="text-xs text-amber-400">
-                Gemini 3.7 Flash द्वारा स्वचालित वास्तविक समय विश्लेषण
+                AI पावर्ड स्वचालित वास्तविक समय विश्लेषण
               </p>
             </div>
           </div>
@@ -485,7 +580,7 @@ export const ResultAnalyticsView: React.FC = () => {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-bold rounded-lg text-xs shadow-sm transition"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Google AI से समझें (AI Tutor Explanation)</span>
+                    <span>AI से समझें (AI Tutor Explanation)</span>
                   </button>
                 </div>
 
@@ -505,7 +600,7 @@ export const ResultAnalyticsView: React.FC = () => {
               <div className="flex items-center gap-2 text-amber-500">
                 <Sparkles className="w-5 h-5" />
                 <span className="font-display font-bold text-base text-stone-900 dark:text-white">
-                  Google AI व्यक्तिगत व्याख्या
+                  AI व्यक्तिगत व्याख्या
                 </span>
               </div>
               <button onClick={() => setSelectedQuestionForAi(null)} className="text-stone-400 hover:text-stone-600">
@@ -521,7 +616,7 @@ export const ResultAnalyticsView: React.FC = () => {
               {isExplaining ? (
                 <div className="py-8 text-center space-y-2">
                   <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <div className="text-stone-400 font-bold">Google AI उत्तर का विश्लेषण कर रहा है...</div>
+                  <div className="text-stone-400 font-bold">AI उत्तर का विश्लेषण कर रहा है...</div>
                 </div>
               ) : (
                 <div className="p-4 bg-amber-50/50 dark:bg-stone-950 rounded-2xl border border-amber-200 dark:border-stone-800 space-y-2">

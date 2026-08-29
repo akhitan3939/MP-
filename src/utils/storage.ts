@@ -11,7 +11,8 @@ import {
   StudyReminder,
   SiteBanner,
   PlatformSettings,
-  MockSetMetadata 
+  MockSetMetadata,
+  NavigationMenuItem 
 } from '../types';
 import { 
   INITIAL_USERS, 
@@ -25,13 +26,13 @@ import {
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
-  USERS: 'mp_setu_users_v3',
-  CURRENT_USER_ID: 'mp_setu_current_user_v1',
+  USERS: 'mp_setu_users_v4_clean',
+  CURRENT_USER_ID: 'mp_setu_current_user_v2',
   TEST_SERIES: 'mp_setu_test_series_v4',
   QUESTIONS: 'mp_setu_questions_v3',
   ATTEMPTS: 'mp_setu_attempts_v1',
-  LEADERBOARD: 'mp_setu_leaderboard_v1',
-  ORDERS: 'mp_setu_orders_v1',
+  LEADERBOARD: 'mp_setu_leaderboard_v2',
+  ORDERS: 'mp_setu_orders_v2_clean',
   COUPONS: 'mp_setu_coupons_v1',
   ANNOUNCEMENTS: 'mp_setu_announcements_v1',
   NOTES: 'mp_setu_notes_v1',
@@ -43,15 +44,100 @@ const STORAGE_KEYS = {
   SITE_BANNERS: 'mp_setu_banners_v3',
   PLATFORM_SETTINGS: 'mp_setu_settings_v2',
   MOCK_SETS: 'mp_setu_mock_sets_v2',
+  NAV_MENUS: 'mp_setu_nav_menus_v2',
 };
+
+export const INITIAL_NAV_MENUS: NavigationMenuItem[] = [
+  {
+    id: 'nav_home',
+    labelHi: 'मुख्य पृष्ठ',
+    labelEn: 'Home',
+    placement: 'both',
+    targetType: 'view',
+    targetValue: 'home',
+    iconName: 'BookOpen',
+    isActive: true,
+    order: 1,
+    subTextHi: 'होम पेज',
+    subTextEn: 'Home Page'
+  },
+  {
+    id: 'nav_free_mock',
+    labelHi: '🎯 40-प्रश्न फ्री मॉक टेस्ट',
+    labelEn: '🎯 Free Mock (40 Qs)',
+    placement: 'both',
+    targetType: 'view',
+    targetValue: 'freeMockTest',
+    iconName: 'Sparkles',
+    highlight: true,
+    badgeTextHi: 'मुफ़्त DEMO',
+    badgeTextEn: 'FREE DEMO',
+    isActive: true,
+    order: 2,
+    subTextHi: 'निःशुल्क अभ्यास',
+    subTextEn: 'Free Practice'
+  },
+  {
+    id: 'nav_catalog',
+    labelHi: 'टेस्ट सीरीज़',
+    labelEn: 'Test Series',
+    placement: 'both',
+    targetType: 'view',
+    targetValue: 'catalog',
+    iconName: 'Award',
+    isActive: true,
+    order: 3,
+    subTextHi: 'सभी पैकेज',
+    subTextEn: 'All Packages'
+  },
+  {
+    id: 'nav_leaderboard',
+    labelHi: 'ऑल-एमपी रैंक',
+    labelEn: 'All MP Rank',
+    placement: 'both',
+    targetType: 'view',
+    targetValue: 'leaderboard',
+    iconName: 'Trophy',
+    isActive: true,
+    order: 4,
+    subTextHi: 'राज्य मेरिट सूची',
+    subTextEn: 'State Merit'
+  },
+  {
+    id: 'nav_notes',
+    labelHi: 'ई-नोट्स (PDF)',
+    labelEn: 'E-Notes (PDF)',
+    placement: 'both',
+    targetType: 'modal',
+    targetValue: 'notes',
+    iconName: 'FileText',
+    isActive: true,
+    order: 5,
+    subTextHi: 'हस्तलिखित नोट्स',
+    subTextEn: 'PDF Notes'
+  },
+  {
+    id: 'nav_dashboard',
+    labelHi: 'मेरा डैशबोर्ड',
+    labelEn: 'My Dashboard',
+    placement: 'both',
+    targetType: 'view',
+    targetValue: 'dashboard',
+    iconName: 'LayoutDashboard',
+    isActive: true,
+    order: 6,
+    subTextHi: 'स्कोरकार्ड व XP',
+    subTextEn: 'Scorecard & XP'
+  }
+];
 
 export const INITIAL_BANNERS: SiteBanner[] = [
   {
     id: 'ban_1',
     titleHi: 'समूह-02 उपसमूह-04 संयुक्त भर्ती परीक्षा 2026 — 20 फुल मॉक टेस्ट सीरीज़',
     titleEn: 'Group-02 SubGroup-04 Combined Recruitment 2026 — 20 Full Mock Series',
-    subtitleHi: '200 प्रश्न प्रति टेस्ट (8 विषय) • 180 मिनट CBT सिमुलेटर • Google AI विश्लेषण व ऑल-एमपी रैंक',
-    subtitleEn: '200 Questions per test (8 Sections) • 180 Mins CBT • Google AI Report & State Rank',
+    subtitleHi: '200 प्रश्न प्रति टेस्ट (8 विषय) • 180 मिनट CBT सिमुलेटर • AI विश्लेषण व ऑल-एमपी रैंक',
+    subtitleEn: '200 Questions per test (8 Sections) • 180 Mins CBT • AI Report & State Rank',
     imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1200&auto=format&fit=crop&q=80',
     badgeText: '🔥 सर्वाधिक लोकप्रिय (Bestseller)',
     buttonTextHi: '20 फुल मॉक टेस्ट सीरीज़ देखें',
@@ -104,7 +190,12 @@ export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   topTickerEnabled: true,
   paymentGatewayMode: 'LIVE',
   enableAiEvaluation: true,
-  maintenanceMode: false
+  maintenanceMode: false,
+  facebookUrl: 'https://facebook.com/groups/mpparikshasetu',
+  instagramUrl: 'https://instagram.com/mpparikshasetu_official',
+  telegramUrl: 'https://t.me/mpparikshasetu_mp',
+  youtubeUrl: 'https://youtube.com/@mpparikshasetu',
+  whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu'
 };
 
 function getStorage<T>(key: string, fallback: T): T {
@@ -171,7 +262,7 @@ function normalizeTestSeries(s: any): TestSeries {
       ? s.featuresHi
       : [
           '100% नवीनतम MP ESB / आयोग पाठ्यक्रम आधारित',
-          'Google AI आधारित व्यक्तिगत विश्लेषण व कमजोर क्षेत्र पहचान',
+          'AI आधारित व्यक्तिगत विश्लेषण व कमजोर क्षेत्र पहचान',
           'ऑल-मध्यप्रदेश लाइव मेरिट रैंक व परसेंटाइल',
           'विस्तृत द्विभाषी (Hindi + English) समाधान व व्याख्या',
           'मुफ्त डाउनलोड योग्य हस्तलिखित ई-नोट्स एवं PDF'
@@ -180,7 +271,7 @@ function normalizeTestSeries(s: any): TestSeries {
       ? s.featuresEn
       : [
           '100% based on latest MP ESB / Commission exam pattern',
-          'Google AI-driven personalized analysis & weakness detector',
+          'AI-driven personalized analysis & weakness detector',
           'All-MP State Live Merit Rank & Percentile Score',
           'Comprehensive bilingual (Hindi + English) solutions',
           'Free downloadable handwritten study notes & PDFs'
@@ -324,4 +415,7 @@ export const StorageService = {
 
   getPlatformSettings: (): PlatformSettings => getStorage(STORAGE_KEYS.PLATFORM_SETTINGS, INITIAL_PLATFORM_SETTINGS),
   setPlatformSettings: (settings: PlatformSettings) => setStorage(STORAGE_KEYS.PLATFORM_SETTINGS, settings),
+
+  getNavMenus: (): NavigationMenuItem[] => getStorage(STORAGE_KEYS.NAV_MENUS, INITIAL_NAV_MENUS),
+  setNavMenus: (menus: NavigationMenuItem[]) => setStorage(STORAGE_KEYS.NAV_MENUS, menus),
 };

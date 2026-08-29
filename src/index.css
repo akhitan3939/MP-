@@ -35,9 +35,13 @@
   }
 }
 
-/* Print Protection: Prevent saving/printing questions as PDF */
+/* Print Styling: Enable clean PDF generation and printing for certificates and reports */
 @media print {
   body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
     display: none !important;
   }
 }

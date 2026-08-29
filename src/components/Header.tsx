@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
-  BookOpen, 
-  Trophy, 
-  FileText, 
-  LayoutDashboard, 
   ShieldAlert, 
   Sun, 
   Moon, 
@@ -18,14 +14,19 @@ import {
   Flame,
   Award,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  FileText,
+  LayoutDashboard
 } from 'lucide-react';
+import { DynamicNavIcon } from '../utils/navIcons';
 
 export const Header: React.FC = () => {
   const { 
     currentUser, 
     activeView, 
     navigate, 
+    topNavItems,
+    handleNavAction,
     theme, 
     toggleTheme, 
     lang, 
@@ -38,15 +39,6 @@ export const Header: React.FC = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-
-  const navLinks = [
-    { id: 'home', labelHi: 'मुख्य पृष्ठ', labelEn: 'Home', icon: BookOpen },
-    { id: 'freeMockTest', labelHi: '🎯 40-प्रश्न फ्री मॉक टेस्ट', labelEn: '🎯 Free Mock (40 Qs)', icon: Sparkles, highlight: true },
-    { id: 'catalog', labelHi: 'टेस्ट सीरीज़', labelEn: 'Test Series', icon: Award },
-    { id: 'leaderboard', labelHi: 'ऑल-एमपी रैंक', labelEn: 'All MP Rank', icon: Trophy },
-    { id: 'notes', labelHi: 'ई-नोट्स (PDF)', labelEn: 'E-Notes (PDF)', icon: FileText },
-    { id: 'dashboard', labelHi: 'मेरा डैशबोर्ड', labelEn: 'My Dashboard', icon: LayoutDashboard },
-  ];
 
   return (
     <header className="sticky top-0 z-40 bg-[#7A2A1E] text-white border-b-4 border-[#D4A017] shadow-xl w-full">
@@ -244,19 +236,22 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Tier 2: Dedicated Navigation Strip (Auto-fitting, Auto-scrollable on smaller devices, Never Overlapping) */}
+      {/* Tier 2: Dedicated Navigation Strip (Admin Dynamic Top Menus) */}
       <div className="w-full bg-[#5E1F16] border-t border-[#963E2F]/80 shadow-inner">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
           <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1.5 scroll-smooth justify-start md:justify-center">
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = activeView === link.id;
-              const isHighlight = (link as any).highlight;
+            {topNavItems.map((item) => {
+              const isActive = (item.targetType === 'view' && activeView === item.targetValue) ||
+                (item.targetType === 'category' && activeView === 'catalog');
+              const isHighlight = item.highlight;
+              const label = lang === 'hi' ? item.labelHi : item.labelEn;
+              const badge = lang === 'hi' ? item.badgeTextHi : item.badgeTextEn;
+
               return (
                 <button
-                  key={link.id}
-                  onClick={() => navigate(link.id)}
-                  className={`h-9 flex items-center justify-center gap-1.5 px-3 sm:px-4 rounded-xl text-xs font-black tracking-wider transition-all active:scale-95 btn-press-effect cursor-pointer whitespace-nowrap shrink-0 ${
+                  key={item.id}
+                  onClick={() => handleNavAction(item)}
+                  className={`h-9 flex items-center justify-center gap-1.5 px-3 sm:px-4 rounded-xl text-xs font-black tracking-wider transition-all active:scale-95 btn-press-effect cursor-pointer whitespace-nowrap shrink-0 relative ${
                     isActive
                       ? 'bg-[#963E2F] text-[#FFFBF2] border-2 border-[#D4A017] shadow-md'
                       : isHighlight
@@ -264,8 +259,16 @@ export const Header: React.FC = () => {
                       : 'text-[#EAD8B1] hover:text-white hover:bg-[#963E2F]/70 border border-transparent'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isHighlight ? 'text-[#D4A017] animate-pulse' : 'text-[#D4A017]'}`} />
-                  <span>{lang === 'hi' ? link.labelHi : link.labelEn}</span>
+                  <DynamicNavIcon 
+                    name={item.iconName} 
+                    className={`w-3.5 h-3.5 shrink-0 ${isHighlight ? 'text-[#D4A017] animate-pulse' : 'text-[#D4A017]'}`} 
+                  />
+                  <span>{label}</span>
+                  {badge && (
+                    <span className="ml-1 px-1.5 py-0.2 bg-[#D4A017] text-[#2D2424] text-[9px] font-black rounded uppercase tracking-tighter">
+                      {badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -290,22 +293,25 @@ export const Header: React.FC = () => {
 
       {/* Mobile Navigation Drawer for Handhelds */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-[#963E2F] py-3 space-y-1.5 bg-[#5E1F16] px-3 shadow-2xl">
-          <div className="text-[10px] uppercase font-mono font-bold text-[#EAD8B1] px-2 mb-1">
-            {lang === 'hi' ? 'नेविगेशन मेन्यू' : 'Navigation Menu'}
+        <div className="md:hidden border-t border-[#963E2F] py-3 space-y-1.5 bg-[#5E1F16] px-3 shadow-2xl animate-fadeIn">
+          <div className="text-[10px] uppercase font-mono font-bold text-[#EAD8B1] px-2 mb-1 flex items-center justify-between">
+            <span>{lang === 'hi' ? 'नेविगेशन मेन्यू (Top Menu)' : 'Navigation Menu'}</span>
+            <span className="text-[9px] text-[#D4A017]">{topNavItems.length} लिंक</span>
           </div>
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = activeView === link.id;
-            const isHighlight = (link as any).highlight;
+          {topNavItems.map((item) => {
+            const isActive = (item.targetType === 'view' && activeView === item.targetValue);
+            const isHighlight = item.highlight;
+            const label = lang === 'hi' ? item.labelHi : item.labelEn;
+            const badge = lang === 'hi' ? item.badgeTextHi : item.badgeTextEn;
+
             return (
               <button
-                key={link.id}
+                key={item.id}
                 onClick={() => {
-                  navigate(link.id);
+                  handleNavAction(item);
                   setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition btn-press-effect ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition btn-press-effect ${
                   isActive
                     ? 'bg-[#D4A017] text-[#2D2424] font-black shadow-md'
                     : isHighlight
@@ -313,8 +319,18 @@ export const Header: React.FC = () => {
                     : 'text-white hover:bg-[#963E2F]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#2D2424]' : 'text-[#D4A017]'}`} />
-                <span>{lang === 'hi' ? link.labelHi : link.labelEn}</span>
+                <div className="flex items-center gap-3">
+                  <DynamicNavIcon 
+                    name={item.iconName} 
+                    className={`w-4 h-4 ${isActive ? 'text-[#2D2424]' : 'text-[#D4A017]'}`} 
+                  />
+                  <span>{label}</span>
+                </div>
+                {badge && (
+                  <span className="px-1.5 py-0.5 bg-[#D4A017] text-[#2D2424] text-[9px] font-black rounded">
+                    {badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -336,3 +352,4 @@ export const Header: React.FC = () => {
     </header>
   );
 };
+

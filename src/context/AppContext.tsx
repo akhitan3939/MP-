@@ -14,9 +14,12 @@ import {
   ThemeMode,
   SiteBanner,
   PlatformSettings,
-  MockSetMetadata 
+  MockSetMetadata,
+  ShareModalParams,
+  NavigationMenuItem 
 } from '../types';
-import { StorageService } from '../utils/storage';
+import { StorageService, INITIAL_NAV_MENUS } from '../utils/storage';
+import { calculateAttemptXp } from '../utils/xpSystem';
 
 interface AppContextType {
   // Global State
@@ -33,6 +36,9 @@ interface AppContextType {
   reminders: StudyReminder[];
   siteBanners: SiteBanner[];
   platformSettings: PlatformSettings;
+  navMenuItems: NavigationMenuItem[];
+  topNavItems: NavigationMenuItem[];
+  bottomNavItems: NavigationMenuItem[];
   enrolledSeriesIds: string[];
   bookmarkedQuestionIds: string[];
   theme: ThemeMode;
@@ -44,6 +50,7 @@ interface AppContextType {
   activeView: string;
   viewParams: Record<string, any>;
   navigate: (view: string, params?: Record<string, any>) => void;
+  handleNavAction: (item: NavigationMenuItem) => void;
   toggleTheme: () => void;
   setLanguage: (lang: Language) => void;
   
@@ -72,7 +79,14 @@ interface AppContextType {
   openCertificateModal: (attempt: TestAttempt) => void;
   closeCertificateModal: () => void;
 
+  isShareModalOpen: boolean;
+  shareModalParams: ShareModalParams | null;
+  openShareModal: (params?: ShareModalParams) => void;
+  closeShareModal: () => void;
+
   // Actions
+  awardXp: (amount: number, reason?: string) => void;
+  redeemXpForCoupon: (xpToRedeem: number) => { success: boolean; couponCode?: string; message: string };
   login: (identifier: string, password?: string, role?: 'student' | 'admin') => boolean;
   register: (user: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>) => boolean;
   resetPassword: (identifier: string, newPassword: string) => { success: boolean; message: string; user?: UserProfile };
@@ -109,6 +123,11 @@ interface AppContextType {
   savePlatformSettings: (settings: PlatformSettings) => void;
   saveNote: (note: OfflineNote) => void;
   deleteNote: (id: string) => void;
+  saveNavMenuItem: (item: NavigationMenuItem) => void;
+  deleteNavMenuItem: (id: string) => void;
+  toggleNavMenuItemActive: (id: string) => void;
+  reorderNavMenuItem: (id: string, direction: 'up' | 'down') => void;
+  resetNavMenusToDefault: () => void;
   refundOrder: (orderId: string) => void;
   toggleUserAccess: (userId: string, seriesId: string) => void;
   toggleUserRole: (userId: string) => void;
@@ -134,6 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [reminders, setReminders] = useState<StudyReminder[]>(() => StorageService.getReminders());
   const [siteBanners, setSiteBanners] = useState<SiteBanner[]>(() => StorageService.getSiteBanners());
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(() => StorageService.getPlatformSettings());
+  const [navMenuItems, setNavMenuItems] = useState<NavigationMenuItem[]>(() => StorageService.getNavMenus());
   const [enrolledMap, setEnrolledMap] = useState<Record<string, string[]>>(() => StorageService.getEnrolledMap());
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(() => StorageService.getBookmarkedQuestions());
   
@@ -163,6 +183,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState<boolean>(false);
   const [selectedAttemptForCert, setSelectedAttemptForCert] = useState<TestAttempt | null>(null);
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
+  const [shareModalParams, setShareModalParams] = useState<ShareModalParams | null>(null);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -214,11 +237,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { StorageService.setReminders(reminders); }, [reminders]);
   useEffect(() => { StorageService.setSiteBanners(siteBanners); }, [siteBanners]);
   useEffect(() => { StorageService.setPlatformSettings(platformSettings); }, [platformSettings]);
+  useEffect(() => { StorageService.setNavMenus(navMenuItems); }, [navMenuItems]);
   useEffect(() => { StorageService.setEnrolledMap(enrolledMap); }, [enrolledMap]);
   useEffect(() => { StorageService.setBookmarkedQuestions(bookmarkedIds); }, [bookmarkedIds]);
 
   const currentUser = users.find(u => u.id === currentUserId) || null;
   const enrolledSeriesIds = currentUser ? (enrolledMap[currentUser.id] || []) : [];
+
+  // Top and Bottom dynamic menu items
+  const topNavItems = navMenuItems
+    .filter(m => (m.placement === 'top' || m.placement === 'both') && m.isActive)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  const bottomNavItems = navMenuItems
+    .filter(m => (m.placement === 'bottom' || m.placement === 'both') && m.isActive)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -231,6 +264,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveView(view);
     setViewParams(params);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavAction = (item: NavigationMenuItem) => {
+    if (!item) return;
+    if (item.targetType === 'view') {
+      navigate(item.targetValue);
+    } else if (item.targetType === 'category') {
+      navigate('catalog', { category: item.targetValue });
+    } else if (item.targetType === 'modal') {
+      if (item.targetValue === 'notes') {
+        openNotesModal();
+      } else if (item.targetValue === 'reminders') {
+        openRemindersModal();
+      } else if (item.targetValue === 'auth' || item.targetValue === 'login') {
+        openAuthModal('login');
+      } else {
+        navigate('home');
+      }
+    } else if (item.targetType === 'external') {
+      if (item.targetValue) {
+        if (item.openInNewTab) {
+          window.open(item.targetValue, '_blank', 'noopener,noreferrer');
+        } else {
+          window.location.href = item.targetValue;
+        }
+      }
+    }
   };
 
   const toggleTheme = () => {
@@ -406,6 +466,68 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedAttemptForCert(null);
   };
 
+  const openShareModal = (params?: ShareModalParams) => {
+    setShareModalParams(params || null);
+    setIsShareModalOpen(true);
+  };
+
+  const closeShareModal = () => {
+    setIsShareModalOpen(false);
+    setShareModalParams(null);
+  };
+
+  const awardXp = (amount: number, reason?: string) => {
+    const user = currentUser || users[1];
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: (u.xp || 0) + amount } : u));
+    showToast(lang === 'hi' ? `🎉 +${amount} XP रिवॉर्ड मिला! ${reason ? `(${reason})` : ''}` : `🎉 +${amount} XP awarded! ${reason ? `(${reason})` : ''}`);
+  };
+
+  const redeemXpForCoupon = (xpToRedeem: number): { success: boolean; couponCode?: string; message: string } => {
+    const user = currentUser || users[1];
+    const currentXp = user.xp || 0;
+
+    if (currentXp < xpToRedeem) {
+      const msg = lang === 'hi'
+        ? `⚠️ आपके पास पर्याप्त XP नहीं हैं। आवश्यक: ${xpToRedeem} XP, उपलब्ध: ${currentXp} XP`
+        : `⚠️ Insufficient XP. Required: ${xpToRedeem} XP, Available: ${currentXp} XP`;
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    let discountAmount = 50;
+    if (xpToRedeem >= 2000) discountAmount = 200;
+    else if (xpToRedeem >= 1000) discountAmount = 100;
+    else if (xpToRedeem >= 500) discountAmount = 50;
+
+    const generatedCode = `XP${discountAmount}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    // Deduct user's XP
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: Math.max(0, u.xp - xpToRedeem) } : u));
+
+    // Create new Coupon in system
+    const newCoupon: Coupon = {
+      code: generatedCode,
+      discountType: 'flat',
+      discountValue: discountAmount,
+      minAmount: discountAmount + 50,
+      descriptionHi: `${xpToRedeem} XP रिडीम करने पर ₹${discountAmount} की विशेष छूट`,
+      descriptionEn: `₹${discountAmount} flat discount from ${xpToRedeem} XP redemption`,
+      validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      usageCount: 0,
+      isActive: true
+    };
+
+    setCoupons(prev => [newCoupon, ...prev]);
+
+    const successMsg = lang === 'hi'
+      ? `🎉 बधाई! ${xpToRedeem} XP के बदले ₹${discountAmount} की छूट वाला विशेष कूपन कोड '${generatedCode}' सक्रिय हो गया है!`
+      : `🎉 Success! Redeemed ${xpToRedeem} XP for ₹${discountAmount} discount coupon '${generatedCode}'!`;
+
+    showToast(successMsg);
+    return { success: true, couponCode: generatedCode, message: successMsg };
+  };
+
   const isEnrolled = (seriesId: string): boolean => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
@@ -558,6 +680,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       studentName: user.name,
     });
 
+    // Calculate Dynamic XP Breakdown (+10 for correct, -5 penalty for wrong, streak & speed bonus)
+    const xpBreakdown = calculateAttemptXp({
+      correctCount: rawAttempt.correctAnswers || 0,
+      incorrectCount: rawAttempt.incorrectAnswers || 0,
+      unattemptedCount: rawAttempt.unattempted || 0,
+      streak: user.streak || 1,
+      durationSeconds: rawAttempt.durationSeconds,
+      totalQuestions: rawAttempt.totalQuestions || 100,
+    });
+
     const newAttempt: TestAttempt = {
       ...rawAttempt,
       id: `att_${Date.now()}`,
@@ -565,6 +697,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rank,
       totalParticipants,
       percentile,
+      xpBreakdown,
       aiReport: instantAiReport
     };
 
@@ -594,8 +727,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return updated.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
     });
 
-    // Award XP
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: u.xp + 150, streak: u.streak + 1 } : u));
+    // Award / Penalize XP dynamically (Net XP applied to user profile)
+    setUsers(prev => prev.map(u => u.id === user.id ? { 
+      ...u, 
+      xp: Math.max(0, (u.xp || 0) + xpBreakdown.netXp), 
+      streak: (u.streak || 0) + 1 
+    } : u));
 
     // Non-blocking background AI enhancement (does not block immediate result display)
     fetch('/api/ai/evaluate-attempt', {
@@ -766,6 +903,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(lang === 'hi' ? 'नोट हटाया गया' : 'Study note deleted');
   };
 
+  const saveNavMenuItem = (item: NavigationMenuItem) => {
+    setNavMenuItems(prev => {
+      const exists = prev.some(m => m.id === item.id);
+      if (exists) {
+        return prev.map(m => m.id === item.id ? item : m);
+      }
+      return [...prev, item];
+    });
+    showToast(lang === 'hi' ? 'मेन्यू आइटम सफलतापूर्वक सहेजा गया' : 'Navigation menu item saved successfully');
+  };
+
+  const deleteNavMenuItem = (id: string) => {
+    setNavMenuItems(prev => prev.filter(m => m.id !== id));
+    showToast(lang === 'hi' ? 'मेन्यू आइटम हटा दिया गया' : 'Navigation menu item deleted');
+  };
+
+  const toggleNavMenuItemActive = (id: string) => {
+    setNavMenuItems(prev => prev.map(m => m.id === id ? { ...m, isActive: !m.isActive } : m));
+    showToast(lang === 'hi' ? 'मेन्यू स्थिति अपडेट की गई' : 'Menu visibility updated');
+  };
+
+  const reorderNavMenuItem = (id: string, direction: 'up' | 'down') => {
+    setNavMenuItems(prev => {
+      const sorted = [...prev].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const index = sorted.findIndex(m => m.id === id);
+      if (index === -1) return prev;
+      
+      if (direction === 'up' && index > 0) {
+        const targetIdx = index - 1;
+        const temp = sorted[index];
+        sorted[index] = sorted[targetIdx];
+        sorted[targetIdx] = temp;
+      } else if (direction === 'down' && index < sorted.length - 1) {
+        const targetIdx = index + 1;
+        const temp = sorted[index];
+        sorted[index] = sorted[targetIdx];
+        sorted[targetIdx] = temp;
+      }
+      
+      return sorted.map((item, idx) => ({ ...item, order: idx + 1 }));
+    });
+  };
+
+  const resetNavMenusToDefault = () => {
+    setNavMenuItems(INITIAL_NAV_MENUS);
+    showToast(lang === 'hi' ? 'मेन्यू डिफ़ॉल्ट पर रीसेट किए गए' : 'Menus reset to default');
+  };
+
   const refundOrder = (orderId: string) => {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'REFUNDED' } : o));
     showToast(lang === 'hi' ? 'रिफंड प्रोसेस किया गया' : 'Refund processed successfully');
@@ -822,6 +1007,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         reminders,
         siteBanners,
         platformSettings,
+        navMenuItems,
+        topNavItems,
+        bottomNavItems,
         enrolledSeriesIds,
         bookmarkedQuestionIds: bookmarkedIds,
         theme,
@@ -832,6 +1020,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         activeView,
         viewParams,
         navigate,
+        handleNavAction,
         toggleTheme,
         setLanguage,
 
@@ -858,6 +1047,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         selectedAttemptForCert,
         openCertificateModal,
         closeCertificateModal,
+
+        isShareModalOpen,
+        shareModalParams,
+        openShareModal,
+        closeShareModal,
+
+        awardXp,
+        redeemXpForCoupon,
 
         login,
         register,
@@ -890,6 +1087,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         savePlatformSettings,
         saveNote,
         deleteNote,
+        saveNavMenuItem,
+        deleteNavMenuItem,
+        toggleNavMenuItemActive,
+        reorderNavMenuItem,
+        resetNavMenusToDefault,
         refundOrder,
         toggleUserAccess,
         toggleUserRole,

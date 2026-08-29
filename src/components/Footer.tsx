@@ -1,9 +1,31 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { ShieldCheck, Phone, Mail, MapPin, Award, CheckCircle2, Lock, Heart } from 'lucide-react';
+import { 
+  ShieldCheck, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Award, 
+  CheckCircle2, 
+  Lock, 
+  Heart,
+  Facebook,
+  Instagram,
+  Youtube,
+  Send,
+  MessageCircle,
+  Share2
+} from 'lucide-react';
+import { DynamicNavIcon } from '../utils/navIcons';
 
 export const Footer: React.FC = () => {
-  const { lang, navigate, openNotesModal, openAuthModal } = useApp();
+  const { lang, navigate, openNotesModal, openAuthModal, bottomNavItems, handleNavAction, platformSettings } = useApp();
+
+  const fbUrl = platformSettings?.facebookUrl || 'https://facebook.com/groups/mpparikshasetu';
+  const instaUrl = platformSettings?.instagramUrl || 'https://instagram.com/mpparikshasetu_official';
+  const tgUrl = platformSettings?.telegramUrl || 'https://t.me/mpparikshasetu_mp';
+  const ytUrl = platformSettings?.youtubeUrl || 'https://youtube.com/@mpparikshasetu';
+  const waUrl = platformSettings?.whatsappCommunityUrl || 'https://chat.whatsapp.com/mpparikshasetu';
 
   return (
     <footer className="bg-[#5E1F16] text-[#FFFBF2] border-t-4 border-[#D4A017] text-xs mt-auto">
@@ -68,37 +90,32 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Col 3: Student Tools */}
+          {/* Col 3: Student Tools & Dynamic Bottom Menus */}
           <div className="space-y-2.5">
             <h4 className="font-display font-black text-sm uppercase tracking-wider text-[#D4A017]">
-              {lang === 'hi' ? 'छात्र सुविधाएँ' : 'Student Resources'}
+              {lang === 'hi' ? 'छात्र सुविधाएँ व मेन्यू' : 'Student Resources & Menu'}
             </h4>
             <ul className="space-y-1.5 text-white/80 font-bold text-xs">
-              <li>
-                <button onClick={() => navigate('freeMockTest')} className="hover:text-[#D4A017] transition text-[#D4A017] font-black flex items-center gap-1">
-                  <span>🎯 ऑल-म.प्र. फ्री मॉक टेस्ट (40 Qs)</span>
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('leaderboard')} className="hover:text-[#D4A017] transition">
-                  🏆 ऑल-मध्यप्रदेश लाइव लीडरबोर्ड
-                </button>
-              </li>
-              <li>
-                <button onClick={() => openNotesModal()} className="hover:text-[#D4A017] transition">
-                  📥 हस्तलिखित म.प्र. GK ई-नोट्स (PDF)
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('dashboard')} className="hover:text-[#D4A017] transition">
-                  📊 विस्तृत स्कोरकार्ड व AI विश्लेषण
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('catalog')} className="hover:text-[#D4A017] transition">
-                  🎯 निःशुल्क डेमो टेस्ट पूर्वावलोकन
-                </button>
-              </li>
+              {bottomNavItems.map((item) => {
+                const label = lang === 'hi' ? item.labelHi : item.labelEn;
+                const badge = lang === 'hi' ? item.badgeTextHi : item.badgeTextEn;
+                return (
+                  <li key={item.id}>
+                    <button 
+                      onClick={() => handleNavAction(item)} 
+                      className="hover:text-[#D4A017] transition flex items-center gap-1.5 text-left cursor-pointer"
+                    >
+                      <DynamicNavIcon name={item.iconName} className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
+                      <span>{label}</span>
+                      {badge && (
+                        <span className="px-1 py-0.2 bg-[#D4A017] text-[#2D2424] text-[8px] font-black rounded ml-1">
+                          {badge}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
@@ -119,6 +136,60 @@ export const Footer: React.FC = () => {
               <div className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#D4A017]" />
                 <span>MP नगर, जोन-II, भोपाल (म.प्र.) 462011</span>
+              </div>
+            </div>
+
+            {/* Social Media Channels */}
+            <div className="pt-2 border-t border-[#963E2F] space-y-2">
+              <div className="text-[10px] text-[#D4A017] uppercase font-black tracking-wider">
+                {lang === 'hi' ? 'सोशल मीडिया से जुड़ें' : 'Follow Us on Social Media'}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <a
+                  href={fbUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#166fe5] text-white transition hover:scale-110 shadow-xs"
+                  title="Facebook Page & Group"
+                >
+                  <Facebook className="w-4 h-4" />
+                </a>
+                <a
+                  href={instaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white transition hover:scale-110 shadow-xs"
+                  title="Instagram Reels & Tips"
+                >
+                  <Instagram className="w-4 h-4" />
+                </a>
+                <a
+                  href={tgUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-[#229ED9] hover:bg-[#1f8fc4] text-white transition hover:scale-110 shadow-xs"
+                  title="Telegram Channel (PDF & Quiz)"
+                >
+                  <Send className="w-4 h-4" />
+                </a>
+                <a
+                  href={ytUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-[#FF0000] hover:bg-[#e60000] text-white transition hover:scale-110 shadow-xs"
+                  title="YouTube Channel"
+                >
+                  <Youtube className="w-4 h-4" />
+                </a>
+                <a
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-[#25D366] hover:bg-[#20ba5a] text-white transition hover:scale-110 shadow-xs"
+                  title="WhatsApp Alerts Community"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </a>
               </div>
             </div>
 

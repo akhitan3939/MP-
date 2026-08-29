@@ -25,8 +25,13 @@ import {
   BookOpen,
   ZoomIn,
   Image as ImageIcon,
-  Play
+  Play,
+  Volume2,
+  VolumeX,
+  Bell,
+  AlertCircle
 } from 'lucide-react';
+import { AudioAlert } from '../utils/audioAlert';
 import { Question, SectionScore, TestSeries } from '../types';
 import { getPatwariQuestionsForSet, ALL_20_PATWARI_SETS } from '../data/patwariSetsData';
 import { getAgriQuestionsForSet, ALL_20_AGRI_SETS } from '../data/agriSetsData';
@@ -134,6 +139,31 @@ export const CbtExamView: React.FC = () => {
   const [isQuestionPaperOpen, setIsQuestionPaperOpen] = useState<boolean>(false);
   const [zoomedImageUrl, setZoomedImageUrl] = useState<{ url: string; caption?: string } | null>(null);
 
+  // Time Alert Selection State (User can set maximum 2 alerts before exam ends)
+  const defaultAlerts = isFreeMock40 ? [5, 2] : [10, 5];
+  const [selectedAlertMinutes, setSelectedAlertMinutes] = useState<number[]>(defaultAlerts);
+  const [isSoundAlertEnabled, setIsSoundAlertEnabled] = useState<boolean>(true);
+  const [activeAlertBanner, setActiveAlertBanner] = useState<{ minutesLeft: number; message: string } | null>(null);
+  const [triggeredAlertMinutes, setTriggeredAlertMinutes] = useState<number[]>([]);
+
+  // Function to toggle alert minute (max 2 alerts enforced)
+  const toggleAlertMinute = (min: number) => {
+    if (selectedAlertMinutes.includes(min)) {
+      setSelectedAlertMinutes(prev => prev.filter(m => m !== min));
+    } else {
+      if (selectedAlertMinutes.length >= 2) {
+        showToast(lang === 'hi' ? '⚠️ आप अधिकतम 2 समय अलर्ट चुन सकते हैं।' : '⚠️ You can select a maximum of 2 alert times.');
+        return;
+      }
+      setSelectedAlertMinutes(prev => [...prev, min].sort((a, b) => b - a));
+    }
+  };
+
+  const testAlertSound = () => {
+    AudioAlert.playTestBeep();
+    showToast(lang === 'hi' ? '🔊 2 सेकंड का टेस्ट बीप बजाया गया!' : '🔊 Played 2-second test beep sound!');
+  };
+
   // Timer State (Total Duration in Seconds)
   const initialDuration = series.durationMinutes * 60;
   const [timeLeft, setTimeLeft] = useState<number>(initialDuration);
@@ -156,6 +186,8 @@ export const CbtExamView: React.FC = () => {
     setUserAnswers({});
     setReviewedQuestionIds([]);
     setVisitedQuestionIds([questionsList[0]?.id || 'q1']);
+    setTriggeredAlertMinutes([]);
+    setActiveAlertBanner(null);
     setIsExamStarted(true);
     showToast(
       lang === 'hi' 
@@ -179,12 +211,32 @@ export const CbtExamView: React.FC = () => {
           handleFinalSubmit();
           return 0;
         }
-        return prev - 1;
+
+        const nextTime = prev - 1;
+        
+        // Check for audio / visual end-of-exam alerts (at exact minute markers)
+        if (nextTime > 0 && nextTime % 60 === 0) {
+          const minutesRemaining = Math.floor(nextTime / 60);
+          if (selectedAlertMinutes.includes(minutesRemaining) && !triggeredAlertMinutes.includes(minutesRemaining)) {
+            setTriggeredAlertMinutes(curr => [...curr, minutesRemaining]);
+            if (isSoundAlertEnabled) {
+              AudioAlert.playExamBeepAlert();
+            }
+            setActiveAlertBanner({
+              minutesLeft: minutesRemaining,
+              message: lang === 'hi'
+                ? `⏰ समय चेतावनी: परीक्षा समाप्त होने में केवल ${minutesRemaining} मिनट शेष हैं! कृपया सभी प्रश्नों की अंतिम समीक्षा कर लें।`
+                : `⏰ Time Warning: Only ${minutesRemaining} minute(s) remaining! Please finalize your answers.`
+            });
+          }
+        }
+
+        return nextTime;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isExamStarted]);
+  }, [isExamStarted, selectedAlertMinutes, triggeredAlertMinutes, isSoundAlertEnabled, lang]);
 
   // Update visited status when changing index
   useEffect(() => {
@@ -715,7 +767,104 @@ export const CbtExamView: React.FC = () => {
             </div>
           </div>
 
-          {/* STEP 3: DECLARATION & START ACTION */}
+          {/* STEP 3: EXAM END AUDIO ALERTS CONFIGURATION (User can choose up to 2 alerts) */}
+          <div className="bg-white dark:bg-stone-900 border-2 border-amber-300/80 dark:border-amber-700/60 rounded-3xl p-6 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-200 dark:border-stone-800 pb-3">
+              <div>
+                <h3 className="font-display font-black text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-amber-500 text-stone-950 text-xs font-black flex items-center justify-center">3</span>
+                  <span className="flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-amber-500" />
+                    <span>{lang === 'hi' ? 'समय समाप्ति पूर्व बीप अलर्ट (अधिकतम 2 अलर्ट सेट करें):' : 'Exam End Beep Alerts (Set Max 2 Alerts):'}</span>
+                  </span>
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                  {lang === 'hi' 
+                    ? 'परीक्षा समाप्त होने से पहले आपको कब बीप व स्क्रीन अलर्ट चाहिए? नीचे से अपनी पसंद के 2 समय चुनें।'
+                    : 'Choose up to 2 time markers when you want a 2-second audio beep and screen alert before exam ends.'}
+                </p>
+              </div>
+
+              {/* Sound Toggle & Test Button */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={testAlertSound}
+                  className="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-amber-900 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border border-amber-300 dark:border-amber-700"
+                  title="2-second Beep Test"
+                >
+                  <Volume2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <span>{lang === 'hi' ? '🔊 2-सेकंड बीप टेस्ट' : '🔊 Test Beep'}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsSoundAlertEnabled(!isSoundAlertEnabled)}
+                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                    isSoundAlertEnabled
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
+                  }`}
+                >
+                  {isSoundAlertEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  <span>{isSoundAlertEnabled ? (lang === 'hi' ? 'ध्वनि चालू' : 'Sound ON') : (lang === 'hi' ? 'ध्वनि म्यूट' : 'Sound Muted')}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Alert Time Buttons Selection (30m, 15m, 10m, 5m, 2m, 1m) */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                {[
+                  { mins: 30, labelHi: '30 मिनट पहले', labelEn: '30 Mins Before' },
+                  { mins: 15, labelHi: '15 मिनट पहले', labelEn: '15 Mins Before' },
+                  { mins: 10, labelHi: '10 मिनट पहले', labelEn: '10 Mins Before' },
+                  { mins: 5, labelHi: '5 मिनट पहले', labelEn: '5 Mins Before' },
+                  { mins: 2, labelHi: '2 मिनट पहले', labelEn: '2 Mins Before' },
+                  { mins: 1, labelHi: '1 मिनट पहले (अंतिम)', labelEn: '1 Min Before (Final)' },
+                ].map(({ mins, labelHi, labelEn }) => {
+                  const isSelected = selectedAlertMinutes.includes(mins);
+                  return (
+                    <button
+                      key={mins}
+                      onClick={() => toggleAlertMinute(mins)}
+                      className={`px-4 py-2.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 border-2 transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-md ring-2 ring-amber-400/40'
+                          : 'bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-amber-400'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${isSelected ? 'bg-stone-950 text-amber-400 font-black' : 'border border-stone-400 text-transparent'}`}>
+                        {isSelected ? '✓' : ''}
+                      </span>
+                      <span>{lang === 'hi' ? labelHi : labelEn}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Status Indicator */}
+              <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>
+                    {selectedAlertMinutes.length === 0 ? (
+                      <span className="text-stone-500 dark:text-stone-400">{lang === 'hi' ? 'कोई अलर्ट नहीं चुना गया (कोई बीप नहीं बजेगी)' : 'No alert chosen (Silent mode)'}</span>
+                    ) : (
+                      <span>
+                        {lang === 'hi' 
+                          ? `सक्रिय अलर्ट (${selectedAlertMinutes.length}/2): परीक्षा खत्म होने के ${selectedAlertMinutes.join(' मिनट व ')} मिनट पहले 2-सेकंड की बीप बजेगी।` 
+                          : `Active Alerts (${selectedAlertMinutes.length}/2): 2-second beep will trigger at ${selectedAlertMinutes.join(' & ')} mins remaining.`}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200">
+                  {selectedAlertMinutes.length}/2 अलर्ट
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 4: DECLARATION & START ACTION */}
           <div className="bg-stone-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-6 border-2 border-emerald-500/40">
             <div className="flex items-start gap-3">
               <input
@@ -1290,7 +1439,7 @@ export const CbtExamView: React.FC = () => {
             </div>
 
             <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">
-              सबमिट करने के बाद आप उत्तरों में संशोधन नहीं कर सकेंगे। Google AI तुरंत आपके अंकों का मूल्यांकन एवं विस्तृत विश्लेषण तैयार करेगा।
+              सबमिट करने के बाद आप उत्तरों में संशोधन नहीं कर सकेंगे। AI तुरंत आपके अंकों का मूल्यांकन एवं विस्तृत विश्लेषण तैयार करेगा।
             </p>
 
             {/* Live Attempt Breakdown */}
@@ -1333,7 +1482,49 @@ export const CbtExamView: React.FC = () => {
         </div>
       )}
 
-      {/* 6. Virtual Calculator Modal */}
+      {/* 5. Exam End Warning Alert Popup Banner (Triggers at user-selected minutes) */}
+      {activeAlertBanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-gradient-to-b from-stone-900 via-stone-900 to-amber-950/90 border-2 border-amber-500 rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4 text-white animate-scaleUp">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center font-black text-2xl shadow-lg shrink-0 animate-bounce">
+                ⏰
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-1 text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                  <Bell className="w-3 h-3" /> समय चेतावनी अलर्ट (Time Alert)
+                </div>
+                <h3 className="font-display font-extrabold text-lg sm:text-xl text-white mt-0.5">
+                  {lang === 'hi' 
+                    ? `केवल ${activeAlertBanner.minutesLeft} मिनट शेष हैं!` 
+                    : `Only ${activeAlertBanner.minutesLeft} Minute(s) Left!`}
+                </h3>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-stone-200 leading-relaxed bg-stone-950/60 p-4 rounded-2xl border border-stone-800">
+              {activeAlertBanner.message}
+            </p>
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                onClick={() => AudioAlert.playTestBeep()}
+                className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-amber-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Volume2 className="w-4 h-4" />
+                <span>{lang === 'hi' ? 'पुनः बीप बजाएं' : 'Replay Beep'}</span>
+              </button>
+
+              <button
+                onClick={() => setActiveAlertBanner(null)}
+                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl text-xs sm:text-sm shadow-lg transition hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                {lang === 'hi' ? 'समझ गया, परीक्षा जारी रखें' : 'Got it, Continue Exam'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isCalcOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/50 backdrop-blur-sm">
           <div className="bg-stone-900 text-white border border-stone-700 rounded-2xl p-4 w-72 shadow-2xl space-y-3">

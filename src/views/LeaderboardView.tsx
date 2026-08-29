@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Trophy, Medal, Award, Flame, Search, MapPin, Filter, Star, Sparkles, UserCheck } from 'lucide-react';
+import { Trophy, Medal, Award, Flame, Search, MapPin, Filter, Star, Sparkles, UserCheck, Globe } from 'lucide-react';
 import { MP_DISTRICTS } from '../data/initialData';
 
 export const LeaderboardView: React.FC = () => {
@@ -11,11 +11,14 @@ export const LeaderboardView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredLeaderboard = leaderboard.filter(entry => {
-    const matchesDistrict = selectedDistrict === 'ALL' || entry.district === selectedDistrict;
+    const matchesDistrict = selectedDistrict === 'ALL' || 
+      entry.district === selectedDistrict || 
+      (entry.state && entry.state === selectedDistrict);
     const matchesExam = selectedExam === 'ALL' || entry.seriesId === selectedExam;
     const matchesSearch = searchQuery === '' || 
       entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.district.toLowerCase().includes(searchQuery.toLowerCase());
+      entry.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (entry.state && entry.state.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesDistrict && matchesExam && matchesSearch;
   });
 
@@ -30,15 +33,15 @@ export const LeaderboardView: React.FC = () => {
         <div className="relative z-10 space-y-2">
           <div className="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full text-xs font-bold border border-amber-500/30">
             <Trophy className="w-4 h-4 text-amber-400" />
-            <span>{lang === 'hi' ? 'ऑल-मध्यप्रदेश लाइव रैंक सूची 2026' : 'All-MP Live State Ranking'}</span>
+            <span>{lang === 'hi' ? '🇮🇳 ऑल-इंडिया व राज्य स्तरीय लाइव रैंक सूची 2026' : 'All-India & State Live Ranking 2026'}</span>
           </div>
           <h1 className="font-display font-extrabold text-2xl sm:text-4xl text-white">
-            {lang === 'hi' ? 'राज्य स्तरीय मेधावी परीक्षार्थी लीडरबोर्ड' : 'MP State Aspirants Leaderboard'}
+            {lang === 'hi' ? 'अखिल भारतीय व राज्य स्तरीय मेधावी परीक्षार्थी लीडरबोर्ड' : 'All-India & MP Aspirants Merit Leaderboard'}
           </h1>
           <p className="text-stone-300 text-xs sm:text-sm max-w-2xl">
             {lang === 'hi'
-              ? 'मध्यप्रदेश के सभी 55 जिलों के परीक्षार्थियों के साथ अपनी स्थिति जानें, XP अर्जित करें और मेरिट सूची में स्थान बनाएँ।'
-              : 'Compete with aspirants across 55 MP districts, maintain study streaks, and earn merit badges.'}
+              ? 'मध्यप्रदेश के सभी 55 जिलों एवं संपूर्ण भारत के लाखों परीक्षार्थियों के साथ अपनी लाइव रैंक, स्कोर व पर्सेंटाइल देखें और मेरिट में स्थान बनाएँ।'
+              : 'Compete with aspirants across MP and All India, maintain study streaks, and claim your place in the merit list.'}
           </p>
         </div>
       </div>
@@ -106,10 +109,10 @@ export const LeaderboardView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-display font-bold text-base text-stone-900 dark:text-white">
-                  {currentUser.name} (आपकी ऑल-एमपी रैंक)
+                  {currentUser.name} (आपकी लाइव रैंक)
                 </span>
                 <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded">
-                  {currentUser.district}
+                  {currentUser.district}{currentUser.state ? ` (${currentUser.state})` : ''}
                 </span>
               </div>
               <p className="text-xs text-stone-600 dark:text-stone-300">
@@ -138,7 +141,7 @@ export const LeaderboardView: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="परीक्षार्थी या जिला खोजें..."
+              placeholder="परीक्षार्थी, राज्य या जिला खोजें..."
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-xs font-medium"
             />
           </div>
@@ -149,10 +152,20 @@ export const LeaderboardView: React.FC = () => {
               onChange={(e) => setSelectedDistrict(e.target.value)}
               className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-xs font-bold"
             >
-              <option value="ALL">समस्त 55 जिले (All MP Districts)</option>
-              {MP_DISTRICTS.map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
+              <option value="ALL">🇮🇳 संपूर्ण भारत (All India Rankings)</option>
+              <optgroup label="मध्यप्रदेश के प्रमुख जिले">
+                {MP_DISTRICTS.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </optgroup>
+              <optgroup label="अन्य राज्य">
+                <option value="उत्तर प्रदेश">उत्तर प्रदेश (Uttar Pradesh)</option>
+                <option value="राजस्थान">राजस्थान (Rajasthan)</option>
+                <option value="बिहार">बिहार (Bihar)</option>
+                <option value="छत्तीसगढ़">छत्तीसगढ़ (Chhattisgarh)</option>
+                <option value="दिल्ली">दिल्ली (Delhi NCR)</option>
+                <option value="हरियाणा">हरियाणा (Haryana)</option>
+              </optgroup>
             </select>
           </div>
 
@@ -177,7 +190,7 @@ export const LeaderboardView: React.FC = () => {
               <tr>
                 <th className="py-3 px-3">रैंक (Rank)</th>
                 <th className="py-3 px-3">परीक्षार्थी / Aspirant</th>
-                <th className="py-3 px-3">गृह जिला</th>
+                <th className="py-3 px-3">राज्य व जिला</th>
                 <th className="py-3 px-3">प्राप्तांक (Score)</th>
                 <th className="py-3 px-3">सटीकता (Accuracy)</th>
                 <th className="py-3 px-3">समय (Time)</th>
@@ -199,7 +212,7 @@ export const LeaderboardView: React.FC = () => {
                   <td className="py-3.5 px-3">
                     <span className="inline-flex items-center gap-1 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded text-[11px]">
                       <MapPin className="w-3 h-3 text-amber-500" />
-                      {row.district}
+                      {row.district}{row.state ? ` (${row.state})` : ''}
                     </span>
                   </td>
                   <td className="py-3.5 px-3 font-mono font-bold">

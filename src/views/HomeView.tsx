@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TestCard } from '../components/TestCard';
 import { BannerCarousel } from '../components/BannerCarousel';
+import { SocialMediaSection } from '../components/SocialMediaSection';
 import { 
   Sparkles, 
   Trophy, 
@@ -88,8 +89,8 @@ export const HomeView: React.FC = () => {
               {/* Subtitle */}
               <p className="text-[#FFFBF2]/90 text-sm sm:text-base md:text-lg max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
                 {lang === 'hi'
-                  ? 'असली परीक्षा जैसा माहौल, हिंदी व अंग्रेजी द्विभाषी प्रश्न, तुरंत रिज़ल्ट और Google AI द्वारा विस्तृत उत्तर विश्लेषण व कमजोर क्षेत्रों का सुधार प्लान।'
-                  : 'Experience authentic MP CBT exams, bilingual questions in Hindi & English, instant scores, and Google AI detailed evaluations.'}
+                  ? 'असली परीक्षा जैसा माहौल, हिंदी व अंग्रेजी द्विभाषी प्रश्न, तुरंत रिज़ल्ट और AI द्वारा विस्तृत उत्तर विश्लेषण व कमजोर क्षेत्रों का सुधार प्लान।'
+                  : 'Experience authentic MP CBT exams, bilingual questions in Hindi & English, instant scores, and AI detailed evaluations.'}
               </p>
 
               {/* CTA Buttons */}
@@ -134,7 +135,7 @@ export const HomeView: React.FC = () => {
                   <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? 'मॉक टेस्ट उपलब्ध' : 'Mock Tests'}</div>
                 </div>
                 <div>
-                  <div className="font-mono font-black text-[#D4A017] text-xl sm:text-2xl">Google AI</div>
+                  <div className="font-mono font-black text-[#D4A017] text-xl sm:text-2xl">AI</div>
                   <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? 'तुरंत स्कोर विश्लेषण' : 'Instant AI Analysis'}</div>
                 </div>
               </div>
@@ -189,7 +190,7 @@ export const HomeView: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
                     <Cpu className="w-4 h-4 text-[#D4A017] shrink-0" />
-                    <span className="text-white text-[11px] font-bold">Google AI मूल्यांकन</span>
+                    <span className="text-white text-[11px] font-bold">AI मूल्यांकन</span>
                   </div>
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-[#D4A017] shrink-0" />
@@ -353,7 +354,7 @@ export const HomeView: React.FC = () => {
                 <Cpu className="w-5 h-5" />
               </div>
               <h3 className="font-display font-black text-lg text-white">
-                {lang === 'hi' ? 'Google AI आंसर इवैल्यूएशन' : 'Google AI Answer Evaluation'}
+                {lang === 'hi' ? 'AI आंसर इवैल्यूएशन' : 'AI Answer Evaluation'}
               </h3>
               <p className="text-xs text-[#EAD8B1] leading-relaxed font-medium">
                 टेस्ट सबमिट करते ही AI आपके गलत प्रश्नों के पीछे के कारणों, शॉर्टकट ट्रिक्स और 7-दिवसीय वैयक्तिकृत अध्ययन टाइमटेबल तैयार करता है।
@@ -388,6 +389,9 @@ export const HomeView: React.FC = () => {
 
         </div>
       </section>
+
+      {/* 4. Social Media & Aspirants Community Network */}
+      <SocialMediaSection />
 
     </div>
   );

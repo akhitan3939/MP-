@@ -18,9 +18,25 @@ import {
   HelpCircle,
   ArrowLeft,
   RotateCw,
-  MessageSquare
+  MessageSquare,
+  Globe,
+  MapPin,
+  CheckSquare,
+  Square
 } from 'lucide-react';
+import { ALL_INDIAN_STATES, getDistrictsForState } from '../data/statesAndDistricts';
 import { MP_DISTRICTS } from '../data/initialData';
+
+export const TARGET_EXAMS_LIST = [
+  { id: 'MP Patwari 2026', label: 'समूह-02 उपसमूह-04 (पटवारी एवं समकक्ष भर्ती 2026)', short: 'पटवारी 2026' },
+  { id: 'MP ESB Group 2 SubGroup 1 RAEO', label: 'समूह-2 उपसमूह-1 (ग्रामीण कृषि विस्तार अधिकारी - RAEO & SADO 2026)', short: 'RAEO / SADO' },
+  { id: 'MPPSC Prelims 2026', label: 'MPPSC राज्य सेवा प्रारंभिक परीक्षा 2026 (GS Paper 1 + CSAT Paper 2)', short: 'MPPSC 2026' },
+  { id: 'MP Police Constable / SI', label: 'म.प्र. पुलिस आरक्षक (Constable) एवं उपनिरीक्षक (SI 2026)', short: 'Police Constable / SI' },
+  { id: 'MP Vyapam Group 4', label: 'म.प्र. व्यापम समूह-4 (सहायक ग्रेड-3, स्टेनो, टाइपिस्ट व डाटा एंट्री)', short: 'ग्रुप-4 स्टेनो' },
+  { id: 'MP Vanrakshak', label: 'म.प्र. वनरक्षक, क्षेत्ररक्षक एवं जेल प्रहरी भर्ती परीक्षा', short: 'वनरक्षक / जेल प्रहरी' },
+  { id: 'MP TET Varg 2/3', label: 'म.प्र. प्राथमिक व माध्यमिक शिक्षक पात्रता परीक्षा (TET वर्ग 2/3)', short: 'MP TET' },
+  { id: 'All India General Competition', label: 'ऑल इंडिया / अन्य राज्य प्रतियोगी परीक्षाएँ (SSC, Railway, Banking, State PSC)', short: 'ऑल इंडिया सामान्य' }
+];
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, authModalMode, login, register, resetPassword, users, lang } = useApp();
@@ -36,8 +52,17 @@ export const AuthModal: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [district, setDistrict] = useState(MP_DISTRICTS[0]);
-  const [targetExam, setTargetExam] = useState('MP Patwari 2026');
+
+  // All India State & District Selection
+  const [selectedState, setSelectedState] = useState<string>('मध्यप्रदेश (Madhya Pradesh)');
+  const [customState, setCustomState] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('भोपाल (Bhopal)');
+  const [customDistrict, setCustomDistrict] = useState<string>('');
+
+  // Target Exams - Multi-select Checkboxes with "All" Option
+  const [selectedTargetExams, setSelectedTargetExams] = useState<string[]>(
+    TARGET_EXAMS_LIST.map(e => e.id)
+  );
   const [errorMsg, setErrorMsg] = useState('');
 
   // Admin form fields (Empty by default for manual entry)
@@ -103,14 +128,32 @@ export const AuthModal: React.FC = () => {
 
       const desiredUsername = username.trim() || email.trim().split('@')[0];
 
+      const finalState = selectedState.includes('अन्य')
+        ? (customState.trim() || 'अन्य राज्य (Other State)')
+        : selectedState;
+
+      const finalDistrict = (selectedDistrict.includes('अन्य') || selectedState.includes('अन्य'))
+        ? (customDistrict.trim() || 'अन्य जिला (Other District)')
+        : selectedDistrict;
+
+      if (selectedTargetExams.length === 0) {
+        setErrorMsg(lang === 'hi' ? 'कृपया कम से कम एक लक्ष्य परीक्षा चुनें (या "सभी चुनें" पर क्लिक करें)।' : 'Please select at least one target exam.');
+        return;
+      }
+
+      const finalTargetExam = selectedTargetExams.length === TARGET_EXAMS_LIST.length
+        ? 'सभी प्रतियोगी परीक्षाएँ (All Exams)'
+        : selectedTargetExams.map(id => TARGET_EXAMS_LIST.find(e => e.id === id)?.short || id).join(', ');
+
       const success = register({
         name: name.trim(),
         username: desiredUsername,
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         password: password.trim(),
-        district,
-        targetExam,
+        state: finalState,
+        district: finalDistrict,
+        targetExam: finalTargetExam,
         role: 'student'
       });
 
@@ -873,33 +916,169 @@ export const AuthModal: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            {/* All-India Welcoming Banner */}
+            <div className="p-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-stone-800 dark:to-stone-900 border border-blue-200 dark:border-stone-700 rounded-xl flex items-center gap-2">
+              <span className="text-base">🇮🇳</span>
+              <div className="text-[11px] leading-tight">
+                <span className="font-extrabold text-blue-950 dark:text-blue-200 block">
+                  {lang === 'hi' ? 'सम्पूर्ण भारत (All-India) परीक्षार्थी पंजीकरण' : 'All-India Aspirant Portal'}
+                </span>
+                <span className="text-stone-500 dark:text-stone-400">
+                  {lang === 'hi' ? 'म.प्र. एवं देश के किसी भी राज्य/जिले के अभ्यर्थी पंजीकरण कर सकते हैं।' : 'Aspirants from any State or District across India can register.'}
+                </span>
+              </div>
+            </div>
+
+            {/* State & District Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* State Selection */}
               <div>
-                <label className="block font-black text-stone-700 dark:text-stone-300 mb-1">गृह जिला / District</label>
+                <label className="block font-black text-stone-700 dark:text-stone-300 mb-1 flex items-center gap-1">
+                  <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>राज्य / State *</span>
+                </label>
                 <select
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium"
+                  value={selectedState}
+                  onChange={(e) => {
+                    const newState = e.target.value;
+                    setSelectedState(newState);
+                    const newDistricts = getDistrictsForState(newState);
+                    setSelectedDistrict(newDistricts[0] || 'अन्य जिला (Other District)');
+                    setCustomState('');
+                    setCustomDistrict('');
+                  }}
+                  className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-[#D4A017] text-xs"
                 >
-                  {MP_DISTRICTS.map(d => (
+                  {ALL_INDIAN_STATES.map(s => (
+                    <option key={s.state} value={s.state}>{s.state}</option>
+                  ))}
+                </select>
+
+                {/* Custom State Input when "अन्य राज्य / केंद्र शासित प्रदेश" is selected */}
+                {selectedState.includes('अन्य') && (
+                  <div className="mt-1.5 animate-fadeIn">
+                    <input
+                      type="text"
+                      value={customState}
+                      onChange={(e) => setCustomState(e.target.value)}
+                      placeholder="अपने राज्य का नाम लिखें (Type State Name)"
+                      required
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 bg-amber-50/50 dark:bg-stone-900 text-stone-900 dark:text-white text-xs font-bold focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* District Selection */}
+              <div>
+                <label className="block font-black text-stone-700 dark:text-stone-300 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-[#7A2A1E] dark:text-[#D4A017]" />
+                  <span>गृह जिला / District *</span>
+                </label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => {
+                    setSelectedDistrict(e.target.value);
+                    if (!e.target.value.includes('अन्य')) {
+                      setCustomDistrict('');
+                    }
+                  }}
+                  className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-[#D4A017] text-xs"
+                >
+                  {getDistrictsForState(selectedState).map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
+
+                {/* Custom District Input when "अन्य जिला" or "अन्य राज्य" is selected */}
+                {(selectedDistrict.includes('अन्य') || selectedState.includes('अन्य')) && (
+                  <div className="mt-1.5 animate-fadeIn">
+                    <input
+                      type="text"
+                      value={customDistrict}
+                      onChange={(e) => setCustomDistrict(e.target.value)}
+                      placeholder="अपने जिले/शहर का नाम लिखें (Type District/City)"
+                      required
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-amber-400 dark:border-amber-600 bg-amber-50/50 dark:bg-stone-900 text-stone-900 dark:text-white text-xs font-bold focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block font-black text-stone-700 dark:text-stone-300 mb-1">लक्ष्य परीक्षा / Target</label>
-                <select
-                  value={targetExam}
-                  onChange={(e) => setTargetExam(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium"
+            </div>
+
+            {/* Target Exam Selection (Multi-select Checkboxes with 'All' Option) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block font-black text-stone-700 dark:text-stone-300 text-xs">
+                  {lang === 'hi' ? '🎯 लक्ष्य प्रतियोगी परीक्षाएँ / Target Exams *' : '🎯 Target Competitive Exams *'}
+                </label>
+
+                {/* Select All Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedTargetExams.length === TARGET_EXAMS_LIST.length) {
+                      setSelectedTargetExams([]);
+                    } else {
+                      setSelectedTargetExams(TARGET_EXAMS_LIST.map(e => e.id));
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black transition cursor-pointer border ${
+                    selectedTargetExams.length === TARGET_EXAMS_LIST.length
+                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-400 dark:border-emerald-700 shadow-sm'
+                      : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-700 hover:bg-amber-50 hover:border-amber-400 dark:hover:bg-stone-700'
+                  }`}
                 >
-                  <option value="MP Patwari 2026">समूह-02 उपसमूह-04 (पटवारी)</option>
-                  <option value="MPPSC Prelims 2026">MPPSC Prelims 2026</option>
-                  <option value="MP Police Constable / SI">MP Police SI/Constable</option>
-                  <option value="MP Vyapam Group 4">MP Vyapam Group 4</option>
-                  <option value="MP Vanrakshak">MP Vanrakshak</option>
-                  <option value="MP TET Varg 2/3">MP TET</option>
-                </select>
+                  {selectedTargetExams.length === TARGET_EXAMS_LIST.length ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-stone-400" />
+                  )}
+                  <span>
+                    {selectedTargetExams.length === TARGET_EXAMS_LIST.length
+                      ? (lang === 'hi' ? '✓ सभी चयनित (All)' : '✓ All Selected')
+                      : (lang === 'hi' ? 'सभी चुनें (Select All)' : 'Select All')}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 bg-black/10 dark:bg-white/10 rounded-full font-mono font-bold">
+                    {selectedTargetExams.length}/{TARGET_EXAMS_LIST.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Checkboxes List / Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1.5 border border-stone-200 dark:border-stone-800 rounded-xl bg-stone-50/50 dark:bg-stone-900/50 scrollbar-thin">
+                {TARGET_EXAMS_LIST.map((exam) => {
+                  const isChecked = selectedTargetExams.includes(exam.id);
+                  return (
+                    <div
+                      key={exam.id}
+                      onClick={() => {
+                        if (isChecked) {
+                          setSelectedTargetExams(selectedTargetExams.filter(id => id !== exam.id));
+                        } else {
+                          setSelectedTargetExams([...selectedTargetExams, exam.id]);
+                        }
+                      }}
+                      className={`flex items-start gap-2.5 p-2 rounded-lg border text-left cursor-pointer transition select-none ${
+                        isChecked
+                          ? 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600 text-stone-900 dark:text-white shadow-xs'
+                          : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700/80 text-stone-600 dark:text-stone-300 hover:border-amber-300 hover:bg-amber-50/30'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // Handled by parent div
+                        className="mt-0.5 w-4 h-4 text-[#D4A017] rounded border-stone-300 focus:ring-[#D4A017] cursor-pointer accent-[#D4A017]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-bold leading-tight line-clamp-2">
+                          {exam.label}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

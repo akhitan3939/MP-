@@ -53,12 +53,8 @@ export function initAntiTheftProtection(): () => void {
       return false;
     }
 
-    // Block Ctrl+P (Print Page / Save as PDF)
-    if (ctrlOrCmd && key === 'P') {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
-    }
+    // Allow Ctrl+P (Print Page / Save as PDF for reports & certificates)
+    // No blocking for printing
 
     // Block Ctrl+C (Copy) and Ctrl+A (Select All) outside of input fields
     if (ctrlOrCmd && (key === 'C' || key === 'A' || key === 'X') && !isInputField) {

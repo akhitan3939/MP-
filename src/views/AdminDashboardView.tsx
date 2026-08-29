@@ -43,7 +43,21 @@ import {
   X as CloseIcon,
   RefreshCw,
   Clock,
-  CheckSquare
+  CheckSquare,
+  FileSpreadsheet,
+  BarChart3,
+  Navigation,
+  Compass,
+  ArrowUp,
+  ArrowDown,
+  Globe,
+  SlidersHorizontal,
+  Bookmark,
+  Facebook,
+  Instagram,
+  Youtube,
+  MessageCircle,
+  Share2
 } from 'lucide-react';
 import { 
   TestSeries, 
@@ -54,11 +68,19 @@ import {
   SiteBanner, 
   PlatformSettings, 
   OfflineNote, 
-  MockSetMetadata 
+  MockSetMetadata,
+  NavigationMenuItem,
+  MenuPlacement,
+  MenuTargetType
 } from '../types';
+import { exportToCsv, exportToXls, exportToPdfPrint, ExportColumn } from '../utils/exportReports';
+import { DynamicNavIcon, NAV_ICON_MAP, NavIconKey } from '../utils/navIcons';
 
 type AdminModuleTab = 
   | 'OVERVIEW'
+  | 'REPORTS'
+  | 'MENUS'
+  | 'SOCIAL'
   | 'BANNERS'
   | 'SERIES'
   | 'MOCK_SETS'
@@ -82,6 +104,14 @@ export const AdminDashboardView: React.FC = () => {
     siteBanners,
     platformSettings,
     notes,
+    navMenuItems,
+    topNavItems,
+    bottomNavItems,
+    saveNavMenuItem,
+    deleteNavMenuItem,
+    toggleNavMenuItemActive,
+    reorderNavMenuItem,
+    resetNavMenusToDefault,
     saveTestSeries, 
     deleteTestSeries, 
     toggleTestSeriesActive,
@@ -116,10 +146,13 @@ export const AdminDashboardView: React.FC = () => {
   const [searchOrders, setSearchOrders] = useState('');
   const [searchStudents, setSearchStudents] = useState('');
   const [searchQuestions, setSearchQuestions] = useState('');
+  const [searchMenus, setSearchMenus] = useState('');
+  const [menuPlacementFilter, setMenuPlacementFilter] = useState<'all' | 'top' | 'bottom' | 'both'>('all');
   const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('all');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
 
   // Edit / Modal States
+  const [editingMenuItem, setEditingMenuItem] = useState<Partial<NavigationMenuItem> | null>(null);
   const [editingBanner, setEditingBanner] = useState<Partial<SiteBanner> | null>(null);
   const [editingSeries, setEditingSeries] = useState<Partial<TestSeries> | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<Partial<Question> | null>(null);
@@ -157,6 +190,34 @@ export const AdminDashboardView: React.FC = () => {
     { name: 'MP ESB व्यापम ग्रुप-4 (Classroom)', url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200&auto=format&fit=crop&q=80' },
     { name: 'MP शिक्षक पात्रता परीक्षा TET (Books & Chalk)', url: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&auto=format&fit=crop&q=80' },
   ];
+
+  // Handler: Save Menu Item
+  const handleSaveMenu = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMenuItem?.labelHi) {
+      showToast('⚠️ मेन्यू का नाम (Hindi Label) दर्ज करना अनिवार्य है');
+      return;
+    }
+
+    const newItem: NavigationMenuItem = {
+      id: editingMenuItem.id || `menu_${Date.now()}`,
+      labelHi: editingMenuItem.labelHi || '',
+      labelEn: editingMenuItem.labelEn || editingMenuItem.labelHi || '',
+      iconName: (editingMenuItem.iconName as NavIconKey) || 'Compass',
+      placement: editingMenuItem.placement || 'top',
+      targetType: editingMenuItem.targetType || 'view',
+      targetValue: editingMenuItem.targetValue || 'home',
+      externalUrl: editingMenuItem.externalUrl || '',
+      badgeTextHi: editingMenuItem.badgeTextHi || '',
+      badgeTextEn: editingMenuItem.badgeTextEn || '',
+      highlight: editingMenuItem.highlight ?? false,
+      isActive: editingMenuItem.isActive ?? true,
+      order: Number(editingMenuItem.order || (navMenuItems.length + 1))
+    };
+
+    saveNavMenuItem(newItem);
+    setEditingMenuItem(null);
+  };
 
   // Handler: Save Banner
   const handleSaveBanner = (e: React.FormEvent) => {
@@ -221,8 +282,8 @@ export const AdminDashboardView: React.FC = () => {
       badgeTagEn: editingSeries.badgeTagEn || 'Top Choice',
       descriptionHi: editingSeries.descriptionHi || 'मध्यप्रदेश शासन द्वारा आयोजित परीक्षा के 100% नवीनतम पाठ्यक्रम पर आधारित संपूर्ण टेस्ट सीरीज़।',
       descriptionEn: editingSeries.descriptionEn || 'Full syllabus test series strictly aligned with latest commission exam standards.',
-      featuresHi: editingSeries.featuresHi || ['20 फुल मॉक सेट्स (200 Qs)', 'Google AI व्यक्तिगत व्याख्या', 'ऑल-एमपी लाइव मेरिट रैंक', 'हस्तलिखित ई-नोट्स PDF'],
-      featuresEn: editingSeries.featuresEn || ['20 Full Mock Sets', 'Google AI Analysis', 'All-MP Live Merit', 'Handwritten PDF Notes'],
+      featuresHi: editingSeries.featuresHi || ['20 फुल मॉक सेट्स (200 Qs)', 'AI व्यक्तिगत व्याख्या', 'ऑल-एमपी लाइव मेरिट रैंक', 'हस्तलिखित ई-नोट्स PDF'],
+      featuresEn: editingSeries.featuresEn || ['20 Full Mock Sets', 'AI Analysis', 'All-MP Live Merit', 'Handwritten PDF Notes'],
       syllabus: editingSeries.syllabus || [
         { section: 'MP General Knowledge', sectionHi: 'म.प्र. सामान्य ज्ञान', questionsCount: 25, marks: 25 },
         { section: 'General Hindi', sectionHi: 'सामान्य हिन्दी', questionsCount: 25, marks: 25 },
@@ -349,6 +410,16 @@ export const AdminDashboardView: React.FC = () => {
     setBroadcastMsg('');
   };
 
+  const uDateFormatted = (user: UserProfile) => {
+    const raw = user.joinedAt || user.createdAt;
+    if (!raw) return 'N/A';
+    try {
+      return new Date(raw).toLocaleDateString('hi-IN');
+    } catch {
+      return 'N/A';
+    }
+  };
+
   // Export Sales CSV
   const handleExportCsv = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -365,9 +436,118 @@ export const AdminDashboardView: React.FC = () => {
     showToast('📊 सेल्स रिपोर्ट CSV डाउनलोड हो गई।');
   };
 
+  // Generic export dispatcher for Students
+  const handleExportUsers = (format: 'xls' | 'csv' | 'pdf') => {
+    const data = users.map(u => ({
+      'छात्र ID': u.id,
+      'नाम': u.name,
+      'ईमेल': u.email,
+      'मोबाइल': u.phone,
+      'राज्य (State)': u.state || 'मध्यप्रदेश (MP)',
+      'गृह जिला (District)': u.district,
+      'लक्ष्य परीक्षा': u.targetExam,
+      'रोल': u.role === 'admin' ? 'प्रशासक (Admin)' : 'छात्र (Student)',
+      'XP अंक': u.xp || 0,
+      'लगातार दिन (Streak)': u.streak || 0,
+      'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleDateString('hi-IN')
+    }));
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'xls') {
+      exportToXls(data, `MP_Pariksha_Setu_Users_${dateStr}`);
+      showToast('📊 छात्र डेटा Excel (.xls) में डाउनलोड हो गया।');
+    } else if (format === 'csv') {
+      exportToCsv(data, `MP_Pariksha_Setu_Users_${dateStr}`);
+      showToast('📄 छात्र डेटा CSV में डाउनलोड हो गया।');
+    } else {
+      exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु — समस्त पंजीकृत छात्र मास्टर रिपोर्ट', data);
+    }
+  };
+
+  // Generic export dispatcher for Orders
+  const handleExportOrders = (format: 'xls' | 'csv' | 'pdf') => {
+    const data = orders.map(o => ({
+      'ऑर्डर ID': o.orderId,
+      'इनवॉइस नंबर': o.invoiceNumber,
+      'रेज़रपे Payment ID': o.razorpayPaymentId,
+      'परीक्षार्थी नाम': o.userName,
+      'ईमेल': o.userEmail,
+      'मोबाइल': o.userPhone,
+      'सीरीज़ पैकेज': o.seriesTitle,
+      'मूल राशि (₹)': o.amount,
+      'छूट (₹)': o.discount || 0,
+      'GST राशि (₹)': o.gstAmount,
+      'अंतिम भुगतान (₹)': o.finalAmount,
+      'स्थिति': o.status,
+      'दिनांक': new Date(o.createdAt).toLocaleString('hi-IN')
+    }));
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'xls') {
+      exportToXls(data, `MP_Pariksha_Setu_Orders_${dateStr}`);
+      showToast('📊 ऑर्डर्स रिपोर्ट Excel (.xls) में डाउनलोड हो गई।');
+    } else if (format === 'csv') {
+      exportToCsv(data, `MP_Pariksha_Setu_Orders_${dateStr}`);
+      showToast('📄 ऑर्डर्स रिपोर्ट CSV में डाउनलोड हो गया।');
+    } else {
+      exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु — रेज़रपे ऑर्डर्स व लेन-देन रिपोर्ट', data);
+    }
+  };
+
+  // Generic export dispatcher for Questions
+  const handleExportQuestions = (format: 'xls' | 'csv' | 'pdf') => {
+    const data = questions.map(q => ({
+      'ID': q.id,
+      'विषय (Subject)': q.subject,
+      'अनुभाग (Section)': q.section,
+      'टॉपिक': q.topic,
+      'प्रश्न (हिन्दी)': q.questionHi,
+      'विकल्प A': q.optionsHi?.[0] || '',
+      'विकल्प B': q.optionsHi?.[1] || '',
+      'विकल्प C': q.optionsHi?.[2] || '',
+      'विकल्प D': q.optionsHi?.[3] || '',
+      'सही विकल्प इंडेक्स': q.correctOption,
+      'व्याख्या': q.explanationHi || ''
+    }));
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'xls') {
+      exportToXls(data, `MP_Pariksha_Setu_Questions_${dateStr}`);
+      showToast('📊 प्रश्न बैंक Excel (.xls) में डाउनलोड हो गया।');
+    } else if (format === 'csv') {
+      exportToCsv(data, `MP_Pariksha_Setu_Questions_${dateStr}`);
+      showToast('📄 प्रश्न बैंक CSV में डाउनलोड हो गया।');
+    } else {
+      exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु — प्रश्न बैंक मास्टर ऑडिट रिपोर्ट', data);
+    }
+  };
+
+  // Generic export dispatcher for Series
+  const handleExportSeries = (format: 'xls' | 'csv' | 'pdf') => {
+    const data = testSeries.map(ts => ({
+      'सीरीज़ ID': ts.id,
+      'शीर्षक (हिन्दी)': ts.titleHi,
+      'श्रेणी (Category)': ts.category,
+      'मूल्य (₹)': ts.price,
+      'एमआरपी (₹)': ts.originalPrice,
+      'कुल टेस्ट्स': ts.totalTests,
+      'डेमो उपलब्ध': ts.isFreeDemoAvailable ? 'हाँ' : 'नहीं'
+    }));
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'xls') {
+      exportToXls(data, `MP_Pariksha_Setu_Series_${dateStr}`);
+      showToast('📊 टेस्ट सीरीज़ कैटलॉग Excel (.xls) में डाउनलोड हो गया।');
+    } else if (format === 'csv') {
+      exportToCsv(data, `MP_Pariksha_Setu_Series_${dateStr}`);
+      showToast('📄 टेस्ट सीरीज़ कैटलॉग CSV में डाउनलोड हो गया।');
+    } else {
+      exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु — टेस्ट सीरीज़ कैटलॉग एवं मूल्य रिपोर्ट', data);
+    }
+  };
+
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
     { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
+    { id: 'MENUS', label: 'शीर्ष व निचला मेन्यू प्रबंधक', subLabel: 'Top & Bottom Navigation', icon: Compass, count: navMenuItems.length, badgeColor: 'bg-amber-600' },
+    { id: 'SOCIAL', label: 'सोशल मीडिया लिंक्स CMS', subLabel: 'FB, Insta, TG, YT, WA', icon: Share2, badgeColor: 'bg-rose-600' },
+    { id: 'REPORTS', label: 'रिपोर्ट्स व डेटा एक्सपोर्ट', subLabel: 'XLS, PDF, CSV Reports', icon: FileSpreadsheet, count: users.length + orders.length, badgeColor: 'bg-emerald-600' },
     { id: 'BANNERS', label: 'बैनर व थंबनेल प्रबंधक', subLabel: 'Hero Banners & Posters', icon: ImageIcon, count: siteBanners.length, badgeColor: 'bg-indigo-600' },
     { id: 'SERIES', label: 'टेस्ट सीरीज़ व पैकेज', subLabel: 'Packages & Pricing', icon: BookPlus, count: testSeries.length, badgeColor: 'bg-[#7A2A1E]' },
     { id: 'MOCK_SETS', label: '20 मॉक सेट्स CMS', subLabel: 'Sets 1-20 Controller', icon: Target, count: 20, badgeColor: 'bg-emerald-700' },
@@ -530,6 +710,8 @@ export const AdminDashboardView: React.FC = () => {
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-[#2D2424] dark:text-white mt-1">
                 {activeTab === 'OVERVIEW' && '📊 समग्र विश्लेषण व राजस्व मेट्रिक्स'}
+                {activeTab === 'MENUS' && '🧭 शीर्ष व निचला नेविगेशन मेन्यू प्रबंधक (Header & Footer / Mobile CMS)'}
+                {activeTab === 'REPORTS' && '📑 विस्तृत रिपोर्ट्स व डेटा एक्सपोर्ट (XLS / PDF / CSV)'}
                 {activeTab === 'BANNERS' && '🖼️ होमपेज बैनर, पोस्टर्स व थंबनेल प्रबंधक (CMS)'}
                 {activeTab === 'SERIES' && '📚 टेस्ट सीरीज़, पैकेज व पाठ्यक्रम नियंत्रण'}
                 {activeTab === 'MOCK_SETS' && '🎯 20 फुल मॉक सेट्स प्रबंधक (Set 1–20)'}
@@ -546,6 +728,39 @@ export const AdminDashboardView: React.FC = () => {
 
             {/* Quick Action Button for current tab */}
             <div className="flex items-center gap-2">
+              {activeTab === 'MENUS' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => resetNavMenusToDefault()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 border border-stone-300 dark:border-stone-700 text-xs font-bold transition"
+                    title="डिफ़ॉल्ट मेन्यू रीसेट करें"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">रीसेट डिफ़ॉल्ट</span>
+                  </button>
+                  <button
+                    onClick={() => setEditingMenuItem({
+                      labelHi: '',
+                      labelEn: '',
+                      iconName: 'Compass',
+                      placement: 'top',
+                      targetType: 'view',
+                      targetValue: 'freeMockTest',
+                      externalUrl: '',
+                      badgeTextHi: '',
+                      badgeTextEn: '',
+                      highlight: false,
+                      isActive: true,
+                      order: navMenuItems.length + 1
+                    })}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>नया मेन्यू जोड़ें</span>
+                  </button>
+                </div>
+              )}
+
               {activeTab === 'BANNERS' && (
                 <button
                   onClick={() => setEditingBanner({
@@ -803,6 +1018,850 @@ export const AdminDashboardView: React.FC = () => {
           )}
 
           {/* ========================================================= */}
+          {/* TAB: TOP & BOTTOM NAVIGATION MENUS CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'MENUS' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner with Stats */}
+              <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-amber-950/30 dark:to-stone-900 border-2 border-amber-300 dark:border-amber-800/60 rounded-3xl space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-amber-950 dark:text-amber-300 font-black text-base">
+                      <Compass className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                      <span>शीर्ष व निचला नेविगेशन मेन्यू प्रबंधक (Top & Bottom Menu CMS)</span>
+                    </div>
+                    <p className="text-xs text-amber-900/80 dark:text-amber-300/80 leading-relaxed max-w-3xl">
+                      यहाँ से आप वेबसाइट के <strong>शीर्ष हेडर मेन्यू (Top Menu)</strong> एवं मोबाइल के <strong>निचले बॉटम मेन्यू / फुटर (Bottom Menu)</strong> में नए लिंक जोड़ सकते हैं, क्रम (order) बदल सकते हैं, और सीधे किसी भी व्यू, कैटेगरी, पीडीएफ नोट्स या एक्सटर्नल लिंक से जोड़ सकते हैं।
+                    </p>
+                  </div>
+
+                  {/* Summary Metric Badges */}
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <div className="px-3.5 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-amber-200 dark:border-amber-800 text-center shadow-xs">
+                      <span className="text-[10px] uppercase font-black text-stone-400 block">कुल मेन्यू</span>
+                      <span className="font-mono font-black text-base text-amber-700 dark:text-amber-400">{navMenuItems.length}</span>
+                    </div>
+                    <div className="px-3.5 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-amber-200 dark:border-amber-800 text-center shadow-xs">
+                      <span className="text-[10px] uppercase font-black text-stone-400 block">🔝 शीर्ष हेडर</span>
+                      <span className="font-mono font-black text-base text-amber-800 dark:text-amber-300">{topNavItems.length}</span>
+                    </div>
+                    <div className="px-3.5 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-amber-200 dark:border-amber-800 text-center shadow-xs">
+                      <span className="text-[10px] uppercase font-black text-stone-400 block">📱 निचला मोबाइल</span>
+                      <span className="font-mono font-black text-base text-indigo-700 dark:text-indigo-400">{bottomNavItems.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Placement Filter Pills & Search */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-amber-200/80 dark:border-stone-800">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => setMenuPlacementFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                        menuPlacementFilter === 'all'
+                          ? 'bg-[#7A2A1E] text-white shadow-xs'
+                          : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      सभी मेन्यू ({navMenuItems.length})
+                    </button>
+                    <button
+                      onClick={() => setMenuPlacementFilter('top')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                        menuPlacementFilter === 'top'
+                          ? 'bg-[#7A2A1E] text-white shadow-xs'
+                          : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      🔝 केवल शीर्ष हेडर ({navMenuItems.filter(m => m.placement === 'top' || m.placement === 'both').length})
+                    </button>
+                    <button
+                      onClick={() => setMenuPlacementFilter('bottom')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                        menuPlacementFilter === 'bottom'
+                          ? 'bg-[#7A2A1E] text-white shadow-xs'
+                          : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      📱 केवल निचला मोबाइल/फुटर ({navMenuItems.filter(m => m.placement === 'bottom' || m.placement === 'both').length})
+                    </button>
+                    <button
+                      onClick={() => setMenuPlacementFilter('both')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                        menuPlacementFilter === 'both'
+                          ? 'bg-[#7A2A1E] text-white shadow-xs'
+                          : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
+                      }`}
+                    >
+                      ✨ दोनों ({navMenuItems.filter(m => m.placement === 'both').length})
+                    </button>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input
+                      type="text"
+                      placeholder="मेन्यू या लक्ष्य खोजें..."
+                      value={searchMenus}
+                      onChange={(e) => setSearchMenus(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:ring-1 focus:ring-[#7A2A1E]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Menu Items Interactive List */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+                  <div className="flex items-center gap-2 font-black text-sm text-[#2D2424] dark:text-white">
+                    <SlidersHorizontal className="w-4 h-4 text-amber-600" />
+                    <span>मेन्यू सूची एवं क्रम नियंत्रण ({
+                      navMenuItems.filter(m => {
+                        const matchSearch = m.labelHi.toLowerCase().includes(searchMenus.toLowerCase()) ||
+                          (m.labelEn || '').toLowerCase().includes(searchMenus.toLowerCase()) ||
+                          m.targetValue.toLowerCase().includes(searchMenus.toLowerCase());
+                        const matchPlace = menuPlacementFilter === 'all' ? true : m.placement === menuPlacementFilter;
+                        return matchSearch && matchPlace;
+                      }).length
+                    } लिंक्स)</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditingMenuItem({
+                        labelHi: '',
+                        labelEn: '',
+                        iconName: 'Compass',
+                        placement: 'top',
+                        targetType: 'view',
+                        targetValue: 'freeMockTest',
+                        externalUrl: '',
+                        badgeTextHi: '',
+                        badgeTextEn: '',
+                        highlight: false,
+                        isActive: true,
+                        order: navMenuItems.length + 1
+                      })}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] text-xs font-black border border-[#D4A017] shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ नया मेन्यू जोड़ें</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cards Grid */}
+                <div className="space-y-3">
+                  {navMenuItems
+                    .filter(m => {
+                      const matchSearch = m.labelHi.toLowerCase().includes(searchMenus.toLowerCase()) ||
+                        (m.labelEn || '').toLowerCase().includes(searchMenus.toLowerCase()) ||
+                        m.targetValue.toLowerCase().includes(searchMenus.toLowerCase()) ||
+                        (m.badgeTextHi || '').toLowerCase().includes(searchMenus.toLowerCase());
+                      const matchPlace = menuPlacementFilter === 'all' ? true : m.placement === menuPlacementFilter;
+                      return matchSearch && matchPlace;
+                    })
+                    .sort((a, b) => a.order - b.order)
+                    .map((item, index, arr) => {
+                      const isFirst = index === 0;
+                      const isLast = index === arr.length - 1;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 rounded-2xl border-2 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                            item.isActive
+                              ? item.highlight
+                                ? 'bg-amber-50/50 dark:bg-amber-950/20 border-[#D4A017] shadow-xs'
+                                : 'bg-[#FDFBF7] dark:bg-stone-800/40 border-[#EAD8B1] dark:border-stone-800 hover:border-amber-500'
+                              : 'bg-stone-100/70 dark:bg-stone-900/60 border-stone-200 dark:border-stone-800 opacity-60'
+                          }`}
+                        >
+                          {/* Left: Reorder controls, Icon, Title, Placement */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            
+                            {/* Reorder Buttons */}
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <button
+                                disabled={isFirst}
+                                onClick={() => reorderNavMenuItem(item.id, 'up')}
+                                className={`p-1 rounded-lg border text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition ${
+                                  isFirst ? 'opacity-30 cursor-not-allowed' : 'bg-white dark:bg-stone-800'
+                                }`}
+                                title="ऊपर ले जाएँ (Move Up)"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                disabled={isLast}
+                                onClick={() => reorderNavMenuItem(item.id, 'down')}
+                                className={`p-1 rounded-lg border text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition ${
+                                  isLast ? 'opacity-30 cursor-not-allowed' : 'bg-white dark:bg-stone-800'
+                                }`}
+                                title="नीचे ले जाएँ (Move Down)"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            {/* Order Number Badge */}
+                            <span className="w-6 h-6 rounded-lg bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-mono font-black text-xs flex items-center justify-center shrink-0">
+                              {item.order}
+                            </span>
+
+                            {/* Icon Visual */}
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                              item.highlight 
+                                ? 'bg-[#7A2A1E] text-[#D4A017] border border-[#D4A017]' 
+                                : 'bg-white dark:bg-stone-800 text-[#7A2A1E] dark:text-[#D4A017] border border-stone-200 dark:border-stone-700'
+                            }`}>
+                              <DynamicNavIcon name={item.iconName} className="w-5 h-5" />
+                            </div>
+
+                            {/* Title and Metadata */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-black text-sm text-[#2D2424] dark:text-white leading-tight">
+                                  {item.labelHi}
+                                </h4>
+                                {item.labelEn && (
+                                  <span className="text-xs text-stone-500 font-medium hidden sm:inline">
+                                    ({item.labelEn})
+                                  </span>
+                                )}
+                                {item.badgeTextHi && (
+                                  <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white font-black text-[10px] animate-pulse">
+                                    {item.badgeTextHi}
+                                  </span>
+                                )}
+                                {item.highlight && (
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-900 font-black text-[10px]">
+                                    ⭐ हाइलाइटेड
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Placement & Target description */}
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-stone-500 flex-wrap">
+                                {/* Placement badge */}
+                                <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                                  item.placement === 'top'
+                                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300'
+                                    : item.placement === 'bottom'
+                                    ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-300 border border-indigo-300'
+                                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 border border-emerald-300'
+                                }`}>
+                                  {item.placement === 'top' && '🔝 शीर्ष हेडर मेन्यू'}
+                                  {item.placement === 'bottom' && '📱 निचला मोबाइल नेव'}
+                                  {item.placement === 'both' && '✨ शीर्ष व निचला दोनों'}
+                                </span>
+
+                                <span>•</span>
+
+                                {/* Target destination tag */}
+                                <span className="font-mono text-stone-600 dark:text-stone-400 bg-white dark:bg-stone-800 px-2 py-0.5 rounded border border-stone-200 dark:border-stone-700">
+                                  {item.targetType === 'view' && `व्यू: ${item.targetValue}`}
+                                  {item.targetType === 'category' && `कैटेगरी: ${item.targetValue}`}
+                                  {item.targetType === 'modal' && `पॉपअप: ${item.targetValue}`}
+                                  {item.targetType === 'external' && `URL: ${item.externalUrl}`}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Active Toggle Switch & Actions */}
+                          <div className="flex items-center gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-stone-200 dark:border-stone-800 justify-between md:justify-end">
+                            
+                            {/* Live Active Toggle */}
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <span className="text-xs font-bold text-stone-500">
+                                {item.isActive ? 'सक्रिय (Live)' : 'निष्क्रिय (Hidden)'}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={item.isActive}
+                                onChange={() => toggleNavMenuItemActive(item.id)}
+                                className="sr-only peer"
+                              />
+                              <div className="w-10 h-5 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 relative"></div>
+                            </label>
+
+                            {/* Edit Button */}
+                            <button
+                              onClick={() => setEditingMenuItem({ ...item })}
+                              className="p-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-[#7A2A1E] hover:text-[#D4A017] transition border border-stone-200 dark:border-stone-700"
+                              title="संपादित करें (Edit Menu)"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`क्या आप मेन्यू "${item.labelHi}" को हटाना चाहते हैं?`)) {
+                                  deleteNavMenuItem(item.id);
+                                }
+                              }}
+                              className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-600 hover:text-white transition border border-rose-200 dark:border-rose-800"
+                              title="हटाएँ (Delete Menu)"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Live Preview Simulator */}
+              <div className="bg-stone-900 text-stone-100 rounded-3xl p-6 border-2 border-amber-500/50 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+                  <div className="flex items-center gap-2 font-black text-sm text-amber-400">
+                    <Eye className="w-4 h-4" />
+                    <span>लाइव मेन्यू पूर्वावलोकन (Live Dynamic Menu Preview)</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-stone-400">Header & Mobile Bottom Bar Simulation</span>
+                </div>
+
+                <div className="space-y-4 text-xs">
+                  {/* Top Bar Preview */}
+                  <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
+                    <span className="text-[10px] font-mono text-amber-300 font-bold uppercase tracking-wider">
+                      1. शीर्ष हेडर मेन्यू बार (Top Header Preview):
+                    </span>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
+                      {topNavItems.map(item => (
+                        <div
+                          key={item.id}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-black whitespace-nowrap shadow-xs ${
+                            item.highlight
+                              ? 'bg-amber-400 text-stone-950 border-amber-300'
+                              : 'bg-stone-800 text-stone-200 border-stone-700'
+                          }`}
+                        >
+                          <DynamicNavIcon name={item.iconName} className="w-3.5 h-3.5" />
+                          <span>{item.labelHi}</span>
+                          {item.badgeTextHi && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px]">
+                              {item.badgeTextHi}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bottom Mobile Bar Preview */}
+                  <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
+                    <span className="text-[10px] font-mono text-indigo-300 font-bold uppercase tracking-wider">
+                      2. मोबाइल निचला नेविगेशन बार (Mobile Bottom App Bar Preview):
+                    </span>
+                    <div className="grid grid-flow-col auto-cols-fr gap-1 bg-stone-900 p-2 rounded-2xl border border-stone-800 max-w-lg">
+                      {bottomNavItems.map(item => (
+                        <div
+                          key={item.id}
+                          className="flex flex-col items-center justify-center p-2 rounded-xl bg-stone-800/80 text-center gap-1 text-[10px]"
+                        >
+                          <DynamicNavIcon name={item.iconName} className="w-4 h-4 text-amber-400" />
+                          <span className="font-bold truncate max-w-[65px] text-stone-200">{item.labelHi}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: COMPREHENSIVE REPORTS & EXPORTS (XLS, PDF, CSV) */}
+          {/* ========================================================= */}
+          {activeTab === 'REPORTS' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner with Summary & Quick Export Cards */}
+              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-black text-base">
+                      <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                      <span>प्रशासनिक रिपोर्ट एवं डेटा एक्सपोर्ट सेंटर (XLS / PDF / CSV)</span>
+                    </div>
+                    <p className="text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed max-w-3xl">
+                      यहाँ से आप पंजीकृत छात्रों, टेस्ट सीरीज़ नामांकन, परीक्षा स्कोर व रेज़रपे राजस्व का संपूर्ण डेटा Excel (.xls), मुद्रण योग्य PDF (.pdf) और CSV (.csv) प्रारूप में एक क्लिक में सुरक्षित डाउनलोड कर सकते हैं।
+                    </p>
+                  </div>
+
+                  {/* Summary Badges */}
+                  <div className="flex items-center gap-3">
+                    <div className="px-4 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-emerald-300 dark:border-emerald-800 text-center">
+                      <span className="text-[10px] uppercase font-bold text-stone-400 block">कुल पंजीकृत छात्र</span>
+                      <span className="font-mono font-black text-lg text-emerald-700 dark:text-emerald-400">{users.length}</span>
+                    </div>
+                    <div className="px-4 py-2 bg-white dark:bg-stone-900 rounded-2xl border border-emerald-300 dark:border-emerald-800 text-center">
+                      <span className="text-[10px] uppercase font-bold text-stone-400 block">कुल ऑर्डर्स</span>
+                      <span className="font-mono font-black text-lg text-teal-700 dark:text-teal-400">{orders.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 Dedicated Quick Export Action Tiles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                  
+                  {/* 1. All Users Report */}
+                  <div className="p-4 bg-white dark:bg-stone-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-800 dark:text-white">1. पंजीकृत छात्र रिपोर्ट</span>
+                        <Users className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1">छात्र नाम, मोबाइल, ईमेल, जिला, रोल, XP व स्ट्रीक</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
+                      <button
+                        onClick={() => {
+                          const data = users.map(u => ({
+                            'छात्र ID': u.id,
+                            'नाम': u.name,
+                            'ईमेल': u.email,
+                            'मोबाइल': u.phone,
+                            'गृह जिला': u.district,
+                            'लक्ष्य परीक्षा': u.targetExam,
+                            'रोल': u.role === 'admin' ? 'प्रशासक (Admin)' : 'छात्र (Student)',
+                            'XP अंक': u.xp || 0,
+                            'लगातार दिन (Streak)': u.streak || 0,
+                            'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleDateString('hi-IN')
+                          }));
+                          exportToXls(data, `MP_Pariksha_Setu_Users_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📊 छात्र रिपोर्ट Excel (.xls) डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black text-center"
+                        title="Excel डाउनलोड"
+                      >
+                        Excel (.xls)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const data = users.map(u => ({
+                            'छात्र ID': u.id,
+                            'नाम': u.name,
+                            'ईमेल': u.email,
+                            'मोबाइल': u.phone,
+                            'गृह जिला': u.district,
+                            'लक्ष्य परीक्षा': u.targetExam,
+                            'रोल': u.role,
+                            'XP': u.xp || 0,
+                            'Streak': u.streak || 0
+                          }));
+                          exportToCsv(data, `MP_Pariksha_Setu_Users_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📄 छात्र रिपोर्ट CSV डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-lg text-[10px] font-bold text-center"
+                      >
+                        CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          const cols = [
+                            { key: 'name', label: 'नाम' },
+                            { key: 'phone', label: 'मोबाइल' },
+                            { key: 'email', label: 'ईमेल' },
+                            { key: 'district', label: 'जिला' },
+                            { key: 'targetExam', label: 'लक्ष्य परीक्षा' },
+                            { key: 'role', label: 'रोल' }
+                          ];
+                          exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु - समस्त पंजीकृत छात्र विवरण रिपोर्ट', cols, users);
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black text-center"
+                        title="PDF प्रिंट"
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Razorpay Orders & Sales Report */}
+                  <div className="p-4 bg-white dark:bg-stone-900 border border-teal-200 dark:border-teal-800 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-800 dark:text-white">2. राजस्व व ट्रांजेक्शन</span>
+                        <CreditCard className="w-4 h-4 text-teal-600" />
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1">ऑर्डर ID, पेमेंट ID, राशि, GST, छूट व इनवॉइस</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
+                      <button
+                        onClick={() => {
+                          const data = orders.map(o => ({
+                            'ऑर्डर ID': o.orderId,
+                            'इनवॉइस नंबर': o.invoiceNumber,
+                            'रेज़रपे Payment ID': o.razorpayPaymentId,
+                            'छात्र नाम': o.userName,
+                            'ईमेल': o.userEmail,
+                            'मोबाइल': o.userPhone,
+                            'सीरीज़ पैकेज': o.seriesTitle,
+                            'मूल राशि (₹)': o.amount,
+                            'छूट (₹)': o.discount || 0,
+                            'GST राशि (₹)': o.gstAmount,
+                            'अंतिम भुगतान (₹)': o.finalAmount,
+                            'स्थिति': o.status,
+                            'दिनांक': new Date(o.createdAt).toLocaleString('hi-IN')
+                          }));
+                          exportToXls(data, `MP_Pariksha_Setu_Orders_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📊 सेल्स रिपोर्ट Excel (.xls) डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        Excel (.xls)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const data = orders.map(o => ({
+                            'Order ID': o.orderId,
+                            'Payment ID': o.razorpayPaymentId,
+                            'Candidate': o.userName,
+                            'Email': o.userEmail,
+                            'Phone': o.userPhone,
+                            'Package': o.seriesTitle,
+                            'Amount': o.amount,
+                            'Discount': o.discount,
+                            'Final': o.finalAmount,
+                            'Status': o.status,
+                            'Date': o.createdAt
+                          }));
+                          exportToCsv(data, `MP_Pariksha_Setu_Orders_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📄 सेल्स रिपोर्ट CSV डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-lg text-[10px] font-bold text-center"
+                      >
+                        CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          const cols = [
+                            { key: 'orderId', label: 'ऑर्डर ID' },
+                            { key: 'userName', label: 'परीक्षार्थी' },
+                            { key: 'userPhone', label: 'मोबाइल' },
+                            { key: 'seriesTitle', label: 'सीरीज़' },
+                            { key: 'finalAmount', label: 'भुगतान (₹)' },
+                            { key: 'status', label: 'स्थिति' }
+                          ];
+                          exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु - रेज़रपे लेन-देन व राजस्व रिपोर्ट', cols, orders);
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Question Bank Audit Report */}
+                  <div className="p-4 bg-white dark:bg-stone-900 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-800 dark:text-white">3. प्रश्न बैंक ऑडिट रिपोर्ट</span>
+                        <FileQuestion className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1">विषय, अनुभाग, द्विभाषी प्रश्न, सही उत्तर व अंक भार</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
+                      <button
+                        onClick={() => {
+                          const data = questions.map(q => ({
+                            'ID': q.id,
+                            'विषय (Subject)': q.subject,
+                            'अनुभाग (Section)': q.section,
+                            'टॉपिक': q.topic,
+                            'प्रश्न (हिन्दी)': q.questionHi,
+                            'विकल्प A': q.optionsHi[0] || '',
+                            'विकल्प B': q.optionsHi[1] || '',
+                            'विकल्प C': q.optionsHi[2] || '',
+                            'विकल्प D': q.optionsHi[3] || '',
+                            'सही विकल्प इंडेक्स': q.correctOption,
+                            'व्याख्या': q.explanationHi
+                          }));
+                          exportToXls(data, `MP_Pariksha_Setu_Questions_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📊 प्रश्न बैंक रिपोर्ट Excel (.xls) डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        Excel (.xls)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const data = questions.map(q => ({
+                            'ID': q.id,
+                            'Subject': q.subject,
+                            'Section': q.section,
+                            'Topic': q.topic,
+                            'Question': q.questionHi,
+                            'CorrectOption': q.correctOption
+                          }));
+                          exportToCsv(data, `MP_Pariksha_Setu_Questions_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📄 प्रश्न बैंक CSV डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-lg text-[10px] font-bold text-center"
+                      >
+                        CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          const cols = [
+                            { key: 'subject', label: 'विषय' },
+                            { key: 'topic', label: 'टॉपिक' },
+                            { key: 'questionHi', label: 'प्रश्न (हिन्दी)' },
+                            { key: 'correctOption', label: 'सही विकल्प (0-3)' }
+                          ];
+                          exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु - प्रश्न बैंक मास्टर ऑडिट रिपोर्ट', cols, questions.slice(0, 100));
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Test Series Catalog & Enrolment */}
+                  <div className="p-4 bg-white dark:bg-stone-900 border border-purple-200 dark:border-purple-800 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-800 dark:text-white">4. टेस्ट सीरीज़ कैटलॉग</span>
+                        <BookPlus className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1">सीरीज़ शीर्षक, श्रेणी, मूल्य, कुल टेस्ट्स व स्थिति</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
+                      <button
+                        onClick={() => {
+                          const data = testSeries.map(ts => ({
+                            'सीरीज़ ID': ts.id,
+                            'शीर्षक (हिन्दी)': ts.titleHi,
+                            'श्रेणी (Category)': ts.category,
+                            'मूल्य (₹)': ts.price,
+                            'एमआरपी (₹)': ts.originalPrice,
+                            'कुल टेस्ट्स': ts.totalTests,
+                            'डेमो उपलब्ध': ts.isFreeDemoAvailable ? 'हाँ' : 'नहीं'
+                          }));
+                          exportToXls(data, `MP_Pariksha_Setu_Series_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📊 टेस्ट सीरीज़ कैटलॉग Excel (.xls) डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        Excel (.xls)
+                      </button>
+                      <button
+                        onClick={() => {
+                          const data = testSeries.map(ts => ({
+                            'ID': ts.id,
+                            'Title': ts.titleHi,
+                            'Category': ts.category,
+                            'Price': ts.price,
+                            'TotalTests': ts.totalTests
+                          }));
+                          exportToCsv(data, `MP_Pariksha_Setu_Series_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📄 टेस्ट सीरीज़ CSV डाउनलोड हो गई।');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-lg text-[10px] font-bold text-center"
+                      >
+                        CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          const cols = [
+                            { key: 'titleHi', label: 'सीरीज़ नाम' },
+                            { key: 'category', label: 'श्रेणी' },
+                            { key: 'price', label: 'ऑफर मूल्य (₹)' },
+                            { key: 'totalTests', label: 'कुल टेस्ट्स' }
+                          ];
+                          exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु - टेस्ट सीरीज़ कैटलॉग एवं मूल्य रिपोर्ट', cols, testSeries);
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Master Registered Users Detailed Table Section */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-stone-100 dark:border-stone-800">
+                  <div>
+                    <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      <span>पंजीकृत छात्र मास्टर डेटा तालिका (Live Registered Students Table)</span>
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      वेबसाइट पर रजिस्टर होने वाले सभी छात्रों की संपूर्ण जानकारी यहाँ लाइव अपडेट होती है।
+                    </p>
+                  </div>
+
+                  {/* Filter / Search inside Table */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
+                      <input
+                        type="text"
+                        placeholder="छात्र, मोबाइल, जिला खोजें..."
+                        value={searchStudents}
+                        onChange={(e) => setSearchStudents(e.target.value)}
+                        className="pl-8 pr-3 py-1.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none w-52"
+                      />
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        const filtered = users.filter(u => !searchStudents || 
+                          u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                          u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                          u.phone.includes(searchStudents)
+                        );
+                        const data = filtered.map(u => ({
+                          'छात्र ID': u.id,
+                          'नाम': u.name,
+                          'ईमेल': u.email,
+                          'मोबाइल': u.phone,
+                          'गृह जिला': u.district,
+                          'लक्ष्य परीक्षा': u.targetExam,
+                          'रोल': u.role,
+                          'XP अंक': u.xp || 0,
+                          'Streak': u.streak || 0,
+                          'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleString('hi-IN')
+                        }));
+                        exportToXls(data, `MP_Pariksha_Setu_Filtered_Students_${new Date().toISOString().split('T')[0]}`);
+                        showToast('📊 तालिका डेटा Excel (.xls) में एक्सपोर्ट हो गया।');
+                      }}
+                      className="px-3 py-1.5 bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] border border-[#D4A017] rounded-xl text-xs font-black flex items-center gap-1.5 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>तालिका XLS</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Table View of Users */}
+                {users.length === 0 ? (
+                  <div className="p-12 text-center bg-stone-50 dark:bg-stone-800/40 rounded-2xl border-2 border-dashed border-stone-200 dark:border-stone-700">
+                    <Users className="w-12 h-12 text-stone-300 dark:text-stone-600 mx-auto mb-3" />
+                    <h4 className="font-black text-stone-700 dark:text-stone-300 text-sm">डैशबोर्ड पूर्णतः ब्लैंक (खाली) है</h4>
+                    <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto">
+                      जैसे ही कोई नया छात्र वेबसाइट पर साइन अप करेगा, उसका नाम, मोबाइल नंबर, ईमेल, जिला और लक्ष्य परीक्षा यहाँ तत्काल लाइव प्रदर्शित होगी।
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-stone-50 dark:bg-stone-800/80 border-b-2 border-stone-200 dark:border-stone-700 text-stone-500 uppercase text-[10px] font-black">
+                          <th className="py-3 px-4">छात्र विवरण व ID</th>
+                          <th className="py-3 px-4">संपर्क (मोबाइल व ईमेल)</th>
+                          <th className="py-3 px-4">गृह जिला व परीक्षा</th>
+                          <th className="py-3 px-4">रोल (Role)</th>
+                          <th className="py-3 px-4">प्रगति (XP & Streak)</th>
+                          <th className="py-3 px-4">पंजीकरण दिनांक</th>
+                          <th className="py-3 px-4 text-center">कार्रवाई</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
+                        {users
+                          .filter(u => !searchStudents || 
+                            u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                            u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                            u.email.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                            u.phone.includes(searchStudents)
+                          )
+                          .map(user => {
+                            const isAdmin = user.role === 'admin';
+                            return (
+                              <tr key={user.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black text-xs shadow-sm">
+                                      {user.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <div className="font-black text-stone-800 dark:text-white flex items-center gap-1.5">
+                                        <span>{user.name}</span>
+                                        {isAdmin && (
+                                          <span className="px-1.5 py-0.2 rounded bg-[#D4A017] text-black text-[9px] font-black font-mono">
+                                            ADMIN
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] font-mono text-stone-400">{user.id}</div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-stone-700 dark:text-stone-300">{user.phone}</div>
+                                  <div className="text-[11px] text-stone-400">{user.email}</div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-stone-700 dark:text-stone-300">{user.district}</div>
+                                  <div className="text-[11px] text-[#7A2A1E] dark:text-[#D4A017] font-semibold">{user.targetExam}</div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                    isAdmin 
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                                      : 'bg-blue-50 text-blue-800 border border-blue-200'
+                                  }`}>
+                                    {isAdmin ? 'प्रशासक' : 'छात्र'}
+                                  </span>
+                                </td>
+
+                                <td className="py-3.5 px-4 font-mono">
+                                  <div className="font-black text-amber-600">{user.xp || 0} XP</div>
+                                  <div className="text-[10px] text-stone-400">🔥 {user.streak || 0} दिन स्ट्रीक</div>
+                                </td>
+
+                                <td className="py-3.5 px-4 text-stone-400 font-mono text-[11px]">
+                                  {uDateFormatted(user)}
+                                </td>
+
+                                <td className="py-3.5 px-4 text-center">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        setPasswordModalUser(user);
+                                        setNewPasswordVal('123456');
+                                      }}
+                                      className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-600 dark:text-stone-300"
+                                      title="पासवर्ड रीसेट"
+                                    >
+                                      <Key className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => toggleUserRole(user.id)}
+                                      className="px-2 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-[10px] font-bold"
+                                      title="रोल बदलें"
+                                    >
+                                      रोल
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
           {/* TAB 2: BANNERS & THUMBNAILS CMS */}
           {/* ========================================================= */}
           {activeTab === 'BANNERS' && (
@@ -926,6 +1985,32 @@ export const AdminDashboardView: React.FC = () => {
                   <p className="text-stone-600 dark:text-stone-400">
                     जिस परीक्षा को आप <strong>सक्रिय (Active)</strong> करेंगे, वही वेबसाइट के होमपेज व कैटलॉग पर छात्रों को दिखेगी और वे उसे खरीद सकेंगे। <strong>निष्क्रिय (Inactive)</strong> करने पर वह तुरंत छिप जाएगी।
                   </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleExportSeries('xls')}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
+                    title="टेस्ट सीरीज़ कैटलॉग Excel में डाउनलोड करें"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>XLS</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportSeries('csv')}
+                    className="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
+                    title="टेस्ट सीरीज़ CSV में डाउनलोड करें"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>CSV</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportSeries('pdf')}
+                    className="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
+                    title="टेस्ट सीरीज़ PDF प्रिंट / डाउनलोड करें"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>PDF</span>
+                  </button>
                 </div>
               </div>
 
@@ -1130,7 +2215,7 @@ export const AdminDashboardView: React.FC = () => {
           {activeTab === 'QUESTIONS' && (
             <div className="space-y-6">
               
-              {/* Search & Filter Bar */}
+              {/* Search & Filter Bar & Export Buttons */}
               <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div className="relative flex-1 w-full">
                   <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
@@ -1143,7 +2228,7 @@ export const AdminDashboardView: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                   <select
                     value={selectedSubjectFilter}
                     onChange={(e) => setSelectedSubjectFilter(e.target.value)}
@@ -1159,6 +2244,33 @@ export const AdminDashboardView: React.FC = () => {
                     <option value="सामान्य तार्किक योग्यता">तार्किक योग्यता</option>
                     <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी</option>
                   </select>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleExportQuestions('xls')}
+                      className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
+                      title="प्रश्नोत्तरी Excel में डाउनलोड करें"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      <span>XLS</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportQuestions('csv')}
+                      className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
+                      title="प्रश्नोत्तरी CSV में डाउनलोड करें"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>CSV</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportQuestions('pdf')}
+                      className="px-2.5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
+                      title="प्रश्नोत्तरी PDF प्रिंट / डाउनलोड करें"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>PDF</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1260,9 +2372,9 @@ export const AdminDashboardView: React.FC = () => {
           {/* ========================================================= */}
           {activeTab === 'STUDENTS' && (
             <div className="space-y-6">
-              {/* Search Bar */}
-              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex items-center justify-between">
-                <div className="relative flex-1">
+              {/* Search Bar & Export Buttons */}
+              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div className="relative flex-1 w-full">
                   <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                   <input 
                     type="text"
@@ -1272,6 +2384,32 @@ export const AdminDashboardView: React.FC = () => {
                     className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
                   />
                 </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <button
+                    onClick={() => handleExportUsers('xls')}
+                    className="flex-1 sm:flex-none px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    title="Excel में डाउनलोड करें"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Excel (XLS)</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportUsers('csv')}
+                    className="flex-1 sm:flex-none px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    title="CSV में डाउनलोड करें"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>CSV</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportUsers('pdf')}
+                    className="flex-1 sm:flex-none px-3 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    title="PDF रिपोर्ट प्रिंट / डाउनलोड करें"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>PDF / Print</span>
+                  </button>
+                </div>
               </div>
 
               {/* Students Grid */}
@@ -1280,6 +2418,7 @@ export const AdminDashboardView: React.FC = () => {
                   .filter(u => !searchStudents || 
                     u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
                     u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                    (u.state && u.state.toLowerCase().includes(searchStudents.toLowerCase())) ||
                     u.email.toLowerCase().includes(searchStudents.toLowerCase())
                   )
                   .map(user => {
@@ -1324,8 +2463,10 @@ export const AdminDashboardView: React.FC = () => {
 
                           <div className="p-3 bg-stone-50 dark:bg-stone-800 rounded-2xl text-xs space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-stone-500">गृह जिला (District):</span>
-                              <span className="font-bold">{user.district}</span>
+                              <span className="text-stone-500">राज्य व जिला (State & District):</span>
+                              <span className="font-bold text-stone-900 dark:text-stone-100">
+                                {user.district}{user.state ? ` (${user.state})` : ''}
+                              </span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-stone-500">लक्ष्य परीक्षा:</span>
@@ -1382,9 +2523,9 @@ export const AdminDashboardView: React.FC = () => {
           {/* ========================================================= */}
           {activeTab === 'ORDERS' && (
             <div className="space-y-6">
-              {/* Search Bar */}
-              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex items-center justify-between">
-                <div className="relative flex-1">
+              {/* Search Bar & Export Buttons */}
+              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div className="relative flex-1 w-full">
                   <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                   <input 
                     type="text"
@@ -1393,6 +2534,32 @@ export const AdminDashboardView: React.FC = () => {
                     onChange={(e) => setSearchOrders(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
                   />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <button
+                    onClick={() => handleExportOrders('xls')}
+                    className="flex-1 sm:flex-none px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    title="Excel में डाउनलोड करें"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Excel (XLS)</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportOrders('csv')}
+                    className="flex-1 sm:flex-none px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    title="CSV में डाउनलोड करें"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>CSV</span>
+                  </button>
+                  <button
+                    onClick={() => handleExportOrders('pdf')}
+                    className="flex-1 sm:flex-none px-3 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    title="PDF रिपोर्ट प्रिंट / डाउनलोड करें"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>PDF / Print</span>
+                  </button>
                 </div>
               </div>
 
@@ -1673,6 +2840,262 @@ export const AdminDashboardView: React.FC = () => {
           )}
 
           {/* ========================================================= */}
+          {/* TAB: SOCIAL MEDIA & COMMUNITY LINKS CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'SOCIAL' && (
+            <div className="space-y-6">
+              {/* Header Info */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 via-amber-500 to-blue-600 text-white flex items-center justify-center font-black shadow-md shrink-0">
+                    <Share2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-[#2D2424] dark:text-white">
+                      सोशल मीडिया व कम्युनिटी लिंक्स प्रबंधक
+                    </h3>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      फेसबुक, इंस्टाग्राम, टेलीग्राम, यूट्यूब व व्हाट्सएप ग्रुप लिंक्स अपडेट करें — ये पूरे पोर्टल (होमपेज, फुटर, हेडर) पर तुरंत लागू होंगे।
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById('social-community-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      showToast('🌐 होमपेज पर सोशल मीडिया सेक्शन सक्रिय है!');
+                    }}
+                    className="px-4 py-2 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                  >
+                    <Eye className="w-4 h-4 text-amber-600" />
+                    <span>लाइव पोर्टल पर देखें</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Social Channels Form */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  savePlatformSettings(editingSettings);
+                  showToast('✅ सभी सोशल मीडिया लिंक्स सफलतापूर्वक अपडेट हो गए!');
+                }}
+                className="space-y-6"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  
+                  {/* 1. Facebook */}
+                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-blue-200 dark:border-blue-900/60 rounded-3xl space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#1877F2] text-white flex items-center justify-center shadow">
+                          <Facebook className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">फेसबुक (Facebook Group / Page)</h4>
+                          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">25K+ परीक्षार्थी कम्युनिटी</span>
+                        </div>
+                      </div>
+                      {editingSettings.facebookUrl && (
+                        <a
+                          href={editingSettings.facebookUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 hover:bg-blue-100"
+                          title="टेस्ट करें"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                        फेसबुक पेज या ग्रुप URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://facebook.com/groups/mpparikshasetu"
+                        value={editingSettings.facebookUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, facebookUrl: e.target.value })}
+                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 2. Instagram */}
+                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-rose-200 dark:border-rose-900/60 rounded-3xl space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center shadow">
+                          <Instagram className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">इंस्टाग्राम (Instagram Profile / Reels)</h4>
+                          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">45K+ फॉलोअर्स • 60s GK रील्स</span>
+                        </div>
+                      </div>
+                      {editingSettings.instagramUrl && (
+                        <a
+                          href={editingSettings.instagramUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 hover:bg-rose-100"
+                          title="टेस्ट करें"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                        इंस्टाग्राम प्रोफ़ाइल URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://instagram.com/mpparikshasetu_official"
+                        value={editingSettings.instagramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, instagramUrl: e.target.value })}
+                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. Telegram */}
+                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-sky-200 dark:border-sky-900/60 rounded-3xl space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#229ED9] text-white flex items-center justify-center shadow">
+                          <Send className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">टेलीग्राम (Telegram Super Channel)</h4>
+                          <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">68K+ मेंबर्स • डेली 50 Qs क्विज़ & PDF</span>
+                        </div>
+                      </div>
+                      {editingSettings.telegramUrl && (
+                        <a
+                          href={editingSettings.telegramUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 hover:bg-sky-100"
+                          title="टेस्ट करें"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                        टेलीग्राम चैनल / ग्रुप URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://t.me/mpparikshasetu_mp"
+                        value={editingSettings.telegramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, telegramUrl: e.target.value })}
+                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. YouTube */}
+                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-red-200 dark:border-red-900/60 rounded-3xl space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#FF0000] text-white flex items-center justify-center shadow">
+                          <Youtube className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">यूट्यूब (YouTube Live Classes Channel)</h4>
+                          <span className="text-[10px] text-red-600 dark:text-red-400 font-bold">90K+ सब्सक्राइबर्स • मैराथन क्लासेज</span>
+                        </div>
+                      </div>
+                      {editingSettings.youtubeUrl && (
+                        <a
+                          href={editingSettings.youtubeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 hover:bg-red-100"
+                          title="टेस्ट करें"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                        यूट्यूब चैनल URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://youtube.com/@mpparikshasetu"
+                        value={editingSettings.youtubeUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, youtubeUrl: e.target.value })}
+                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 5. WhatsApp Community */}
+                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-emerald-200 dark:border-emerald-900/60 rounded-3xl space-y-4 shadow-sm md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#25D366] text-white flex items-center justify-center shadow">
+                          <MessageCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">व्हाट्सएप जॉब अलर्ट कम्युनिटी (WhatsApp Group)</h4>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">10K+ छात्र जुड़े • तत्काल भर्ती नोटिफिकेशन</span>
+                        </div>
+                      </div>
+                      {editingSettings.whatsappCommunityUrl && (
+                        <a
+                          href={editingSettings.whatsappCommunityUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 hover:bg-emerald-100"
+                          title="टेस्ट करें"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                        व्हाट्सएप ग्रुप या कम्युनिटी इनवाइट URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://chat.whatsapp.com/mpparikshasetu"
+                        value={editingSettings.whatsappCommunityUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, whatsappCommunityUrl: e.target.value })}
+                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Save Button */}
+                <button
+                  type="submit"
+                  className="w-full py-4 rounded-2xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-sm uppercase tracking-wider border-2 border-[#D4A017] shadow-xl transition hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>💾 सभी सोशल मीडिया लिंक्स सहेजें (Save Social Links)</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ========================================================= */}
           {/* TAB 12: PLATFORM SETTINGS & BRANDING */}
           {/* ========================================================= */}
           {activeTab === 'SETTINGS' && (
@@ -1691,6 +3114,7 @@ export const AdminDashboardView: React.FC = () => {
                 onSubmit={(e) => {
                   e.preventDefault();
                   savePlatformSettings(editingSettings);
+                  showToast('✅ प्लेटफ़ॉर्म सेटिंग्स सफलतापूर्वक सहेज ली गईं!');
                 }}
                 className="space-y-4 text-xs"
               >
@@ -1748,6 +3172,68 @@ export const AdminDashboardView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Social Media Quick Links in Settings */}
+                <div className="pt-2 border-t border-stone-100 dark:border-stone-800 space-y-3">
+                  <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
+                    <Share2 className="w-4 h-4" />
+                    <span>सोशल मीडिया हैंडल्स (Social Links)</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
+                        <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                        <span>फेसबुक लिंक</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://facebook.com/groups/mpparikshasetu"
+                        value={editingSettings.facebookUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, facebookUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
+                        <Instagram className="w-3.5 h-3.5 text-rose-500" />
+                        <span>इंस्टाग्राम लिंक</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://instagram.com/mpparikshasetu_official"
+                        value={editingSettings.instagramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, instagramUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
+                        <Send className="w-3.5 h-3.5 text-sky-500" />
+                        <span>टेलीग्राम चैनल लिंक</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://t.me/mpparikshasetu_mp"
+                        value={editingSettings.telegramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, telegramUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
+                        <Youtube className="w-3.5 h-3.5 text-red-600" />
+                        <span>यूट्यूब चैनल लिंक</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://youtube.com/@mpparikshasetu"
+                        value={editingSettings.youtubeUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, youtubeUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Toggles */}
                 <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-3">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -1757,7 +3243,7 @@ export const AdminDashboardView: React.FC = () => {
                       onChange={(e) => setEditingSettings({ ...editingSettings, enableAiEvaluation: e.target.checked })}
                       className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
                     />
-                    <span className="font-bold">Google AI शैक्षणिक विश्लेषण व 7-दिवसीय अध्ययन योजना सक्रिय रखें</span>
+                    <span className="font-bold">AI शैक्षणिक विश्लेषण व 7-दिवसीय अध्ययन योजना सक्रिय रखें</span>
                   </label>
 
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -1783,6 +3269,292 @@ export const AdminDashboardView: React.FC = () => {
 
         </main>
       </div>
+
+      {/* ========================================================= */}
+      {/* MODAL 0: NAVIGATION MENU ITEM CREATE / EDIT MODAL */}
+      {/* ========================================================= */}
+      {editingMenuItem && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl my-8">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+                <Compass className="w-5 h-5 text-amber-600" />
+                <span>{editingMenuItem.id ? 'नेविगेशन मेन्यू संपादित करें' : 'नया नेविगेशन मेन्यू आइटम जोड़ें'}</span>
+              </h3>
+              <button 
+                onClick={() => setEditingMenuItem(null)} 
+                className="p-1 text-stone-400 hover:text-black dark:hover:text-white"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Menu Form */}
+            <form onSubmit={handleSaveMenu} className="space-y-4 text-xs">
+              
+              {/* Menu Labels */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    मेन्यू का नाम (Hindi Label) <span className="text-rose-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="उदा: 🎯 40-प्रश्न फ्री टेस्ट"
+                    value={editingMenuItem.labelHi || ''}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, labelHi: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    अंग्रेजी नाम (English Label)
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="उदा: Free 40-Q Mock"
+                    value={editingMenuItem.labelEn || ''}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, labelEn: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Placement & Order */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    मेन्यू कहाँ दिखेगा? (Placement) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={editingMenuItem.placement || 'top'}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, placement: e.target.value as MenuPlacement })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  >
+                    <option value="top">🔝 शीर्ष हेडर मेन्यू (Top Header)</option>
+                    <option value="bottom">📱 निचला मोबाइल नेव / फुटर (Bottom Menu)</option>
+                    <option value="both">✨ शीर्ष व निचला दोनों (Both Top & Bottom)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    क्रम संख्या (Display Order)
+                  </label>
+                  <input 
+                    type="number" 
+                    value={editingMenuItem.order || 1}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, order: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Icon Picker Grid */}
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1.5 flex items-center justify-between">
+                  <span>मेन्यू आइकन चुनें (Select Icon)</span>
+                  <span className="font-mono text-amber-600 font-bold">
+                    चयनित: {editingMenuItem.iconName || 'Compass'}
+                  </span>
+                </label>
+                <div className="grid grid-cols-6 sm:grid-cols-9 gap-2 p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 max-h-36 overflow-y-auto">
+                  {(Object.keys(NAV_ICON_MAP) as NavIconKey[]).map(iconKey => {
+                    const isSelected = (editingMenuItem.iconName || 'Compass') === iconKey;
+                    return (
+                      <button
+                        type="button"
+                        key={iconKey}
+                        onClick={() => setEditingMenuItem({ ...editingMenuItem, iconName: iconKey })}
+                        className={`p-2 rounded-xl flex flex-col items-center justify-center gap-1 border transition ${
+                          isSelected
+                            ? 'bg-[#7A2A1E] text-[#D4A017] border-[#D4A017] shadow-xs scale-105'
+                            : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-amber-400'
+                        }`}
+                        title={iconKey}
+                      >
+                        <DynamicNavIcon name={iconKey} className="w-4 h-4" />
+                        <span className="text-[9px] truncate max-w-full font-mono">{iconKey.slice(0, 4)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Target Type & Action Destination */}
+              <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-black uppercase text-stone-500 mb-1">
+                      क्लिक करने पर क्या खुलेगा? (Target Type)
+                    </label>
+                    <select
+                      value={editingMenuItem.targetType || 'view'}
+                      onChange={(e) => {
+                        const newType = e.target.value as MenuTargetType;
+                        let defaultVal = 'home';
+                        if (newType === 'category') defaultVal = 'patwari';
+                        if (newType === 'modal') defaultVal = 'notesModal';
+                        if (newType === 'external') defaultVal = '';
+                        setEditingMenuItem({ 
+                          ...editingMenuItem, 
+                          targetType: newType, 
+                          targetValue: defaultVal 
+                        });
+                      }}
+                      className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                    >
+                      <option value="view">🌐 मुख्य स्क्रीन व्यू (Main App View)</option>
+                      <option value="category">🏛️ परीक्षा श्रेणी (Exam Category Filter)</option>
+                      <option value="modal">🪟 पॉपअप विंडो (Popup Modal)</option>
+                      <option value="external">🔗 बाहरी वेब लिंक (External URL)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-black uppercase text-stone-500 mb-1">
+                      गंतव्य (Target Value)
+                    </label>
+                    
+                    {/* View Options */}
+                    {editingMenuItem.targetType === 'view' && (
+                      <select
+                        value={editingMenuItem.targetValue || 'home'}
+                        onChange={(e) => setEditingMenuItem({ ...editingMenuItem, targetValue: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                      >
+                        <option value="home">🏠 मुख्य होमपेज (Home)</option>
+                        <option value="freeMockTest">🎯 40-प्रश्न फ्री मॉक टेस्ट (Free 40-Q Mock)</option>
+                        <option value="catalog">📚 टेस्ट सीरीज़ कैटलॉग (Catalog)</option>
+                        <option value="leaderboard">🏆 ऑल-मध्य प्रदेश लीडरबोर्ड (Leaderboard)</option>
+                        <option value="notes">📄 ई-नोट्स व हस्तलिखित पीडीएफ (Notes)</option>
+                        <option value="dashboard">👤 छात्र डैशबोर्ड (Student Dashboard)</option>
+                        <option value="admin">⚙️ सुपर एडमिन कंसोल (Admin Console)</option>
+                      </select>
+                    )}
+
+                    {/* Category Options */}
+                    {editingMenuItem.targetType === 'category' && (
+                      <select
+                        value={editingMenuItem.targetValue || 'patwari'}
+                        onChange={(e) => setEditingMenuItem({ ...editingMenuItem, targetValue: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                      >
+                        <option value="patwari">🏛️ MP पटवारी 2026</option>
+                        <option value="mppsc">🏛️ MPPSC सिविल सेवा</option>
+                        <option value="police">👮 MP पुलिस SI / आरक्षक</option>
+                        <option value="vyapam">📝 MP ESB व्यापम ग्रुप-4</option>
+                        <option value="vanrakshak">🌲 वनरक्षक व जेल प्रहरी</option>
+                        <option value="teaching">🎓 MP शिक्षक पात्रता TET</option>
+                      </select>
+                    )}
+
+                    {/* Modal Options */}
+                    {editingMenuItem.targetType === 'modal' && (
+                      <select
+                        value={editingMenuItem.targetValue || 'notesModal'}
+                        onChange={(e) => setEditingMenuItem({ ...editingMenuItem, targetValue: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                      >
+                        <option value="notesModal">📄 हस्तलिखित ई-नोट्स पॉपअप (Notes Modal)</option>
+                        <option value="remindersModal">⏰ दैनिक अध्ययन अलार्म पॉपअप (Reminders Modal)</option>
+                        <option value="authModal">🔐 छात्र लॉगिन व रजिस्ट्रेशन पॉपअप (Auth Modal)</option>
+                      </select>
+                    )}
+
+                    {/* External Link */}
+                    {editingMenuItem.targetType === 'external' && (
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={editingMenuItem.externalUrl || ''}
+                        onChange={(e) => setEditingMenuItem({ 
+                          ...editingMenuItem, 
+                          externalUrl: e.target.value,
+                          targetValue: e.target.value
+                        })}
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Badge & Special Highlighting */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    बैज टेक्स्ट (Badge Text - e.g. HOT, NEW, 40 Qs)
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="उदा: 🔥 40 Qs या PDF"
+                    value={editingMenuItem.badgeTextHi || ''}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, badgeTextHi: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+
+                <div className="flex items-center gap-4 pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={editingMenuItem.highlight || false}
+                      onChange={(e) => setEditingMenuItem({ ...editingMenuItem, highlight: e.target.checked })}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-0"
+                    />
+                    <span className="font-bold text-stone-700 dark:text-stone-300">
+                      ⭐ चमकीला गोल्डन हाइलाइट दें
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Active Toggle Switch */}
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-[#D4A017]/60 flex items-center justify-between">
+                <div>
+                  <div className="font-black text-amber-950 dark:text-amber-200 text-xs">
+                    मेन्यू लाइव विजिबिलिटी (Active Status)
+                  </div>
+                  <div className="text-[11px] text-stone-600 dark:text-stone-400">
+                    सक्रिय रखने पर तुरंत छात्रों को शीर्ष हेडर या बॉटम मेन्यू में दिखेगा।
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingMenuItem.isActive !== false}
+                    onChange={(e) => setEditingMenuItem({ ...editingMenuItem, isActive: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingMenuItem(null)}
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600 dark:text-stone-300"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-sm hover:bg-[#5E1F16] transition"
+                >
+                  💾 मेन्यू सहेजें (Save Menu Item)
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* MODAL 1: BANNER CREATE / EDIT MODAL */}
@@ -1819,8 +3591,8 @@ export const AdminDashboardView: React.FC = () => {
               <div>
                 <label className="block font-black uppercase text-stone-500 mb-1">उप-शीर्षक (Hindi Subtitle)</label>
                 <input 
-                  type="text"
-                  placeholder="उदा: 200 प्रश्न प्रति टेस्ट • Google AI रिपोर्ट • ऑल-एमपी रैंक"
+                  type="text" 
+                  placeholder="उदा: 200 प्रश्न प्रति टेस्ट • AI रिपोर्ट • ऑल-एमपी रैंक"
                   value={editingBanner.subtitleHi || ''}
                   onChange={(e) => setEditingBanner({ ...editingBanner, subtitleHi: e.target.value })}
                   className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"

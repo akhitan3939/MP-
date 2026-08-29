@@ -841,7 +841,7 @@ export const PATWARI_2026_PART3_QUESTIONS: Question[] = [
     optionsEn: ['Delete data', 'Print data', 'Local drive only', 'Store on remote internet servers'],
     correctOptionIndex: 3,
     correctOption: 3,
-    explanationHi: 'क्लाउड स्टोरेज (उदा. Google Drive, OneDrive) इंटरनेट सर्वरों पर डेटा सुरक्षित रखने की सुविधा है जिसे कहीं से भी एक्सेस किया जा सकता है।',
+    explanationHi: 'क्लाउड स्टोरेज (उदा. Cloud Drive, OneDrive) इंटरनेट सर्वरों पर डेटा सुरक्षित रखने की सुविधा है जिसे कहीं से भी एक्सेस किया जा सकता है।',
     explanationEn: 'Cloud storage allows data to be maintained, managed, and backed up remotely over the internet.',
     marks: 1,
     negativeMarks: 0,

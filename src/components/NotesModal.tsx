@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Download, FileText, CheckCircle2, BookOpen, Sparkles } from 'lucide-react';
+import { X, Download, FileText, CheckCircle2, BookOpen, Sparkles, Printer } from 'lucide-react';
+import { exportNoteToPdfPrint } from '../utils/exportReports';
 
 export const NotesModal: React.FC = () => {
   const { isNotesModalOpen, closeNotesModal, selectedNote, notes, lang, showToast } = useApp();
@@ -11,11 +12,13 @@ export const NotesModal: React.FC = () => {
 
   const current = selectedNote || activeNote || notes[0];
 
-  const handleDownload = (noteId: string) => {
-    if (!downloadedIds.includes(noteId)) {
-      setDownloadedIds(prev => [...prev, noteId]);
+  const handleDownload = (note: any) => {
+    if (!note) return;
+    if (!downloadedIds.includes(note.id)) {
+      setDownloadedIds(prev => [...prev, note.id]);
     }
-    showToast(lang === 'hi' ? '📥 नोट्स ऑफलाइन स्टोरेज में डाउनलोड हो गए।' : '📥 Notes saved to offline cache & PDF ready.');
+    exportNoteToPdfPrint(note);
+    showToast(lang === 'hi' ? '📥 ई-नोट्स PDF डाउनलोड व प्रिंट विंडो खुल गई।' : '📥 E-Notes PDF ready for download/print.');
   };
 
   return (
@@ -99,13 +102,13 @@ export const NotesModal: React.FC = () => {
               </span>
 
               <button
-                onClick={() => handleDownload(current.id)}
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition hover:scale-105 active:scale-95 text-xs sm:text-sm"
+                onClick={() => handleDownload(current)}
+                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition hover:scale-105 active:scale-95 text-xs sm:text-sm cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>
                   {downloadedIds.includes(current.id) 
-                    ? (lang === 'hi' ? 'ऑफलाइन सुरक्षित (पुनः डाउनलोड करें)' : 'Cached Offline (Download Again)')
+                    ? (lang === 'hi' ? 'PDF डाउनलोड / प्रिंट करें' : 'Download / Print PDF')
                     : (lang === 'hi' ? `PDF डाउनलोड करें (${current.fileSize})` : `Download PDF (${current.fileSize})`)}
                 </span>
               </button>

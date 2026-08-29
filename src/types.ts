@@ -11,10 +11,12 @@ export interface UserProfile {
   phone: string;
   password?: string;
   role: UserRole;
+  state?: string;
   district: string;
   targetExam: string;
   avatarUrl?: string;
   joinedAt: string;
+  createdAt?: string;
   xp: number;
   streak: number;
   badges: string[];
@@ -126,6 +128,11 @@ export interface PlatformSettings {
   paymentGatewayMode: 'LIVE' | 'TEST';
   enableAiEvaluation: boolean;
   maintenanceMode: boolean;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  telegramUrl?: string;
+  youtubeUrl?: string;
+  whatsappCommunityUrl?: string;
 }
 
 export interface MockSetMetadata {
@@ -185,6 +192,7 @@ export interface TestAttempt {
   id: string;
   userId: string;
   userName: string;
+  userState?: string;
   userDistrict: string;
   seriesId: string;
   seriesTitle: string;
@@ -205,13 +213,31 @@ export interface TestAttempt {
   answers: Record<string, UserAnswerRecord | number | any>;
   sectionScores: SectionScore[];
   aiReport?: AiEvaluationReport;
+  xpBreakdown?: {
+    correctXp: number;
+    penaltyXp: number;
+    streakBonus: number;
+    speedBonus: number;
+    netXp: number;
+  };
   certificateId: string;
+}
+
+export interface ShareModalParams {
+  title?: string;
+  text?: string;
+  url?: string;
+  score?: number;
+  totalMarks?: number;
+  seriesTitle?: string;
+  rank?: number;
 }
 
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
   userName: string;
+  state?: string;
   district: string;
   avatarUrl?: string;
   score: number;
@@ -292,3 +318,26 @@ export interface OfflineNote {
   summaryEn: string;
   sampleContentHi: string;
 }
+
+export type MenuPlacement = 'top' | 'bottom' | 'both';
+export type MenuTargetType = 'view' | 'category' | 'modal' | 'external';
+
+export interface NavigationMenuItem {
+  id: string;
+  labelHi: string;
+  labelEn: string;
+  placement: MenuPlacement;
+  targetType: MenuTargetType;
+  targetValue: string;
+  externalUrl?: string;
+  iconName: string;
+  highlight?: boolean;
+  badgeTextHi?: string;
+  badgeTextEn?: string;
+  isActive: boolean;
+  order: number;
+  openInNewTab?: boolean;
+  subTextHi?: string;
+  subTextEn?: string;
+}
+

@@ -182,7 +182,7 @@ export const TestDetailView: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Google AI विस्तृत उत्तर कुंजी & रैंक</span>
+                <span>AI विस्तृत उत्तर कुंजी & रैंक</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -367,13 +367,13 @@ export const TestDetailView: React.FC = () => {
             <div className="space-y-2.5">
               {((lang === 'hi' ? series?.featuresHi : series?.featuresEn) || (lang === 'hi' ? [
                 '100% नवीनतम MP ESB / आयोग पाठ्यक्रम आधारित',
-                'Google AI आधारित व्यक्तिगत विश्लेषण व कमजोर क्षेत्र पहचान',
+                'AI आधारित व्यक्तिगत विश्लेषण व कमजोर क्षेत्र पहचान',
                 'ऑल-मध्यप्रदेश लाइव मेरिट रैंक व परसेंटाइल',
                 'विस्तृत द्विभाषी (Hindi + English) समाधान व व्याख्या',
                 'मुफ्त डाउनलोड योग्य हस्तलिखित ई-नोट्स एवं PDF'
               ] : [
                 '100% based on latest MP ESB / Commission exam pattern',
-                'Google AI-driven personalized analysis & weakness detector',
+                'AI-driven personalized analysis & weakness detector',
                 'All-MP State Live Merit Rank & Percentile Score',
                 'Comprehensive bilingual (Hindi + English) solutions',
                 'Free downloadable handwritten study notes & PDFs'

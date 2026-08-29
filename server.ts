@@ -12,7 +12,7 @@ const PORT = 3000;
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Lazy/Safe Gemini Initialization
+// Lazy/Safe AI Initialization
 let genAIClient: GoogleGenAI | null = null;
 function getGenAI(): GoogleGenAI | null {
   if (!genAIClient && process.env.GEMINI_API_KEY) {
@@ -72,7 +72,7 @@ async function callGenAIWithFallback(
     }
   }
 
-  throw lastError || new Error('All candidate Gemini models were unavailable');
+  throw lastError || new Error('All candidate AI models were unavailable');
 }
 
 // 1. Health check
@@ -80,7 +80,7 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     service: 'MP Pariksha Setu API',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+    hasAiKey: Boolean(process.env.GEMINI_API_KEY),
     timestamp: new Date().toISOString(),
   });
 });

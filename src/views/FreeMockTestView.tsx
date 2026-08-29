@@ -214,7 +214,7 @@ export const FreeMockTestView: React.FC = () => {
                 {lang === 'hi' ? 'ऑल-एमपी लाइव रैंक व AI रिपोर्ट' : 'Live MP Rank & AI Analysis'}
               </h4>
               <p className="text-stone-600 dark:text-stone-400 leading-relaxed font-medium">
-                {lang === 'hi' ? 'टेस्ट सबमिट करते ही 55 जिलों के अभ्यर्थियों के बीच अपनी रैंक और Google AI द्वारा कमजोर विषयों का सुधार सुझाव प्राप्त करें।' : 'Instant state percentile rank along with AI diagnosis of weak and strong subjects.'}
+                {lang === 'hi' ? 'टेस्ट सबमिट करते ही 55 जिलों के अभ्यर्थियों के बीच अपनी रैंक और AI द्वारा कमजोर विषयों का सुधार सुझाव प्राप्त करें।' : 'Instant state percentile rank along with AI diagnosis of weak and strong subjects.'}
               </p>
             </div>
           </div>

@@ -3,11 +3,13 @@ import { AppProvider, useApp } from './context/AppContext';
 import { AnnouncementBar } from './components/AnnouncementBar';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
+import { BottomNavBar } from './components/BottomNavBar';
 import { RazorpayModal } from './components/RazorpayModal';
 import { AuthModal } from './components/AuthModal';
 import { NotesModal } from './components/NotesModal';
 import { StudyReminderModal } from './components/StudyReminderModal';
 import { CertificateModal } from './components/CertificateModal';
+import { ShareModal } from './components/ShareModal';
 
 // Views
 import { HomeView } from './views/HomeView';
@@ -43,7 +45,7 @@ const MainAppContent: React.FC = () => {
       <Header />
 
       {/* 3. Main Views Router */}
-      <main className="flex-1">
+      <main className="flex-1 pb-16 md:pb-0">
         {activeView === 'home' && <HomeView />}
         {activeView === 'freeMockTest' && <FreeMockTestView />}
         {activeView === 'catalog' && <CatalogView />}
@@ -61,8 +63,12 @@ const MainAppContent: React.FC = () => {
       <NotesModal />
       <StudyReminderModal />
       <CertificateModal />
+      <ShareModal />
 
-      {/* 5. Global Floating Toast Alert */}
+      {/* 5. Mobile Dynamic Bottom App Bar */}
+      <BottomNavBar />
+
+      {/* 6. Global Floating Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-stone-900 text-stone-100 border border-amber-500/80 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-slideUp">
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></div>
