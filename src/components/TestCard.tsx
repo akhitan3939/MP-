@@ -53,10 +53,7 @@ export const TestCard: React.FC<TestCardProps> = ({ series }) => {
             <Clock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
             <span>{series.durationMinutes} {lang === 'hi' ? 'मिनट' : 'Mins'}</span>
           </div>
-          <div className="flex items-center gap-1.5 font-bold">
-            <BookCheck className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
-            <span>{series.pdfNotesCount} {lang === 'hi' ? 'नोट्स' : 'Notes'}</span>
-          </div>
+          
         </div>
       </div>
 
