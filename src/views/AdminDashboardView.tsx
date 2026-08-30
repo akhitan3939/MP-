@@ -171,15 +171,16 @@ export const AdminDashboardView: React.FC = () => {
   const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('⚠️ फ़ाइल साइज़ 2MB से कम होना चाहिए');
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('⚠️ फ़ाइल साइज़ 5MB से कम होना चाहिए');
       return;
     }
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result as string;
+      setEditingSettings(prev => ({ ...prev, logoUrl: base64 }));
       const res = await uploadLogo(base64);
-      if (res.success && res.logoUrl) {
+      if (res && res.logoUrl) {
         setEditingSettings(prev => ({ ...prev, logoUrl: res.logoUrl }));
       }
     };
@@ -1453,6 +1454,386 @@ export const AdminDashboardView: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: SOCIAL MEDIA PLATFORMS & COMMUNITY CMS */}
+          {/* ========================================================= */}
+          {activeTab === 'SOCIAL' && (
+            <div className="space-y-6">
+              
+              {/* Header Banner */}
+              <div className="p-6 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-3xl space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5 text-rose-900 dark:text-rose-300 font-black text-base sm:text-lg">
+                      <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-md">
+                        <Share2 className="w-5 h-5" />
+                      </div>
+                      <span>सोशल मीडिया प्लेटफॉर्म एवं कम्युनिटी लिंक्स CMS</span>
+                    </div>
+                    <p className="text-xs text-rose-800 dark:text-rose-300 leading-relaxed max-w-3xl">
+                      यहाँ से आप अपने WhatsApp स्टडी ग्रुप, Telegram सुपर चैनल, YouTube वीडियो लेक्चर्स, Instagram रील्स और Facebook कम्युनिटी के ऑफिशियल लिंक्स प्रबंधित कर सकते हैं। ये लिंक्स वेबसाइट के हेडर, फुटर, होमपेज व सोशल साइड पैनल में तुरंत अपडेट हो जाएँगे।
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      savePlatformSettings(editingSettings);
+                      showToast('✅ समस्त सोशल मीडिया लिंक्स सफलतापूर्वक सहेजे गए!');
+                    }}
+                    className="px-5 py-3 rounded-2xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-xs uppercase tracking-wider border-2 border-[#D4A017] shadow-md transition shrink-0 flex items-center gap-2"
+                  >
+                    <span>💾 सभी लिंक्स सहेजें (Save Links)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 5 Dedicated Channel Management Cards */}
+              <div className="grid grid-cols-1 gap-4">
+                
+                {/* 1. WhatsApp Community / Channel Link */}
+                <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border-2 border-[#25D366]/40 dark:border-[#25D366]/30 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#25D366] text-white flex items-center justify-center shadow-sm">
+                        <MessageCircle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-stone-900 dark:text-white flex items-center gap-2">
+                          <span>1. व्हाट्सएप कम्युनिटी / ग्रुप लिंक (WhatsApp Community / Group)</span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">
+                            अति-महत्वपूर्ण
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-stone-500">
+                          छात्रों को सीधे व्हाट्सएप ग्रुप से जोड़ने के लिए ग्रुप इनवाइट लिंक (chat.whatsapp.com/...) दर्ज करें।
+                        </p>
+                      </div>
+                    </div>
+
+                    {editingSettings.whatsappCommunityUrl && (
+                      <a
+                        href={editingSettings.whatsappCommunityUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-[#25D366] border border-emerald-300 dark:border-emerald-700 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-100 transition"
+                      >
+                        <span>लिंक टेस्ट करें</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                      WhatsApp Invite Link URL:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://chat.whatsapp.com/..."
+                        value={editingSettings.whatsappCommunityUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, whatsappCommunityUrl: e.target.value })}
+                        className="flex-1 p-3 rounded-2xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs focus:ring-2 focus:ring-[#25D366]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingSettings.whatsappCommunityUrl) {
+                            navigator.clipboard.writeText(editingSettings.whatsappCommunityUrl);
+                            showToast('📋 व्हाट्सएप लिंक कॉपी हो गया');
+                          } else {
+                            showToast('⚠️ पहले व्हाट्सएप लिंक दर्ज करें');
+                          }
+                        }}
+                        className="px-3.5 py-2.5 rounded-2xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 font-bold text-xs transition border border-stone-200 dark:border-stone-700"
+                        title="लिंक कॉपी करें"
+                      >
+                        कॉपी करें
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Telegram Super Channel Link */}
+                <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border-2 border-[#229ED9]/40 dark:border-[#229ED9]/30 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#229ED9] text-white flex items-center justify-center shadow-sm">
+                        <Send className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-stone-900 dark:text-white flex items-center gap-2">
+                          <span>2. टेलीग्राम सुपर चैनल लिंक (Telegram Channel - Free PDF & Quiz)</span>
+                          <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 text-[10px] font-bold">
+                            PDF व क्विज़
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-stone-500">
+                          दैनिक फ्री ई-नोट्स और टेस्ट अपडेट्स के लिए टेलीग्राम चैनल का लिंक (https://t.me/...) दर्ज करें।
+                        </p>
+                      </div>
+                    </div>
+
+                    {editingSettings.telegramUrl && (
+                      <a
+                        href={editingSettings.telegramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-[#229ED9] border border-sky-300 dark:border-sky-700 text-xs font-bold flex items-center gap-1.5 hover:bg-sky-100 transition"
+                      >
+                        <span>लिंक टेस्ट करें</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                      Telegram Channel Link URL:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://t.me/mpparikshasetu_mp"
+                        value={editingSettings.telegramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, telegramUrl: e.target.value })}
+                        className="flex-1 p-3 rounded-2xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs focus:ring-2 focus:ring-[#229ED9]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingSettings.telegramUrl) {
+                            navigator.clipboard.writeText(editingSettings.telegramUrl);
+                            showToast('📋 टेलीग्राम लिंक कॉपी हो गया');
+                          } else {
+                            showToast('⚠️ पहले टेलीग्राम लिंक दर्ज करें');
+                          }
+                        }}
+                        className="px-3.5 py-2.5 rounded-2xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 font-bold text-xs transition border border-stone-200 dark:border-stone-700"
+                      >
+                        कॉपी करें
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. YouTube Channel Link */}
+                <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border-2 border-[#FF0000]/40 dark:border-[#FF0000]/30 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#FF0000] text-white flex items-center justify-center shadow-sm">
+                        <Youtube className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-stone-900 dark:text-white flex items-center gap-2">
+                          <span>3. यूट्यूब चैनल लिंक (YouTube Channel - Video Classes & Tips)</span>
+                          <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-[10px] font-bold">
+                            वीडियो लेक्चर्स
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-stone-500">
+                          वीडियो विश्लेषण, सिलेबस व कटऑफ गाइडेंस के लिए आधिकारिक यूट्यूब चैनल का लिंक दर्ज करें।
+                        </p>
+                      </div>
+                    </div>
+
+                    {editingSettings.youtubeUrl && (
+                      <a
+                        href={editingSettings.youtubeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/60 text-[#FF0000] border border-red-300 dark:border-red-700 text-xs font-bold flex items-center gap-1.5 hover:bg-red-100 transition"
+                      >
+                        <span>लिंक टेस्ट करें</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                      YouTube Channel Link URL:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://youtube.com/@mpparikshasetu"
+                        value={editingSettings.youtubeUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, youtubeUrl: e.target.value })}
+                        className="flex-1 p-3 rounded-2xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs focus:ring-2 focus:ring-[#FF0000]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingSettings.youtubeUrl) {
+                            navigator.clipboard.writeText(editingSettings.youtubeUrl);
+                            showToast('📋 यूट्यूब लिंक कॉपी हो गया');
+                          } else {
+                            showToast('⚠️ पहले यूट्यूब लिंक दर्ज करें');
+                          }
+                        }}
+                        className="px-3.5 py-2.5 rounded-2xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 font-bold text-xs transition border border-stone-200 dark:border-stone-700"
+                      >
+                        कॉपी करें
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Instagram Profile & Reels Link */}
+                <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border-2 border-rose-300 dark:border-rose-800 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center shadow-sm">
+                        <Instagram className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-stone-900 dark:text-white flex items-center gap-2">
+                          <span>4. इंस्टाग्राम प्रोफाइल व रील्स लिंक (Instagram Page & GK Reels)</span>
+                          <span className="px-2 py-0.5 rounded-full bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300 text-[10px] font-bold">
+                            60s GK रील्स
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-stone-500">
+                          इंस्टाग्राम रील्स, शॉर्ट ट्रिक्स व परीक्षा इंफोग्राफिक्स के लिए इंस्टाग्राम लिंक दर्ज करें।
+                        </p>
+                      </div>
+                    </div>
+
+                    {editingSettings.instagramUrl && (
+                      <a
+                        href={editingSettings.instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-pink-50 dark:bg-pink-950/60 text-rose-600 border border-pink-300 dark:border-pink-700 text-xs font-bold flex items-center gap-1.5 hover:bg-pink-100 transition"
+                      >
+                        <span>लिंक टेस्ट करें</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                      Instagram Profile Link URL:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://instagram.com/mpparikshasetu_official"
+                        value={editingSettings.instagramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, instagramUrl: e.target.value })}
+                        className="flex-1 p-3 rounded-2xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs focus:ring-2 focus:ring-rose-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingSettings.instagramUrl) {
+                            navigator.clipboard.writeText(editingSettings.instagramUrl);
+                            showToast('📋 इंस्टाग्राम लिंक कॉपी हो गया');
+                          } else {
+                            showToast('⚠️ पहले इंस्टाग्राम लिंक दर्ज करें');
+                          }
+                        }}
+                        className="px-3.5 py-2.5 rounded-2xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 font-bold text-xs transition border border-stone-200 dark:border-stone-700"
+                      >
+                        कॉपी करें
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Facebook Group & Page Link */}
+                <div className="p-5 rounded-3xl bg-white dark:bg-stone-900 border-2 border-[#1877F2]/40 dark:border-[#1877F2]/30 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#1877F2] text-white flex items-center justify-center shadow-sm">
+                        <Facebook className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-stone-900 dark:text-white flex items-center gap-2">
+                          <span>5. फेसबुक पेज / ग्रुप लिंक (Facebook Page & Discussion Group)</span>
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[10px] font-bold">
+                            स्टडी कम्युनिटी
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-stone-500">
+                          एमपी परीक्षार्थी डिस्कशन फोरम एवं पुराने प्रश्नपत्रों की चर्चा के लिए फेसबुक लिंक दर्ज करें।
+                        </p>
+                      </div>
+                    </div>
+
+                    {editingSettings.facebookUrl && (
+                      <a
+                        href={editingSettings.facebookUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#1877F2] border border-blue-300 dark:border-blue-700 text-xs font-bold flex items-center gap-1.5 hover:bg-blue-100 transition"
+                      >
+                        <span>लिंक टेस्ट करें</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                      Facebook Page/Group Link URL:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://facebook.com/groups/mpparikshasetu"
+                        value={editingSettings.facebookUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, facebookUrl: e.target.value })}
+                        className="flex-1 p-3 rounded-2xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs focus:ring-2 focus:ring-[#1877F2]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingSettings.facebookUrl) {
+                            navigator.clipboard.writeText(editingSettings.facebookUrl);
+                            showToast('📋 फेसबुक लिंक कॉपी हो गया');
+                          } else {
+                            showToast('⚠️ पहले फेसबुक लिंक दर्ज करें');
+                          }
+                        }}
+                        className="px-3.5 py-2.5 rounded-2xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 font-bold text-xs transition border border-stone-200 dark:border-stone-700"
+                      >
+                        कॉपी करें
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Master Save Action Bar */}
+              <div className="p-6 rounded-3xl bg-[#7A2A1E] text-white border-2 border-[#D4A017] shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-black text-base text-[#D4A017]">
+                    क्या आपने सभी सोशल मीडिया लिंक्स अपडेट कर लिए हैं?
+                  </h4>
+                  <p className="text-xs text-stone-200 mt-0.5">
+                    नीचे दिए गए बटन पर क्लिक करते ही ये लिंक्स संपूर्ण प्लेटफ़ॉर्म पर तुरंत लाइव हो जाएँगे।
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    savePlatformSettings(editingSettings);
+                    showToast('✅ समस्त सोशल मीडिया लिंक्स सफलतापूर्वक सहेजे गए!');
+                  }}
+                  className="px-8 py-3.5 rounded-2xl bg-[#D4A017] hover:bg-[#b88b14] text-[#7A2A1E] font-black text-sm uppercase tracking-wider shadow-lg transition"
+                >
+                  💾 सभी लिंक्स सहेजें (Save All Links)
+                </button>
               </div>
 
             </div>
@@ -3200,60 +3581,55 @@ export const AdminDashboardView: React.FC = () => {
                 className="space-y-4 text-xs"
               >
                 {/* Logo Management Section */}
-                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border-2 border-[#D4A017]/50 space-y-3">
-                  <div className="flex items-center justify-between">
+                <div className="p-5 rounded-3xl bg-amber-50/60 dark:bg-amber-950/30 border-2 border-[#D4A017]/60 space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
                         <ImageIcon className="w-4 h-4" />
-                        <span>वेबसाइट लोगो प्रबंधन (Website Official Logo)</span>
+                        <span>वेबसाइट लोगो प्रबंधन (Website Official Emblem & Logo)</span>
                       </h4>
                       <p className="text-[11px] text-stone-600 dark:text-stone-400">
-                        हेडर, फुटर व ब्रांडिंग में प्रदर्शित होने वाला लोगो अपलोड करें या इमेज URL सेट करें।
+                        अपनी डिवाइस (मोबाइल/कंप्यूटर) से पोर्टल का लोगो चुनें। यह तुरंत हेडर, फुटर व वेबसाइट पर सक्रिय हो जाएगा।
                       </p>
                     </div>
-                    {editingSettings.logoUrl && (
+                    {editingSettings.logoUrl && editingSettings.logoUrl !== '/logo.svg' && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           setEditingSettings({ ...editingSettings, logoUrl: '/logo.svg' });
-                          showToast('डिफ़ॉल्ट लोगो रीसेट किया गया');
+                          await uploadLogo('/logo.svg');
+                          showToast('✅ डिफ़ॉल्ट परीक्षा सेतु लोगो रीसेट किया गया');
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold hover:bg-stone-300 transition text-[10px]"
+                        className="px-3 py-1.5 rounded-xl bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold hover:bg-stone-300 transition text-xs shrink-0 flex items-center gap-1.5"
                       >
-                        डिफ़ॉल्ट लोगो
+                        <span>डिफ़ॉल्ट लोगो रीसेट करें</span>
                       </button>
                     )}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-                    {/* Logo Preview */}
-                    <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 w-28 h-28 shrink-0 shadow-xs">
-                      {editingSettings.logoUrl ? (
-                        <img 
-                          src={editingSettings.logoUrl} 
-                          alt="Logo Preview" 
-                          className="max-h-20 max-w-20 object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/logo.svg';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-[#7A2A1E] text-[#D4A017] font-black text-xl flex items-center justify-center border-2 border-[#D4A017]">
-                          MP
-                        </div>
-                      )}
-                      <span className="text-[9px] text-stone-400 font-mono mt-1">Live Preview</span>
+                  <div className="flex flex-col sm:flex-row items-center gap-5 pt-1">
+                    {/* Logo Live Preview */}
+                    <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-stone-900 border-2 border-[#D4A017]/40 w-32 h-32 shrink-0 shadow-md">
+                      <img 
+                        src={editingSettings.logoUrl || '/logo.svg'} 
+                        alt="Logo Preview" 
+                        className="max-h-24 max-w-24 object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/logo.svg';
+                        }}
+                      />
+                      <span className="text-[9px] text-[#7A2A1E] dark:text-[#D4A017] font-bold mt-1">Live Preview</span>
                     </div>
 
-                    {/* Logo Actions */}
-                    <div className="flex-1 space-y-2.5 w-full">
+                    {/* Logo File Upload Trigger */}
+                    <div className="flex-1 space-y-3 w-full">
                       <div>
-                        <label className="block font-bold text-stone-600 dark:text-stone-400 mb-1">
-                          डिवाइस से लोगो अपलोड करें (PNG / SVG / JPG / WebP)
+                        <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1.5 text-xs">
+                          नया लोगो अपलोड करें (PNG / JPG / SVG / WebP - अधिकतम 5MB):
                         </label>
-                        <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed border-[#D4A017] bg-white dark:bg-stone-900 hover:bg-amber-50/50 cursor-pointer transition font-bold text-stone-700 dark:text-stone-200 text-xs">
-                          <Plus className="w-4 h-4 text-[#7A2A1E] dark:text-[#D4A017]" />
-                          <span>नया लोगो चुनें व अपलोड करें (Upload Logo File)</span>
+                        <label className="flex items-center justify-center gap-2.5 p-4 rounded-2xl border-2 border-dashed border-[#D4A017] bg-white dark:bg-stone-900 hover:bg-amber-50/60 cursor-pointer transition font-bold text-[#7A2A1E] dark:text-[#D4A017] text-xs shadow-xs">
+                          <Plus className="w-5 h-5" />
+                          <span>डिवाइस से फ़ाइल चुनें व लोगो सेट करें (Select & Upload Logo)</span>
                           <input 
                             type="file" 
                             accept="image/png, image/jpeg, image/svg+xml, image/webp" 
@@ -3263,30 +3639,9 @@ export const AdminDashboardView: React.FC = () => {
                         </label>
                       </div>
 
-                      <div>
-                        <label className="block font-bold text-stone-600 dark:text-stone-400 mb-1">
-                          या लोगो इमेज URL दर्ज करें (Image URL)
-                        </label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="url"
-                            placeholder="https://... या /logo.svg"
-                            value={editingSettings.logoUrl || ''}
-                            onChange={(e) => setEditingSettings({ ...editingSettings, logoUrl: e.target.value })}
-                            className="flex-1 p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (editingSettings.logoUrl) {
-                                uploadLogo(editingSettings.logoUrl);
-                              }
-                            }}
-                            className="px-3 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-bold border border-[#D4A017] hover:bg-[#5E1F16]"
-                          >
-                            लागू करें
-                          </button>
-                        </div>
+                      <div className="flex items-center gap-2 text-[11px] text-stone-500 font-medium">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>अपलोड करते ही लोगो सभी छात्रों व हेडर/फुटर में स्वतः लाइव हो जाता है।</span>
                       </div>
                     </div>
                   </div>
@@ -3348,41 +3703,39 @@ export const AdminDashboardView: React.FC = () => {
 
                 {/* Social Media Quick Links in Settings */}
                 <div className="pt-2 border-t border-stone-100 dark:border-stone-800 space-y-3">
-                  <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
-                    <Share2 className="w-4 h-4" />
-                    <span>सोशल मीडिया हैंडल्स (Social Links)</span>
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
+                      <Share2 className="w-4 h-4" />
+                      <span>सोशल मीडिया हैंडल्स (Social Links)</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('SOCIAL')}
+                      className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>विस्तृत सोशल CMS खोलें</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
                       <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
-                        <Facebook className="w-3.5 h-3.5 text-blue-600" />
-                        <span>फेसबुक लिंक</span>
+                        <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+                        <span>WhatsApp ग्रुप / कम्युनिटी लिंक</span>
                       </label>
                       <input
                         type="url"
-                        placeholder="https://facebook.com/groups/mpparikshasetu"
-                        value={editingSettings.facebookUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, facebookUrl: e.target.value })}
-                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
-                        <Instagram className="w-3.5 h-3.5 text-rose-500" />
-                        <span>इंस्टाग्राम लिंक</span>
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://instagram.com/mpparikshasetu_official"
-                        value={editingSettings.instagramUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, instagramUrl: e.target.value })}
+                        placeholder="https://chat.whatsapp.com/..."
+                        value={editingSettings.whatsappCommunityUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, whatsappCommunityUrl: e.target.value })}
                         className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
                       />
                     </div>
                     <div>
                       <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
                         <Send className="w-3.5 h-3.5 text-sky-500" />
-                        <span>टेलीग्राम चैनल लिंक</span>
+                        <span>Telegram चैनल लिंक</span>
                       </label>
                       <input
                         type="url"
@@ -3395,13 +3748,39 @@ export const AdminDashboardView: React.FC = () => {
                     <div>
                       <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
                         <Youtube className="w-3.5 h-3.5 text-red-600" />
-                        <span>यूट्यूब चैनल लिंक</span>
+                        <span>YouTube चैनल लिंक</span>
                       </label>
                       <input
                         type="url"
                         placeholder="https://youtube.com/@mpparikshasetu"
                         value={editingSettings.youtubeUrl || ''}
                         onChange={(e) => setEditingSettings({ ...editingSettings, youtubeUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
+                        <Instagram className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Instagram प्रोफाइल लिंक</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://instagram.com/mpparikshasetu_official"
+                        value={editingSettings.instagramUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, instagramUrl: e.target.value })}
+                        className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-stone-500 mb-1 flex items-center gap-1.5">
+                        <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Facebook पेज / ग्रुप लिंक</span>
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://facebook.com/groups/mpparikshasetu"
+                        value={editingSettings.facebookUrl || ''}
+                        onChange={(e) => setEditingSettings({ ...editingSettings, facebookUrl: e.target.value })}
                         className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
                       />
                     </div>

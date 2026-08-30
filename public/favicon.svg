@@ -35,5 +35,5 @@
   <text x="242" y="340" text-anchor="start" font-family="sans-serif" font-weight="900" font-size="64" fill="#F4511E">सेतु</text>
   <!-- Arc -->
   <path d="M 62 380 Q 250 435 438 380 C 420 445, 345 470, 250 470 C 155 470, 80 445, 62 380 Z" fill="url(#navyRing)" />
-  <text x="250" y="440" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="15" fill="#FFFFFF">mp-pariksha-setu.onrender.com</text>
+  <text x="250" y="440" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="16" fill="#FFD54F">★ परीक्षा सेतु ★</text>
 </svg>

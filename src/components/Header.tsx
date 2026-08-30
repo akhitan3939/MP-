@@ -40,7 +40,6 @@ export const Header: React.FC = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [logoError, setLogoError] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-[#7A2A1E] text-white border-b-4 border-[#D4A017] shadow-xl w-full">
@@ -53,18 +52,19 @@ export const Header: React.FC = () => {
             onClick={() => navigate('home')}
             className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group shrink-0"
           >
-            {platformSettings?.logoUrl && !logoError ? (
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white shadow-md border-2 border-[#D4A017] flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shrink-0">
               <img 
-                src={platformSettings.logoUrl} 
-                alt={platformSettings.siteTitle || 'MP परीक्षा सेतु Logo'} 
-                onError={() => setLogoError(true)}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover bg-white shadow-md border-2 border-[#D4A017] group-hover:scale-105 transition-transform duration-200 shrink-0"
+                src={platformSettings?.logoUrl || '/logo.svg'} 
+                alt={platformSettings?.siteTitle || 'MP परीक्षा सेतु Logo'} 
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== window.location.origin + '/logo.svg') {
+                    target.src = '/logo.svg';
+                  }
+                }}
+                className="w-full h-full object-contain p-0.5"
               />
-            ) : (
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#D4A017] rounded-full flex items-center justify-center font-black text-base sm:text-lg text-[#7A2A1E] shadow-md border-2 border-white/30 group-hover:scale-105 transition-transform duration-200 shrink-0">
-                MP
-              </div>
-            )}
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-display font-black text-lg sm:text-xl md:text-2xl text-white tracking-tight leading-none group-hover:text-[#FFFBF2] transition">

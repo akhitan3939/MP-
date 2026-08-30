@@ -207,13 +207,29 @@ app.delete('/api/test-series/:id', (req: Request, res: Response) => {
   });
 });
 
-// Logo Upload Endpoint
+// Logo Upload & Serving Endpoints
+app.get('/api/logo', (req: Request, res: Response) => {
+  const publicDir = path.join(process.cwd(), 'public');
+  const customLogoPath = path.join(publicDir, 'custom_logo.png');
+  if (fs.existsSync(customLogoPath)) {
+    return res.sendFile(customLogoPath);
+  }
+  const defaultLogoPath = path.join(publicDir, 'logo.svg');
+  if (fs.existsSync(defaultLogoPath)) {
+    return res.sendFile(defaultLogoPath);
+  }
+  res.redirect('/logo.svg');
+});
+
 app.post('/api/upload-logo', (req: Request, res: Response) => {
   const { logoData, logoUrl } = req.body;
   if (logoData && typeof logoData === 'string' && logoData.startsWith('data:image')) {
     try {
       const base64Data = logoData.replace(/^data:image\/\w+;base64,/, '');
       const publicDir = path.join(process.cwd(), 'public');
+      if (!fs.existsSync(publicDir)) {
+        fs.mkdirSync(publicDir, { recursive: true });
+      }
       const customLogoPath = path.join(publicDir, 'custom_logo.png');
       fs.writeFileSync(customLogoPath, Buffer.from(base64Data, 'base64'));
       
