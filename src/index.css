@@ -2,7 +2,10 @@
 
 @layer base {
   html, body {
-    font-family: 'Plus Jakarta Sans', 'Hind', 'Outfit', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Hind', 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     /* Anti-Theft: Disable text selection and dragging globally */
     user-select: none;
     -webkit-user-select: none;
@@ -26,8 +29,13 @@
     pointer-events: auto;
   }
 
-  h1, h2, h3, h4, .font-display {
-    font-family: 'Outfit', 'Baloo 2', 'Hind', sans-serif;
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Outfit', 'Hind', 'Baloo 2', 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  .font-hindi {
+    font-family: 'Hind', 'Baloo 2', sans-serif;
   }
 
   .font-mono {

@@ -12,7 +12,9 @@ import {
   SiteBanner,
   PlatformSettings,
   MockSetMetadata,
-  NavigationMenuItem 
+  NavigationMenuItem,
+  WebsiteContentConfig,
+  SocialChannelConfig
 } from '../types';
 import { 
   INITIAL_USERS, 
@@ -179,6 +181,174 @@ export const INITIAL_BANNERS: SiteBanner[] = [
   }
 ];
 
+export const INITIAL_SOCIAL_CHANNELS: SocialChannelConfig[] = [
+  {
+    id: 'whatsapp',
+    nameHi: 'व्हाट्सएप जॉब अलर्ट कम्युनिटी',
+    nameEn: 'WhatsApp Job Alerts Group',
+    handle: 'MP Pariksha Setu Alerts',
+    badgeHi: '10,000+ छात्र जुड़े',
+    badgeEn: '10K+ Students',
+    url: 'https://chat.whatsapp.com/mpparikshasetu',
+    descHi: 'सीधे आपके व्हाट्सएप पर नई भर्ती, एडमिट कार्ड व फ्री मॉक टेस्ट का नोटिफिकेशन।',
+    descEn: 'Direct WhatsApp notifications for new vacancies, admit cards & test releases.',
+    highlights: ['तत्काल भर्ती अलर्ट', 'एडमिट कार्ड सूचना', 'सीधा संपर्क'],
+    isActive: true,
+  },
+  {
+    id: 'telegram',
+    nameHi: 'टेलीग्राम सुपर चैनल (PDF व क्विज़)',
+    nameEn: 'Telegram Super Channel',
+    handle: 't.me/mpparikshasetu_mp',
+    badgeHi: '68,000+ मेंबर्स',
+    badgeEn: '68K+ Members',
+    url: 'https://t.me/mpparikshasetu_mp',
+    descHi: 'हस्तलिखित नोट्स PDF, 50+ प्रश्नों का दैनिक लाइव क्विज और त्वरित रिज़ल्ट अलर्ट।',
+    descEn: 'Free handwritten notes PDFs, daily 50+ Qs live quizzes & instant alerts.',
+    highlights: ['फ्री नोट्स डाउनलोड', 'लाइव टाइमर क्विज़', 'कटऑफ अपडेट्स'],
+    isActive: true,
+  },
+  {
+    id: 'youtube',
+    nameHi: 'यूट्यूब चैनल (लाइव मैराथन क्लासेज)',
+    nameEn: 'YouTube Channel (Live Classes)',
+    handle: '@mpparikshasetu',
+    badgeHi: '90,000+ सब्सक्राइबर्स',
+    badgeEn: '90K+ Subscribers',
+    url: 'https://youtube.com/@mpparikshasetu',
+    descHi: 'विस्तृत विषयवार मैराथन क्लासेज, पिछले वर्षों के पेपर का हल व परीक्षा रणनीति।',
+    descEn: 'Subject-wise marathon classes, previous year paper solutions & strategies.',
+    highlights: ['लाइव प्रश्न हल', 'परीक्षा विश्लेषण', 'रणनीति सेशन्स'],
+    isActive: true,
+  },
+  {
+    id: 'instagram',
+    nameHi: 'इंस्टाग्राम रील्स व एग्जाम टिप्स',
+    nameEn: 'Instagram Reels & Exam Tips',
+    handle: '@mpparikshasetu_official',
+    badgeHi: '45,000+ फॉलोअर्स',
+    badgeEn: '45K+ Followers',
+    url: 'https://instagram.com/mpparikshasetu_official',
+    descHi: '60-सेकंड में MP GK ट्रिक्स, करंट अफेयर्स इंफोग्राफिक्स और परीक्षा मोटिवेशन रील्स।',
+    descEn: '60-second MP GK memory tricks, Current affairs infographics & exam reels.',
+    highlights: ['शॉर्टकट मेमोरी ट्रिक्स', 'डेली करंट अफेयर्स', 'स्टडी इंफोग्राफिक्स'],
+    isActive: true,
+  },
+  {
+    id: 'facebook',
+    nameHi: 'फेसबुक पेज एवं स्टडी ग्रुप',
+    nameEn: 'Facebook Page & Community',
+    handle: 'facebook.com/mpparikshasetu',
+    badgeHi: '25,000+ परीक्षार्थी',
+    badgeEn: '25K+ Aspirants',
+    url: 'https://facebook.com/groups/mpparikshasetu',
+    descHi: 'म.प्र. भर्ती परीक्षा चर्चा, पुराने प्रश्नपत्र, टॉपर्स अनुभव और दैनिक पोल प्रश्नोत्तरी।',
+    descEn: 'MP Govt exam discussions, PYQ analysis, toppers guidance & daily polls.',
+    highlights: ['डेली GK प्रश्नोत्तरी', 'भर्ती अधिसूचना चर्चा', 'संदेह निवारण'],
+    isActive: true,
+  }
+];
+
+export const INITIAL_WEBSITE_CONTENT: WebsiteContentConfig = {
+  // Hero Section
+  heroTrustBadgeHi: 'मध्यप्रदेश की प्रामाणिक परीक्षा टेस्ट सीरीज़',
+  heroTrustBadgeEn: 'Madhya Pradesh Govt Exam Portal 2026',
+  heroTitleHi: 'समूह-02 (पटवारी), MPPSC, पुलिस व व्यापम — अब सफलता पक्की!',
+  heroTitleEn: 'Group-02 (Patwari), MPPSC, Police & Vyapam CBT Mock Tests',
+  heroSubtitleHi: 'असली परीक्षा जैसा माहौल, हिंदी व अंग्रेजी द्विभाषी प्रश्न, तुरंत रिज़ल्ट और AI द्वारा विस्तृत उत्तर विश्लेषण व कमजोर क्षेत्रों का सुधार प्लान।',
+  heroSubtitleEn: 'Experience authentic MP CBT exams, bilingual questions in Hindi & English, instant scores, and AI detailed evaluations.',
+  heroCtaFreeMockHi: '🎯 40-प्रश्न फ्री मॉक टेस्ट शुरू करें',
+  heroCtaFreeMockEn: 'Start 40-Question Free Mock',
+  heroCtaCatalogHi: 'टेस्ट सीरीज़ देखें',
+  heroCtaCatalogEn: 'Test Series Catalog',
+  heroCtaNotesHi: 'GK नोट्स (PDF)',
+  heroCtaNotesEn: 'Free Notes',
+
+  // Hero Stats
+  heroStat1Value: '50,000+',
+  heroStat1LabelHi: 'सक्रिय परीक्षार्थी',
+  heroStat1LabelEn: 'Aspirants',
+  heroStat2Value: '250+',
+  heroStat2LabelHi: 'मॉक टेस्ट उपलब्ध',
+  heroStat2LabelEn: 'Mock Tests',
+  heroStat3Value: 'AI',
+  heroStat3LabelHi: 'तुरंत स्कोर विश्लेषण',
+  heroStat3LabelEn: 'Instant AI Analysis',
+
+  // Hero Spotlight Card
+  spotlightLivePillHi: 'लाइव मॉक टेस्ट एक्टिव',
+  spotlightLivePillEn: 'Live Mock Active',
+  spotlightBadgeHi: 'विशेष मुफ़्त डेमो टेस्ट',
+  spotlightBadgeEn: '40 MCQs • FREE DEMO',
+  spotlightTitleHi: 'ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+  spotlightTitleEn: 'All-Madhya Pradesh 40-Questions Free Mock Test',
+  spotlightSubtitleHi: '40 प्रश्न • 30 मिनट • MP GK, हिन्दी, गणित, रीजनिंग, कंप्यूटर, विज्ञान, अंग्रेजी',
+  spotlightSubtitleEn: '40 Questions • 30 Mins • MP GK, Hindi, Maths, Reasoning, Computer, Science, English',
+  spotlightAttemptedTextHi: '28,450+ छात्रों ने दिया',
+  spotlightAttemptedTextEn: '28,450+ attempted',
+  spotlightButtonHi: '40-प्रश्न डेमो दें',
+  spotlightButtonEn: 'Start 40Q Demo',
+  spotlightPillar1Text: 'AI मूल्यांकन',
+  spotlightPillar2Text: 'ऑल-एमपी लाइव रैंक',
+  spotlightPillar3Text: 'तुरंत स्कोरकार्ड',
+  spotlightPillar4Text: 'ऑफलाइन PDF नोट्स',
+
+  // New Student Welcome Bonus Bar
+  regBannerTitleHi: 'नया छात्र पंजीकरण (Free Registration) करें और ₹500 वेलकम बोनस XP पाएँ!',
+  regBannerTitleEn: 'New Aspirant Free Sign Up & Get ₹500 Welcome Bonus XP!',
+  regBannerSubtitleHi: '55 जिलों के 50,000+ अभ्यर्थियों के साथ ऑल-एमपी लाइव रैंक और निःशुल्क ई-नोट्स अनलॉक करें।',
+  regBannerSubtitleEn: 'Join 50,000+ aspirants across 55 MP districts with live state rank and free e-notes.',
+  regBannerBtn1Hi: '📝 नया खाता बनाएँ (Sign Up)',
+  regBannerBtn1En: 'Sign Up Free',
+  regBannerBtn2Hi: 'लॉगिन करें',
+  regBannerBtn2En: 'Login',
+
+  // Catalog Section
+  catalogBadgeHi: 'भर्ती वार मॉक टेस्ट पैक',
+  catalogBadgeEn: 'Exam Test Series Catalog',
+  catalogTitleHi: 'मध्यप्रदेश प्रमुख भर्ती टेस्ट सीरीज़',
+  catalogTitleEn: 'Explore MP Govt Exam Test Series',
+  catalogSubtitleHi: 'ऑनलाइन खरीद के साथ कभी भी टेस्ट दें, असीमित पुनः प्रयास और AI फीडबैक पाएँ।',
+  catalogSubtitleEn: 'Purchase once, attempt anytime with unlimited re-attempts and real-time AI feedback.',
+
+  // Why Choose Us Section
+  whyChooseBadgeHi: 'अत्याधुनिक परीक्षा तकनीक',
+  whyChooseBadgeEn: 'High Tech & High Yield',
+  whyChooseTitleHi: 'MP परीक्षा सेतु ही क्यों चुनें?',
+  whyChooseTitleEn: 'Why Prepare with MP Pariksha Setu?',
+  whyChooseSubtitleHi: 'मध्यप्रदेश की सभी भर्ती परीक्षाओं के वास्तविक पैटर्न पर आधारित विशेष सुविधाएँ।',
+  whyChooseSubtitleEn: 'Special features based on the actual pattern of all recruitment exams of Madhya Pradesh.',
+  pillar1TitleHi: 'AI आंसर इवैल्यूएशन',
+  pillar1TitleEn: 'AI Answer Evaluation',
+  pillar1DescHi: 'टेस्ट सबमिट करते ही AI आपके गलत प्रश्नों के पीछे के कारणों, शॉर्टकट ट्रिक्स और 7-दिवसीय वैयक्तिकृत अध्ययन टाइमटेबल तैयार करता है।',
+  pillar1DescEn: 'Instant AI breakdown of weak points, wrong question diagnosis, speed analytics, and 7-day personalized study timetable.',
+  pillar2TitleHi: 'ऑल-एमपी लाइव लीडरबोर्ड',
+  pillar2TitleEn: 'All-MP Live Leaderboard',
+  pillar2DescHi: 'मध्यप्रदेश के सभी 55 जिलों (इंदौर, भोपाल, ग्वालियर, जबलपुर आदि) के हजारों छात्रों के साथ लाइव रैंक, पर्सेंटाइल और प्रोग्रेस ग्राफ।',
+  pillar2DescEn: 'Live state-level rank, percentile comparison, and district ranking across all 55 districts of Madhya Pradesh.',
+  pillar3TitleHi: 'सुरक्षित Razorpay चेकआउट',
+  pillar3TitleEn: 'Secure Razorpay Checkout',
+  pillar3DescHi: 'UPI (GPay, PhonePe, Paytm), QR कोड, कार्ड्स द्वारा तुरंत भुगतान, GST टैक्स इनवॉइस और तत्काल टेस्ट अनलॉक।',
+  pillar3DescEn: 'Instant automated test activation via UPI QR, Cards, Netbanking with GST compliant instant invoice receipts.',
+
+  // Social Section Headers
+  socialSectionBadgeHi: 'मध्यप्रदेश की सबसे बड़ी प्रतियोगी छात्र कम्युनिटी',
+  socialSectionBadgeEn: 'Madhya Pradesh Biggest Aspirant Community',
+  socialSectionTitleHi: 'आधिकारिक सोशल मीडिया व स्टडी ग्रुप्स से जुड़ें',
+  socialSectionTitleEn: 'Join Official Social Media & Study Groups',
+  socialSectionSubtitleHi: 'दैनिक MP GK ट्रिक्स, हस्तलिखित नोट्स PDF, लाइव क्विज़, भर्ती नोटिफिकेशन व टॉपर्स गाइडेंस प्राप्त करें।',
+  socialSectionSubtitleEn: 'Get daily MP GK tricks, handwritten notes PDFs, live quizzes, vacancy notifications & toppers guidance.',
+
+  // Footer Content
+  footerAboutHi: 'मध्यप्रदेश कर्मचारी चयन मंडल (MPESB), MPPSC एवं पुलिस भर्ती परीक्षाओं के लिए भारत का सबसे विश्वसनीय द्विभाषी CBT टेस्ट पोर्टल।',
+  footerAboutEn: 'India\'s most authentic bilingual CBT Mock Test Portal for MPESB, MPPSC, and MP Police examinations.',
+  footerAddressHi: 'परीक्षा सेतु भवन, एमपी नगर जोन-II, भोपाल (म.प्र.) 462011',
+  footerAddressEn: 'Pariksha Setu Bhawan, MP Nagar Zone-II, Bhopal (M.P.) 462011',
+  footerDisclaimerHi: 'यह एक स्वतंत्र प्रतियोगी परीक्षा तैयारी पोर्टल है और इसका किसी भी सरकारी विभाग या आयोग से सीधा संबंध नहीं है। समस्त प्रश्न व सामग्री शैक्षणिक उद्देश्य हेतु तैयार की गई है।',
+  footerDisclaimerEn: 'This is an independent competitive examination test portal and is not directly affiliated with any government department or commission.',
+  footerCopyrightText: '© 2026 MP परीक्षा सेतु (MP Pariksha Setu). सर्वाधिकार सुरक्षित। (All Rights Reserved).'
+};
+
 export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   siteTitle: 'MP परीक्षा सेतु',
   siteTagline: 'मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल',
@@ -196,7 +366,9 @@ export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   instagramUrl: 'https://instagram.com/mpparikshasetu_official',
   telegramUrl: 'https://t.me/mpparikshasetu_mp',
   youtubeUrl: 'https://youtube.com/@mpparikshasetu',
-  whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu'
+  whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu',
+  websiteContent: INITIAL_WEBSITE_CONTENT,
+  socialChannels: INITIAL_SOCIAL_CHANNELS
 };
 
 function getStorage<T>(key: string, fallback: T): T {
@@ -280,6 +452,49 @@ function normalizeTestSeries(s: any): TestSeries {
     syllabus: Array.isArray(s.syllabus) ? s.syllabus : [],
     freeTestsCount: s.freeTestsCount !== undefined ? s.freeTestsCount : (s.isFreeDemoAvailable ? 1 : 0),
     isActive: s.isActive !== false,
+  };
+}
+
+function normalizePlatformSettings(s: any): PlatformSettings {
+  if (!s || typeof s !== 'object') return INITIAL_PLATFORM_SETTINGS;
+  
+  const mergedWebsiteContent: WebsiteContentConfig = {
+    ...INITIAL_WEBSITE_CONTENT,
+    ...(s.websiteContent || {})
+  };
+
+  const initialChannels = INITIAL_SOCIAL_CHANNELS.map(ch => ({ ...ch }));
+  let mergedChannels: SocialChannelConfig[] = initialChannels;
+
+  if (Array.isArray(s.socialChannels) && s.socialChannels.length > 0) {
+    mergedChannels = initialChannels.map(defCh => {
+      const found = s.socialChannels.find((c: any) => c.id === defCh.id);
+      if (found) {
+        return {
+          ...defCh,
+          ...found,
+          highlights: Array.isArray(found.highlights) ? found.highlights : defCh.highlights
+        };
+      }
+      return defCh;
+    });
+  } else {
+    // Sync with top-level URLs if present
+    mergedChannels = initialChannels.map(ch => {
+      if (ch.id === 'whatsapp' && s.whatsappCommunityUrl) ch.url = s.whatsappCommunityUrl;
+      if (ch.id === 'telegram' && s.telegramUrl) ch.url = s.telegramUrl;
+      if (ch.id === 'youtube' && s.youtubeUrl) ch.url = s.youtubeUrl;
+      if (ch.id === 'instagram' && s.instagramUrl) ch.url = s.instagramUrl;
+      if (ch.id === 'facebook' && s.facebookUrl) ch.url = s.facebookUrl;
+      return ch;
+    });
+  }
+
+  return {
+    ...INITIAL_PLATFORM_SETTINGS,
+    ...s,
+    websiteContent: mergedWebsiteContent,
+    socialChannels: mergedChannels
   };
 }
 
@@ -405,8 +620,11 @@ export const StorageService = {
   getSiteBanners: (): SiteBanner[] => getStorage(STORAGE_KEYS.SITE_BANNERS, INITIAL_BANNERS),
   setSiteBanners: (banners: SiteBanner[]) => setStorage(STORAGE_KEYS.SITE_BANNERS, banners),
 
-  getPlatformSettings: (): PlatformSettings => getStorage(STORAGE_KEYS.PLATFORM_SETTINGS, INITIAL_PLATFORM_SETTINGS),
-  setPlatformSettings: (settings: PlatformSettings) => setStorage(STORAGE_KEYS.PLATFORM_SETTINGS, settings),
+  getPlatformSettings: (): PlatformSettings => {
+    const raw = getStorage(STORAGE_KEYS.PLATFORM_SETTINGS, INITIAL_PLATFORM_SETTINGS);
+    return normalizePlatformSettings(raw);
+  },
+  setPlatformSettings: (settings: PlatformSettings) => setStorage(STORAGE_KEYS.PLATFORM_SETTINGS, normalizePlatformSettings(settings)),
 
   getNavMenus: (): NavigationMenuItem[] => getStorage(STORAGE_KEYS.NAV_MENUS, INITIAL_NAV_MENUS),
   setNavMenus: (menus: NavigationMenuItem[]) => setStorage(STORAGE_KEYS.NAV_MENUS, menus),

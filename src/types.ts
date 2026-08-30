@@ -116,6 +116,121 @@ export interface SiteBanner {
   order: number;
 }
 
+export interface SocialChannelConfig {
+  id: string; // 'whatsapp' | 'telegram' | 'youtube' | 'instagram' | 'facebook'
+  nameHi: string;
+  nameEn: string;
+  handle: string;
+  badgeHi: string;
+  badgeEn: string;
+  url: string;
+  descHi: string;
+  descEn: string;
+  highlights: string[];
+  isActive?: boolean;
+}
+
+export interface WebsiteContentConfig {
+  // Hero Section
+  heroTrustBadgeHi?: string;
+  heroTrustBadgeEn?: string;
+  heroTitleHi?: string;
+  heroTitleEn?: string;
+  heroSubtitleHi?: string;
+  heroSubtitleEn?: string;
+  heroCtaFreeMockHi?: string;
+  heroCtaFreeMockEn?: string;
+  heroCtaCatalogHi?: string;
+  heroCtaCatalogEn?: string;
+  heroCtaNotesHi?: string;
+  heroCtaNotesEn?: string;
+  
+  // Hero Stats
+  heroStat1Value?: string;
+  heroStat1LabelHi?: string;
+  heroStat1LabelEn?: string;
+  heroStat2Value?: string;
+  heroStat2LabelHi?: string;
+  heroStat2LabelEn?: string;
+  heroStat3Value?: string;
+  heroStat3LabelHi?: string;
+  heroStat3LabelEn?: string;
+
+  // Hero Spotlight Card
+  spotlightLivePillHi?: string;
+  spotlightLivePillEn?: string;
+  spotlightBadgeHi?: string;
+  spotlightBadgeEn?: string;
+  spotlightTitleHi?: string;
+  spotlightTitleEn?: string;
+  spotlightSubtitleHi?: string;
+  spotlightSubtitleEn?: string;
+  spotlightAttemptedTextHi?: string;
+  spotlightAttemptedTextEn?: string;
+  spotlightButtonHi?: string;
+  spotlightButtonEn?: string;
+  spotlightPillar1Text?: string;
+  spotlightPillar2Text?: string;
+  spotlightPillar3Text?: string;
+  spotlightPillar4Text?: string;
+
+  // New Student Welcome Bonus Bar
+  regBannerTitleHi?: string;
+  regBannerTitleEn?: string;
+  regBannerSubtitleHi?: string;
+  regBannerSubtitleEn?: string;
+  regBannerBtn1Hi?: string;
+  regBannerBtn1En?: string;
+  regBannerBtn2Hi?: string;
+  regBannerBtn2En?: string;
+
+  // Catalog Section Headers
+  catalogBadgeHi?: string;
+  catalogBadgeEn?: string;
+  catalogTitleHi?: string;
+  catalogTitleEn?: string;
+  catalogSubtitleHi?: string;
+  catalogSubtitleEn?: string;
+
+  // Why Choose Us Section
+  whyChooseBadgeHi?: string;
+  whyChooseBadgeEn?: string;
+  whyChooseTitleHi?: string;
+  whyChooseTitleEn?: string;
+  whyChooseSubtitleHi?: string;
+  whyChooseSubtitleEn?: string;
+  pillar1TitleHi?: string;
+  pillar1TitleEn?: string;
+  pillar1DescHi?: string;
+  pillar1DescEn?: string;
+  pillar2TitleHi?: string;
+  pillar2TitleEn?: string;
+  pillar2DescHi?: string;
+  pillar2DescEn?: string;
+  pillar3TitleHi?: string;
+  pillar3TitleEn?: string;
+  pillar3DescHi?: string;
+  pillar3DescEn?: string;
+
+  // Social Section Headers
+  socialSectionBadgeHi?: string;
+  socialSectionBadgeEn?: string;
+  socialSectionTitleHi?: string;
+  socialSectionTitleEn?: string;
+  socialSectionSubtitleHi?: string;
+  socialSectionSubtitleEn?: string;
+  socialChannels?: SocialChannelConfig[];
+
+  // Footer Content
+  footerAboutHi?: string;
+  footerAboutEn?: string;
+  footerAddressHi?: string;
+  footerAddressEn?: string;
+  footerDisclaimerHi?: string;
+  footerDisclaimerEn?: string;
+  footerCopyrightText?: string;
+}
+
 export interface PlatformSettings {
   siteTitle: string;
   siteTagline: string;
@@ -134,6 +249,8 @@ export interface PlatformSettings {
   telegramUrl?: string;
   youtubeUrl?: string;
   whatsappCommunityUrl?: string;
+  websiteContent?: WebsiteContentConfig;
+  socialChannels?: SocialChannelConfig[];
 }
 
 export interface MockSetMetadata {

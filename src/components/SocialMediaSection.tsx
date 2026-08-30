@@ -20,11 +20,14 @@ export const SocialMediaSection: React.FC = () => {
   const { lang, platformSettings, showToast } = useApp();
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const fbUrl = platformSettings?.facebookUrl || 'https://facebook.com/groups/mpparikshasetu';
-  const instaUrl = platformSettings?.instagramUrl || 'https://instagram.com/mpparikshasetu_official';
-  const tgUrl = platformSettings?.telegramUrl || 'https://t.me/mpparikshasetu_mp';
-  const ytUrl = platformSettings?.youtubeUrl || 'https://youtube.com/@mpparikshasetu';
-  const waUrl = platformSettings?.whatsappCommunityUrl || 'https://chat.whatsapp.com/mpparikshasetu';
+  const websiteContent = platformSettings?.websiteContent;
+  const configuredChannels = platformSettings?.socialChannels || [];
+
+  const fbUrl = configuredChannels.find(c => c.id === 'facebook')?.url || platformSettings?.facebookUrl || 'https://facebook.com/groups/mpparikshasetu';
+  const instaUrl = configuredChannels.find(c => c.id === 'instagram')?.url || platformSettings?.instagramUrl || 'https://instagram.com/mpparikshasetu_official';
+  const tgUrl = configuredChannels.find(c => c.id === 'telegram')?.url || platformSettings?.telegramUrl || 'https://t.me/mpparikshasetu_mp';
+  const ytUrl = configuredChannels.find(c => c.id === 'youtube')?.url || platformSettings?.youtubeUrl || 'https://youtube.com/@mpparikshasetu';
+  const waUrl = configuredChannels.find(c => c.id === 'whatsapp')?.url || platformSettings?.whatsappCommunityUrl || 'https://chat.whatsapp.com/mpparikshasetu';
 
   const handleShare = () => {
     const shareUrl = window.location.origin;
@@ -42,7 +45,69 @@ export const SocialMediaSection: React.FC = () => {
     }
   };
 
-  const SOCIAL_CHANNELS = [
+  const CHANNEL_STYLES: Record<string, {
+    icon: React.ComponentType<{ className?: string }>;
+    bgColor: string;
+    textColor: string;
+    borderColor: string;
+    hoverBorder: string;
+    btnBg: string;
+    defaultBtnTextHi: string;
+    defaultBtnTextEn: string;
+  }> = {
+    facebook: {
+      icon: Facebook,
+      bgColor: 'bg-blue-600',
+      textColor: 'text-blue-600 dark:text-blue-400',
+      borderColor: 'border-blue-200 dark:border-blue-800/80',
+      hoverBorder: 'hover:border-blue-500',
+      btnBg: 'bg-[#1877F2] hover:bg-[#0c63d4] text-white',
+      defaultBtnTextHi: 'फेसबुक पर जुड़ें',
+      defaultBtnTextEn: 'Join on Facebook'
+    },
+    instagram: {
+      icon: Instagram,
+      bgColor: 'bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600',
+      textColor: 'text-rose-600 dark:text-rose-400',
+      borderColor: 'border-rose-200 dark:border-rose-800/80',
+      hoverBorder: 'hover:border-rose-500',
+      btnBg: 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white',
+      defaultBtnTextHi: 'इंस्टाग्राम पर फॉलो करें',
+      defaultBtnTextEn: 'Follow on Instagram'
+    },
+    telegram: {
+      icon: Send,
+      bgColor: 'bg-sky-500',
+      textColor: 'text-sky-600 dark:text-sky-400',
+      borderColor: 'border-sky-200 dark:border-sky-800/80',
+      hoverBorder: 'hover:border-sky-500',
+      btnBg: 'bg-[#229ED9] hover:bg-[#1a85b9] text-white',
+      defaultBtnTextHi: 'टेलीग्राम चैनल से जुड़ें',
+      defaultBtnTextEn: 'Join Telegram'
+    },
+    youtube: {
+      icon: Youtube,
+      bgColor: 'bg-red-600',
+      textColor: 'text-red-600 dark:text-red-400',
+      borderColor: 'border-red-200 dark:border-red-800/80',
+      hoverBorder: 'hover:border-red-500',
+      btnBg: 'bg-[#FF0000] hover:bg-[#cc0000] text-white',
+      defaultBtnTextHi: 'यूट्यूब सब्सक्राइब करें',
+      defaultBtnTextEn: 'Subscribe YouTube'
+    },
+    whatsapp: {
+      icon: MessageCircle,
+      bgColor: 'bg-emerald-600',
+      textColor: 'text-emerald-600 dark:text-emerald-400',
+      borderColor: 'border-emerald-200 dark:border-emerald-800/80',
+      hoverBorder: 'hover:border-emerald-500',
+      btnBg: 'bg-[#25D366] hover:bg-[#1da851] text-white font-black',
+      defaultBtnTextHi: 'व्हाट्सएप ग्रुप से जुड़ें',
+      defaultBtnTextEn: 'Join WhatsApp'
+    }
+  };
+
+  const channelsToDisplay = (configuredChannels.length > 0 ? configuredChannels : [
     {
       id: 'facebook',
       nameHi: 'फेसबुक पेज एवं स्टडी ग्रुप',
@@ -50,16 +115,11 @@ export const SocialMediaSection: React.FC = () => {
       handle: 'facebook.com/mpparikshasetu',
       badgeHi: '25,000+ परीक्षार्थी',
       badgeEn: '25K+ Aspirants',
-      icon: Facebook,
-      bgColor: 'bg-blue-600',
-      textColor: 'text-blue-600 dark:text-blue-400',
-      borderColor: 'border-blue-200 dark:border-blue-800/80',
-      hoverBorder: 'hover:border-blue-500',
-      btnBg: 'bg-[#1877F2] hover:bg-[#0c63d4] text-white',
-      url: fbUrl,
+      url: platformSettings?.facebookUrl || 'https://facebook.com/groups/mpparikshasetu',
       descHi: 'म.प्र. भर्ती परीक्षा चर्चा, पुराने प्रश्नपत्र, टॉपर्स अनुभव और दैनिक पोल प्रश्नोत्तरी।',
       descEn: 'MP Govt exam discussions, PYQ analysis, toppers guidance & daily polls.',
-      highlights: ['डेली GK प्रश्नोत्तरी', 'भर्ती अधिसूचना चर्चा', 'संदेह निवारण']
+      highlights: ['डेली GK प्रश्नोत्तरी', 'भर्ती अधिसूचना चर्चा', 'संदेह निवारण'],
+      isActive: true
     },
     {
       id: 'instagram',
@@ -68,16 +128,11 @@ export const SocialMediaSection: React.FC = () => {
       handle: '@mpparikshasetu_official',
       badgeHi: '45,000+ फॉलोअर्स',
       badgeEn: '45K+ Followers',
-      icon: Instagram,
-      bgColor: 'bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600',
-      textColor: 'text-rose-600 dark:text-rose-400',
-      borderColor: 'border-rose-200 dark:border-rose-800/80',
-      hoverBorder: 'hover:border-rose-500',
-      btnBg: 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white',
-      url: instaUrl,
+      url: platformSettings?.instagramUrl || 'https://instagram.com/mpparikshasetu_official',
       descHi: '60-सेकंड में MP GK ट्रिक्स, करंट अफेयर्स इंफोग्राफिक्स और परीक्षा मोटिवेशन रील्स।',
       descEn: '60-second MP GK memory tricks, Current affairs infographics & exam reels.',
-      highlights: ['शॉर्टकट मेमोरी ट्रिक्स', 'डेली करंट अफेयर्स', 'स्टडी इंफोग्राफिक्स']
+      highlights: ['शॉर्टकट मेमोरी ट्रिक्स', 'डेली करंट अफेयर्स', 'स्टडी इंफोग्राफिक्स'],
+      isActive: true
     },
     {
       id: 'telegram',
@@ -86,16 +141,11 @@ export const SocialMediaSection: React.FC = () => {
       handle: 't.me/mpparikshasetu_mp',
       badgeHi: '68,000+ मेंबर्स',
       badgeEn: '68K+ Members',
-      icon: Send,
-      bgColor: 'bg-sky-500',
-      textColor: 'text-sky-600 dark:text-sky-400',
-      borderColor: 'border-sky-200 dark:border-sky-800/80',
-      hoverBorder: 'hover:border-sky-500',
-      btnBg: 'bg-[#229ED9] hover:bg-[#1a85b9] text-white',
-      url: tgUrl,
+      url: platformSettings?.telegramUrl || 'https://t.me/mpparikshasetu_mp',
       descHi: 'हस्तलिखित नोट्स PDF, 50+ प्रश्नों का दैनिक लाइव क्विज और त्वरित रिज़ल्ट अलर्ट।',
       descEn: 'Free handwritten notes PDFs, daily 50+ Qs live quizzes & instant alerts.',
-      highlights: ['फ्री नोट्स डाउनलोड', 'लाइव टाइमर क्विज़', 'कटऑफ अपडेट्स']
+      highlights: ['फ्री नोट्स डाउनलोड', 'लाइव टाइमर क्विज़', 'कटऑफ अपडेट्स'],
+      isActive: true
     },
     {
       id: 'youtube',
@@ -104,16 +154,11 @@ export const SocialMediaSection: React.FC = () => {
       handle: '@mpparikshasetu',
       badgeHi: '90,000+ सब्सक्राइबर्स',
       badgeEn: '90K+ Subscribers',
-      icon: Youtube,
-      bgColor: 'bg-red-600',
-      textColor: 'text-red-600 dark:text-red-400',
-      borderColor: 'border-red-200 dark:border-red-800/80',
-      hoverBorder: 'hover:border-red-500',
-      btnBg: 'bg-[#FF0000] hover:bg-[#cc0000] text-white',
-      url: ytUrl,
+      url: platformSettings?.youtubeUrl || 'https://youtube.com/@mpparikshasetu',
       descHi: 'विस्तृत विषयवार मैराथन क्लासेज, पिछले वर्षों के पेपर का हल व परीक्षा रणनीति।',
       descEn: 'Subject-wise marathon classes, previous year paper solutions & strategies.',
-      highlights: ['लाइव प्रश्न हल', 'परीक्षा विश्लेषण', 'रणनीति सेशन्स']
+      highlights: ['लाइव प्रश्न हल', 'परीक्षा विश्लेषण', 'रणनीति सेशन्स'],
+      isActive: true
     },
     {
       id: 'whatsapp',
@@ -122,18 +167,25 @@ export const SocialMediaSection: React.FC = () => {
       handle: 'MP Pariksha Setu Alerts',
       badgeHi: '10,000+ छात्र जुड़े',
       badgeEn: '10K+ Students',
-      icon: MessageCircle,
-      bgColor: 'bg-emerald-600',
-      textColor: 'text-emerald-600 dark:text-emerald-400',
-      borderColor: 'border-emerald-200 dark:border-emerald-800/80',
-      hoverBorder: 'hover:border-emerald-500',
-      btnBg: 'bg-[#25D366] hover:bg-[#1da851] text-white font-black',
-      url: waUrl,
+      url: platformSettings?.whatsappCommunityUrl || 'https://chat.whatsapp.com/mpparikshasetu',
       descHi: 'सीधे आपके व्हाट्सएप पर नई भर्ती, एडमिट कार्ड व फ्री मॉक टेस्ट का नोटिफिकेशन।',
       descEn: 'Direct WhatsApp notifications for new vacancies, admit cards & test releases.',
-      highlights: ['तत्काल भर्ती अलर्ट', 'एडमिट कार्ड सूचना', 'सीधा संपर्क']
+      highlights: ['तत्काल भर्ती अलर्ट', 'एडमिट कार्ड सूचना', 'सीधा संपर्क'],
+      isActive: true
     }
-  ];
+  ]).filter(c => c.isActive !== false);
+
+  const badgeText = lang === 'hi' 
+    ? (websiteContent?.socialSectionBadgeHi || 'मध्यप्रदेश की सबसे बड़ी प्रतियोगी छात्र कम्युनिटी')
+    : (websiteContent?.socialSectionBadgeEn || 'Madhya Pradesh Biggest Aspirant Community');
+
+  const titleText = lang === 'hi'
+    ? (websiteContent?.socialSectionTitleHi || 'जुड़ें हमारे आधिकारिक सोशल मीडिया नेटवर्क से')
+    : (websiteContent?.socialSectionTitleEn || 'Connect with our Official Social Media Network');
+
+  const subtitleText = lang === 'hi'
+    ? (websiteContent?.socialSectionSubtitleHi || 'फेसबुक, इंस्टाग्राम, टेलीग्राम, यूट्यूब व व्हाट्सएप पर मध्यप्रदेश के 1,00,000+ गंभीर परीक्षार्थियों के साथ जुड़ें और पाएँ रोज़ाना फ्री क्विज़, पीडीएफ नोट्स, वैकेंसी अपडेट्स व टॉपर्स टिप्स।')
+    : (websiteContent?.socialSectionSubtitleEn || 'Join 1,00,000+ dedicated MP aspirants on Facebook, Instagram, Telegram, YouTube & WhatsApp for daily quizzes, notes & alerts.');
 
   return (
     <section id="social-community-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -147,25 +199,15 @@ export const SocialMediaSection: React.FC = () => {
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#7A2A1E]/10 dark:bg-[#D4A017]/20 border border-[#7A2A1E]/20 dark:border-[#D4A017]/40 text-[#7A2A1E] dark:text-[#D4A017] text-xs font-black uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{lang === 'hi' ? 'सोशल मीडिया व कम्युनिटी' : 'Official Social Channels'}</span>
+              <span>{badgeText}</span>
             </div>
             
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#2D2424] dark:text-white tracking-tight">
-              {lang === 'hi' ? (
-                <>
-                  जुड़ें हमारे <span className="text-[#7A2A1E] dark:text-[#D4A017]">सोशल मीडिया नेटवर्क</span> से
-                </>
-              ) : (
-                <>
-                  Connect with our <span className="text-[#7A2A1E] dark:text-[#D4A017]">Social Media Network</span>
-                </>
-              )}
+              {titleText}
             </h2>
 
             <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 leading-relaxed font-medium">
-              {lang === 'hi'
-                ? 'फेसबुक, इंस्टाग्राम, टेलीग्राम, यूट्यूब व व्हाट्सएप पर मध्यप्रदेश के 1,00,000+ गंभीर परीक्षार्थियों के साथ जुड़ें और पाएँ रोज़ाना फ्री क्विज़, पीडीएफ नोट्स, वैकेंसी अपडेट्स व टॉपर्स टिप्स।'
-                : 'Join 1,00,000+ dedicated MP aspirants on Facebook, Instagram, Telegram, YouTube & WhatsApp for daily quizzes, notes & alerts.'}
+              {subtitleText}
             </p>
           </div>
 
@@ -183,22 +225,24 @@ export const SocialMediaSection: React.FC = () => {
 
         {/* Social Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {SOCIAL_CHANNELS.map((item) => {
-            const IconComponent = item.icon;
+          {channelsToDisplay.map((item) => {
+            const style = CHANNEL_STYLES[item.id] || CHANNEL_STYLES.whatsapp;
+            const IconComponent = style.icon;
             const title = lang === 'hi' ? item.nameHi : item.nameEn;
             const badge = lang === 'hi' ? item.badgeHi : item.badgeEn;
             const desc = lang === 'hi' ? item.descHi : item.descEn;
+            const btnLabel = lang === 'hi' ? style.defaultBtnTextHi : style.defaultBtnTextEn;
 
             return (
               <div
                 key={item.id}
-                className={`bg-white dark:bg-stone-900 border-2 ${item.borderColor} ${item.hoverBorder} rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-all group`}
+                className={`bg-white dark:bg-stone-900 border-2 ${style.borderColor} ${style.hoverBorder} rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-all group`}
               >
                 {/* Top: Icon, Title & Follower Badge */}
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-2xl ${item.bgColor} text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform`}>
+                      <div className={`w-12 h-12 rounded-2xl ${style.bgColor} text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform`}>
                         <IconComponent className="w-6 h-6" />
                       </div>
                       <div>
@@ -221,17 +265,19 @@ export const SocialMediaSection: React.FC = () => {
                   </p>
 
                   {/* Bullet Tags */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                    {item.highlights.map((h, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-50 dark:bg-stone-800/80 text-stone-600 dark:text-stone-300 text-[10px] font-bold border border-stone-200 dark:border-stone-700/60"
-                      >
-                        <CheckCircle2 className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                        <span>{h}</span>
-                      </span>
-                    ))}
-                  </div>
+                  {Array.isArray(item.highlights) && item.highlights.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                      {item.highlights.map((h, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-50 dark:bg-stone-800/80 text-stone-600 dark:text-stone-300 text-[10px] font-bold border border-stone-200 dark:border-stone-700/60"
+                        >
+                          <CheckCircle2 className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                          <span>{h}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom CTA Button */}
@@ -240,15 +286,9 @@ export const SocialMediaSection: React.FC = () => {
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`w-full py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 ${item.btnBg} text-xs font-black uppercase tracking-wider shadow-sm transition hover:scale-[1.02] active:scale-95`}
+                    className={`w-full py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 ${style.btnBg} text-xs font-black uppercase tracking-wider shadow-sm transition hover:scale-[1.02] active:scale-95`}
                   >
-                    <span>
-                      {item.id === 'facebook' && (lang === 'hi' ? 'फेसबुक पर जुड़ें' : 'Join on Facebook')}
-                      {item.id === 'instagram' && (lang === 'hi' ? 'इंस्टाग्राम पर फॉलो करें' : 'Follow on Instagram')}
-                      {item.id === 'telegram' && (lang === 'hi' ? 'टेलीग्राम चैनल से जुड़ें' : 'Join Telegram')}
-                      {item.id === 'youtube' && (lang === 'hi' ? 'यूट्यूब सब्सक्राइब करें' : 'Subscribe YouTube')}
-                      {item.id === 'whatsapp' && (lang === 'hi' ? 'व्हाट्सएप ग्रुप से जुड़ें' : 'Join WhatsApp')}
-                    </span>
+                    <span>{btnLabel}</span>
                     <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
                 </div>

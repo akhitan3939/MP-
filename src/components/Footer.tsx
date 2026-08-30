@@ -19,13 +19,26 @@ import {
 import { DynamicNavIcon } from '../utils/navIcons';
 
 export const Footer: React.FC = () => {
-  const { lang, navigate, openNotesModal, openAuthModal, footerNavItems, handleNavAction, platformSettings } = useApp();
+  const { lang, navigate, footerNavItems, handleNavAction, platformSettings, openAuthModal } = useApp();
+
+  const wc = platformSettings?.websiteContent;
+  const configuredChannels = platformSettings?.socialChannels || [];
 
   const fbUrl = platformSettings?.facebookUrl || 'https://facebook.com/groups/mpparikshasetu';
   const instaUrl = platformSettings?.instagramUrl || 'https://instagram.com/mpparikshasetu_official';
   const tgUrl = platformSettings?.telegramUrl || 'https://t.me/mpparikshasetu_mp';
   const ytUrl = platformSettings?.youtubeUrl || 'https://youtube.com/@mpparikshasetu';
   const waUrl = platformSettings?.whatsappCommunityUrl || 'https://chat.whatsapp.com/mpparikshasetu';
+
+  const addressText = lang === 'hi'
+    ? (wc?.footerAddressHi || 'परीक्षा सेतु भवन, एमपी नगर जोन-II, भोपाल (म.प्र.) 462011')
+    : (wc?.footerAddressEn || 'Pariksha Setu Bhawan, MP Nagar Zone-II, Bhopal (M.P.) 462011');
+
+  const aboutText = lang === 'hi'
+    ? (wc?.footerAboutHi || platformSettings?.siteTagline || 'मध्यप्रदेश की समस्त राज्य स्तरीय भर्ती परीक्षाओं (MPPSC, पटवारी, पुलिस SI/आरक्षक, व्यापम ESB, वनरक्षक, TET) के लिए समर्पित डिजिटल मॉक टेस्ट एवं AI मूल्यांकन मंच।')
+    : (wc?.footerAboutEn || 'India\'s most authentic bilingual CBT Mock Test Portal for MPESB, MPPSC, and MP Police examinations.');
+
+  const copyrightText = wc?.footerCopyrightText || '© 2026 MP परीक्षा सेतु (MP Pariksha Setu) • मध्यप्रदेश शासन भर्ती परीक्षा तैयारी मंच। सर्वाधिकार सुरक्षित।';
 
   return (
     <footer className="bg-[#5E1F16] text-[#FFFBF2] border-t-4 border-[#D4A017] text-xs mt-auto">
@@ -59,7 +72,7 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="text-[#EAD8B1] text-xs leading-relaxed font-medium">
-              {platformSettings?.siteTagline || 'मध्यप्रदेश की समस्त राज्य स्तरीय भर्ती परीक्षाओं (MPPSC, पटवारी, पुलिस SI/आरक्षक, व्यापम ESB, वनरक्षक, TET) के लिए समर्पित डिजिटल मॉक टेस्ट एवं AI मूल्यांकन मंच।'}
+              {aboutText}
             </p>
             <div className="flex items-center gap-2 text-[#D4A017] text-[11px] font-bold">
               <ShieldCheck className="w-4 h-4" />
@@ -138,7 +151,12 @@ export const Footer: React.FC = () => {
             <div className="space-y-1.5 text-[#EAD8B1] font-medium">
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-[#D4A017]" />
-                <span>+91 .... (10 AM - 7 PM)</span>
+                <a 
+                  href={`tel:${platformSettings?.helplinePhone || '+919893012345'}`}
+                  className="hover:underline hover:text-white transition"
+                >
+                  {platformSettings?.helplinePhone || '+91 98930 12345'} (10 AM - 7 PM)
+                </a>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#D4A017]" />
@@ -150,8 +168,8 @@ export const Footer: React.FC = () => {
                 </a>
               </div>
               <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 text-[#D4A017]" />
-                <span>MP नगर, जोन-II, भोपाल (म.प्र.) 462011</span>
+                <MapPin className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
+                <span>{addressText}</span>
               </div>
             </div>
 
@@ -225,7 +243,7 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & Admin Login Link */}
         <div className="mt-10 pt-6 border-t border-[#963E2F] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#EAD8B1] text-[11px] font-bold">
           <div>
-            © 2026 MP परीक्षा सेतु (MP Pariksha Setu) • मध्यप्रदेश शासन भर्ती परीक्षा तैयारी मंच। सर्वाधिकार सुरक्षित।
+            {copyrightText}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[#D4A017] font-black uppercase tracking-wider">जय मध्यप्रदेश • जय हिन्द 🇮🇳</span>

@@ -25,9 +25,11 @@ import {
 import { ExamCategory } from '../types';
 
 export const HomeView: React.FC = () => {
-  const { testSeries, lang, navigate, openNotesModal, openAuthModal, currentUser } = useApp();
+  const { testSeries, lang, navigate, openNotesModal, openAuthModal, platformSettings } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<ExamCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const wc = platformSettings?.websiteContent;
 
   const categories: { id: ExamCategory; labelHi: string; labelEn: string; icon: string }[] = [
     { id: 'all', labelHi: 'समस्त परीक्षाएं (All)', labelEn: 'All Exams', icon: '🏛️' },
@@ -71,27 +73,35 @@ export const HomeView: React.FC = () => {
               {/* Trust Badge */}
               <div className="inline-flex items-center gap-2 bg-[#5E1F16] border-2 border-[#D4A017]/60 text-[#D4A017] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-inner">
                 <Shield className="w-4 h-4 text-[#D4A017]" />
-                <span>{lang === 'hi' ? 'मध्यप्रदेश की प्रामाणिक परीक्षा टेस्ट सीरीज़' : 'Madhya Pradesh Govt Exam Portal 2026'}</span>
+                <span>{lang === 'hi' ? (wc?.heroTrustBadgeHi || 'मध्यप्रदेश की प्रामाणिक परीक्षा टेस्ट सीरीज़') : (wc?.heroTrustBadgeEn || 'Madhya Pradesh Govt Exam Portal 2026')}</span>
               </div>
 
               {/* Main Headline */}
               <h1 className="font-display font-black text-3xl sm:text-5xl xl:text-6xl text-white tracking-tight leading-[1.12]">
                 {lang === 'hi' ? (
-                  <>
-                    <span className="text-[#D4A017]">समूह-02 (पटवारी), MPPSC,</span> पुलिस व व्यापम — अब सफलता पक्की!
-                  </>
+                  wc?.heroTitleHi ? (
+                    <span>{wc.heroTitleHi}</span>
+                  ) : (
+                    <>
+                      <span className="text-[#D4A017]">समूह-02 (पटवारी), MPPSC,</span> पुलिस व व्यापम — अब सफलता पक्की!
+                    </>
+                  )
                 ) : (
-                  <>
-                    <span className="text-[#D4A017]">Group-02 (Patwari), MPPSC,</span> Police & Vyapam CBT Mock Tests
-                  </>
+                  wc?.heroTitleEn ? (
+                    <span>{wc.heroTitleEn}</span>
+                  ) : (
+                    <>
+                      <span className="text-[#D4A017]">Group-02 (Patwari), MPPSC,</span> Police & Vyapam CBT Mock Tests
+                    </>
+                  )
                 )}
               </h1>
 
               {/* Subtitle */}
               <p className="text-[#FFFBF2]/90 text-sm sm:text-base md:text-lg max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
                 {lang === 'hi'
-                  ? 'असली परीक्षा जैसा माहौल, हिंदी व अंग्रेजी द्विभाषी प्रश्न, तुरंत रिज़ल्ट और AI द्वारा विस्तृत उत्तर विश्लेषण व कमजोर क्षेत्रों का सुधार प्लान।'
-                  : 'Experience authentic MP CBT exams, bilingual questions in Hindi & English, instant scores, and AI detailed evaluations.'}
+                  ? (wc?.heroSubtitleHi || 'असली परीक्षा जैसा माहौल, हिंदी व अंग्रेजी द्विभाषी प्रश्न, तुरंत रिज़ल्ट और AI द्वारा विस्तृत उत्तर विश्लेषण व कमजोर क्षेत्रों का सुधार प्लान।')
+                  : (wc?.heroSubtitleEn || 'Experience authentic MP CBT exams, bilingual questions in Hindi & English, instant scores, and AI detailed evaluations.')}
               </p>
 
               {/* CTA Buttons */}
@@ -101,7 +111,7 @@ export const HomeView: React.FC = () => {
                   className="inline-flex items-center gap-2 bg-[#D4A017] hover:bg-[#c08f12] text-stone-950 font-black uppercase tracking-wider px-6 py-3.5 rounded-xl shadow-xl shadow-amber-900/30 transition hover:scale-105 active:scale-95 text-sm sm:text-base border-2 border-white/40 cursor-pointer"
                 >
                   <Sparkles className="w-5 h-5 text-stone-950" />
-                  <span>{lang === 'hi' ? '🎯 40-प्रश्न फ्री मॉक टेस्ट शुरू करें' : 'Start 40-Question Free Mock'}</span>
+                  <span>{lang === 'hi' ? (wc?.heroCtaFreeMockHi || '🎯 40-प्रश्न फ्री मॉक टेस्ट शुरू करें') : (wc?.heroCtaFreeMockEn || 'Start 40-Question Free Mock')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -113,7 +123,7 @@ export const HomeView: React.FC = () => {
                   className="inline-flex items-center gap-2 bg-[#5E1F16] hover:bg-[#963E2F] text-white border-2 border-[#D4A017]/60 font-black uppercase tracking-wider px-5 py-3.5 rounded-xl shadow-md transition hover:scale-105 active:scale-95 text-sm sm:text-base cursor-pointer"
                 >
                   <BookOpen className="w-5 h-5 text-[#D4A017]" />
-                  <span>{lang === 'hi' ? 'टेस्ट सीरीज़ देखें' : 'Test Series Catalog'}</span>
+                  <span>{lang === 'hi' ? (wc?.heroCtaCatalogHi || 'टेस्ट सीरीज़ देखें') : (wc?.heroCtaCatalogEn || 'Test Series Catalog')}</span>
                 </button>
 
                 <button
@@ -121,23 +131,23 @@ export const HomeView: React.FC = () => {
                   className="inline-flex items-center gap-2 bg-[#7A2A1E]/80 hover:bg-[#963E2F] text-[#EAD8B1] hover:text-white border border-[#D4A017]/40 font-bold uppercase tracking-wider px-4 py-3.5 rounded-xl shadow transition text-xs sm:text-sm cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-[#D4A017]" />
-                  <span>{lang === 'hi' ? 'GK नोट्स (PDF)' : 'Free Notes'}</span>
+                  <span>{lang === 'hi' ? (wc?.heroCtaNotesHi || 'GK नोट्स (PDF)') : (wc?.heroCtaNotesEn || 'Free Notes')}</span>
                 </button>
               </div>
 
               {/* Quick Trust Highlights */}
               <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#963E2F] text-center lg:text-left text-xs text-[#EAD8B1]">
                 <div>
-                  <div className="font-mono font-black text-[#D4A017] text-xl sm:text-2xl">50,000+</div>
-                  <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? 'सक्रिय परीक्षार्थी' : 'Aspirants'}</div>
+                  <div className="font-mono font-black text-[#D4A017] text-xl sm:text-2xl">{wc?.heroStat1Value || '50,000+'}</div>
+                  <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? (wc?.heroStat1LabelHi || 'सक्रिय परीक्षार्थी') : (wc?.heroStat1LabelEn || 'Aspirants')}</div>
                 </div>
                 <div>
-                  <div className="font-mono font-black text-white text-xl sm:text-2xl">250+</div>
-                  <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? 'मॉक टेस्ट उपलब्ध' : 'Mock Tests'}</div>
+                  <div className="font-mono font-black text-white text-xl sm:text-2xl">{wc?.heroStat2Value || '250+'}</div>
+                  <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? (wc?.heroStat2LabelHi || 'मॉक टेस्ट उपलब्ध') : (wc?.heroStat2LabelEn || 'Mock Tests')}</div>
                 </div>
                 <div>
-                  <div className="font-mono font-black text-[#D4A017] text-xl sm:text-2xl">AI</div>
-                  <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? 'तुरंत स्कोर विश्लेषण' : 'Instant AI Analysis'}</div>
+                  <div className="font-mono font-black text-[#D4A017] text-xl sm:text-2xl">{wc?.heroStat3Value || 'AI'}</div>
+                  <div className="font-bold uppercase tracking-wider text-[10px] sm:text-xs">{lang === 'hi' ? (wc?.heroStat3LabelHi || 'तुरंत स्कोर विश्लेषण') : (wc?.heroStat3LabelEn || 'Instant AI Analysis')}</div>
                 </div>
               </div>
 
@@ -152,7 +162,7 @@ export const HomeView: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#D4A017] animate-ping"></span>
                     <span className="text-xs font-black text-[#D4A017] uppercase tracking-wider">
-                      {lang === 'hi' ? 'लाइव मॉक टेस्ट एक्टिव' : 'Live Mock Active'}
+                      {lang === 'hi' ? (wc?.spotlightLivePillHi || 'लाइव मॉक टेस्ट एक्टिव') : (wc?.spotlightLivePillEn || 'Live Mock Active')}
                     </span>
                   </div>
                   <span className="text-xs font-mono font-bold text-[#EAD8B1]">2026 Batch</span>
@@ -161,27 +171,29 @@ export const HomeView: React.FC = () => {
                 {/* Featured Test Spotlight */}
                 <div className="bg-[#7A2A1E] border-2 border-[#D4A017]/40 rounded-2xl p-4 mb-4">
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-black text-[#D4A017] uppercase tracking-wider">विशेष मुफ़्त डेमो टेस्ट</span>
+                    <span className="font-black text-[#D4A017] uppercase tracking-wider">
+                      {lang === 'hi' ? (wc?.spotlightBadgeHi || 'विशेष मुफ़्त डेमो टेस्ट') : (wc?.spotlightBadgeEn || '40 MCQs • FREE DEMO')}
+                    </span>
                     <span className="bg-emerald-500 text-stone-950 font-black px-2 py-0.5 rounded text-[10px] uppercase">
-                      40 MCQs • FREE DEMO
+                      FREE DEMO
                     </span>
                   </div>
                   <h4 className="font-display font-black text-base text-white mt-1">
-                    ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)
+                    {lang === 'hi' ? (wc?.spotlightTitleHi || 'ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)') : (wc?.spotlightTitleEn || 'All-Madhya Pradesh 40-Questions Free Mock Test')}
                   </h4>
                   <p className="text-xs text-[#EAD8B1] mt-1 font-medium">
-                    40 प्रश्न • 30 मिनट • MP GK, हिन्दी, गणित, रीजनिंग, कंप्यूटर, विज्ञान, अंग्रेजी
+                    {lang === 'hi' ? (wc?.spotlightSubtitleHi || '40 प्रश्न • 30 मिनट • MP GK, हिन्दी, गणित, रीजनिंग, कंप्यूटर, विज्ञान, अंग्रेजी') : (wc?.spotlightSubtitleEn || '40 Questions • 30 Mins • MP GK, Hindi, Maths, Reasoning, Computer, Science, English')}
                   </p>
 
                   <div className="mt-3 flex items-center justify-between">
                     <div className="text-xs font-mono font-bold text-[#D4A017]">
-                      28,450+ {lang === 'hi' ? 'छात्रों ने दिया' : 'attempted'}
+                      {lang === 'hi' ? (wc?.spotlightAttemptedTextHi || '28,450+ छात्रों ने दिया') : (wc?.spotlightAttemptedTextEn || '28,450+ attempted')}
                     </div>
                     <button
                       onClick={() => navigate('cbtExam', { isFreeMock40: true, id: 'free_mock_40' })}
                       className="inline-flex items-center gap-1 bg-[#D4A017] hover:bg-[#c08f12] text-black text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg shadow transition cursor-pointer"
                     >
-                      <span>{lang === 'hi' ? '40-प्रश्न डेमो दें' : 'Start 40Q Demo'}</span>
+                      <span>{lang === 'hi' ? (wc?.spotlightButtonHi || '40-प्रश्न डेमो दें') : (wc?.spotlightButtonEn || 'Start 40Q Demo')}</span>
                       <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
@@ -191,19 +203,19 @@ export const HomeView: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
                     <Cpu className="w-4 h-4 text-[#D4A017] shrink-0" />
-                    <span className="text-white text-[11px] font-bold">AI मूल्यांकन</span>
+                    <span className="text-white text-[11px] font-bold">{wc?.spotlightPillar1Text || 'AI मूल्यांकन'}</span>
                   </div>
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-[#D4A017] shrink-0" />
-                    <span className="text-white text-[11px] font-bold">ऑल-एमपी लाइव रैंक</span>
+                    <span className="text-white text-[11px] font-bold">{wc?.spotlightPillar2Text || 'ऑल-एमपी लाइव रैंक'}</span>
                   </div>
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
                     <Zap className="w-4 h-4 text-[#D4A017] shrink-0" />
-                    <span className="text-white text-[11px] font-bold">तुरंत स्कोरकार्ड</span>
+                    <span className="text-white text-[11px] font-bold">{wc?.spotlightPillar3Text || 'तुरंत स्कोरकार्ड'}</span>
                   </div>
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
                     <FileText className="w-4 h-4 text-[#D4A017] shrink-0" />
-                    <span className="text-white text-[11px] font-bold">ऑफलाइन PDF नोट्स</span>
+                    <span className="text-white text-[11px] font-bold">{wc?.spotlightPillar4Text || 'ऑफलाइन PDF नोट्स'}</span>
                   </div>
                 </div>
 
@@ -228,10 +240,10 @@ export const HomeView: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-black text-sm sm:text-base leading-tight">
-                {lang === 'hi' ? 'नया छात्र पंजीकरण (Free Registration) करें और ₹500 वेलकम बोनस XP पाएँ!' : 'New Aspirant Free Sign Up & Get ₹500 Welcome Bonus XP!'}
+                {lang === 'hi' ? (wc?.regBannerTitleHi || 'नया छात्र पंजीकरण (Free Registration) करें और ₹500 वेलकम बोनस XP पाएँ!') : (wc?.regBannerTitleEn || 'New Aspirant Free Sign Up & Get ₹500 Welcome Bonus XP!')}
               </h3>
               <p className="text-xs font-bold text-stone-800 mt-0.5">
-                {lang === 'hi' ? '55 जिलों के 50,000+ अभ्यर्थियों के साथ ऑल-एमपी लाइव रैंक और निःशुल्क ई-नोट्स अनलॉक करें।' : 'Join 50,000+ aspirants across 55 MP districts with live state rank and free e-notes.'}
+                {lang === 'hi' ? (wc?.regBannerSubtitleHi || '55 जिलों के 50,000+ अभ्यर्थियों के साथ ऑल-एमपी लाइव रैंक और निःशुल्क ई-नोट्स अनलॉक करें।') : (wc?.regBannerSubtitleEn || 'Join 50,000+ aspirants across 55 MP districts with live state rank and free e-notes.')}
               </p>
             </div>
           </div>
@@ -240,13 +252,13 @@ export const HomeView: React.FC = () => {
               onClick={() => openAuthModal('register')}
               className="px-5 py-2.5 bg-stone-950 hover:bg-stone-800 text-[#D4A017] text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow-md transition hover:scale-105"
             >
-              {lang === 'hi' ? '📝 नया खाता बनाएँ (Sign Up)' : 'Sign Up Free'}
+              {lang === 'hi' ? (wc?.regBannerBtn1Hi || '📝 नया खाता बनाएँ (Sign Up)') : (wc?.regBannerBtn1En || 'Sign Up Free')}
             </button>
             <button
               onClick={() => openAuthModal('login')}
               className="px-4 py-2.5 bg-white/80 hover:bg-white text-stone-950 text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow transition"
             >
-              {lang === 'hi' ? 'लॉगिन करें' : 'Login'}
+              {lang === 'hi' ? (wc?.regBannerBtn2Hi || 'लॉगिन करें') : (wc?.regBannerBtn2En || 'Login')}
             </button>
           </div>
         </div>
@@ -259,15 +271,15 @@ export const HomeView: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
           <div>
             <span className="text-xs font-black uppercase tracking-widest text-[#7A2A1E] dark:text-[#D4A017]">
-              {lang === 'hi' ? 'भर्ती वार मॉक टेस्ट पैक' : 'Exam Test Series Catalog'}
+              {lang === 'hi' ? (wc?.catalogBadgeHi || 'भर्ती वार मॉक टेस्ट पैक') : (wc?.catalogBadgeEn || 'Exam Test Series Catalog')}
             </span>
             <h2 className="font-display font-black text-2xl sm:text-4xl text-[#2D2424] dark:text-white mt-1 tracking-tight">
-              {lang === 'hi' ? 'मध्यप्रदेश प्रमुख भर्ती टेस्ट सीरीज़' : 'Explore MP Govt Exam Test Series'}
+              {lang === 'hi' ? (wc?.catalogTitleHi || 'मध्यप्रदेश प्रमुख भर्ती टेस्ट सीरीज़') : (wc?.catalogTitleEn || 'Explore MP Govt Exam Test Series')}
             </h2>
             <p className="text-stone-600 dark:text-stone-300 text-xs sm:text-sm mt-1 font-medium">
               {lang === 'hi' 
-                ? 'ऑनलाइन खरीद के साथ कभी भी टेस्ट दें, असीमित पुनः प्रयास और AI फीडबैक पाएँ।' 
-                : 'Purchase once, attempt anytime with unlimited re-attempts and real-time AI feedback.'}
+                ? (wc?.catalogSubtitleHi || 'ऑनलाइन खरीद के साथ कभी भी टेस्ट दें, असीमित पुनः प्रयास और AI फीडबैक पाएँ।')
+                : (wc?.catalogSubtitleEn || 'Purchase once, attempt anytime with unlimited re-attempts and real-time AI feedback.')}
             </p>
           </div>
 
@@ -338,13 +350,13 @@ export const HomeView: React.FC = () => {
           
           <div className="max-w-3xl mb-8">
             <span className="text-xs font-black uppercase tracking-widest text-[#D4A017]">
-              {lang === 'hi' ? 'अत्याधुनिक परीक्षा तकनीक' : 'High Tech & High Yield'}
+              {lang === 'hi' ? (wc?.whyChooseBadgeHi || 'अत्याधुनिक परीक्षा तकनीक') : (wc?.whyChooseBadgeEn || 'High Tech & High Yield')}
             </span>
             <h2 className="font-display font-black text-2xl sm:text-4xl text-white mt-1 tracking-tight">
-              {lang === 'hi' ? 'MP परीक्षा सेतु ही क्यों चुनें?' : 'Why Prepare with MP Pariksha Setu?'}
+              {lang === 'hi' ? (wc?.whyChooseTitleHi || 'MP परीक्षा सेतु ही क्यों चुनें?') : (wc?.whyChooseTitleEn || 'Why Prepare with MP Pariksha Setu?')}
             </h2>
             <p className="text-[#FFFBF2]/90 text-xs sm:text-sm mt-1 font-medium">
-              मध्यप्रदेश की सभी भर्ती परीक्षाओं के वास्तविक पैटर्न पर आधारित विशेष सुविधाएँ।
+              {lang === 'hi' ? (wc?.whyChooseSubtitleHi || 'मध्यप्रदेश की सभी भर्ती परीक्षाओं के वास्तविक पैटर्न पर आधारित विशेष सुविधाएँ।') : (wc?.whyChooseSubtitleEn || 'Special features based on the actual pattern of all recruitment exams of Madhya Pradesh.')}
             </p>
           </div>
 
@@ -355,10 +367,10 @@ export const HomeView: React.FC = () => {
                 <Cpu className="w-5 h-5" />
               </div>
               <h3 className="font-display font-black text-lg text-white">
-                {lang === 'hi' ? 'AI आंसर इवैल्यूएशन' : 'AI Answer Evaluation'}
+                {lang === 'hi' ? (wc?.pillar1TitleHi || 'AI आंसर इवैल्यूएशन') : (wc?.pillar1TitleEn || 'AI Answer Evaluation')}
               </h3>
               <p className="text-xs text-[#EAD8B1] leading-relaxed font-medium">
-                टेस्ट सबमिट करते ही AI आपके गलत प्रश्नों के पीछे के कारणों, शॉर्टकट ट्रिक्स और 7-दिवसीय वैयक्तिकृत अध्ययन टाइमटेबल तैयार करता है।
+                {lang === 'hi' ? (wc?.pillar1DescHi || 'टेस्ट सबमिट करते ही AI आपके गलत प्रश्नों के पीछे के कारणों, शॉर्टकट ट्रिक्स और 7-दिवसीय वैयक्तिकृत अध्ययन टाइमटेबल तैयार करता है।') : (wc?.pillar1DescEn || 'Instant AI breakdown of weak points, wrong question diagnosis, speed analytics, and 7-day personalized study timetable.')}
               </p>
             </div>
 
@@ -367,10 +379,10 @@ export const HomeView: React.FC = () => {
                 <Trophy className="w-5 h-5" />
               </div>
               <h3 className="font-display font-black text-lg text-white">
-                {lang === 'hi' ? 'ऑल-एमपी लाइव लीडरबोर्ड' : 'All-MP Live Leaderboard'}
+                {lang === 'hi' ? (wc?.pillar2TitleHi || 'ऑल-एमपी लाइव लीडरबोर्ड') : (wc?.pillar2TitleEn || 'All-MP Live Leaderboard')}
               </h3>
               <p className="text-xs text-[#EAD8B1] leading-relaxed font-medium">
-                मध्यप्रदेश के सभी 55 जिलों (इंदौर, भोपाल, ग्वालियर, जबलपुर आदि) के हजारों छात्रों के साथ लाइव रैंक, पर्सेंटाइल और प्रोग्रेस ग्राफ।
+                {lang === 'hi' ? (wc?.pillar2DescHi || 'मध्यप्रदेश के सभी 55 जिलों (इंदौर, भोपाल, ग्वालियर, जबलपुर आदि) के हजारों छात्रों के साथ लाइव रैंक, पर्सेंटाइल और प्रोग्रेस ग्राफ।') : (wc?.pillar2DescEn || 'Live state-level rank, percentile comparison, and district ranking across all 55 districts of Madhya Pradesh.')}
               </p>
             </div>
 
@@ -379,10 +391,10 @@ export const HomeView: React.FC = () => {
                 <Shield className="w-5 h-5" />
               </div>
               <h3 className="font-display font-black text-lg text-white">
-                {lang === 'hi' ? 'सुरक्षित Razorpay चेकआउट' : 'Secure Razorpay Checkout'}
+                {lang === 'hi' ? (wc?.pillar3TitleHi || 'सुरक्षित Razorpay चेकआउट') : (wc?.pillar3TitleEn || 'Secure Razorpay Checkout')}
               </h3>
               <p className="text-xs text-[#EAD8B1] leading-relaxed font-medium">
-                UPI (GPay, PhonePe, Paytm), QR कोड, कार्ड्स द्वारा तुरंत भुगतान, GST टैक्स इनवॉइस और तत्काल टेस्ट अनलॉक।
+                {lang === 'hi' ? (wc?.pillar3DescHi || 'UPI (GPay, PhonePe, Paytm), QR कोड, कार्ड्स द्वारा तुरंत भुगतान, GST टैक्स इनवॉइस और तत्काल टेस्ट अनलॉक।') : (wc?.pillar3DescEn || 'Instant automated test activation via UPI QR, Cards, Netbanking with GST compliant instant invoice receipts.')}
               </p>
             </div>
 

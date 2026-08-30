@@ -57,7 +57,8 @@ import {
   Instagram,
   Youtube,
   MessageCircle,
-  Share2
+  Share2,
+  Gift
 } from 'lucide-react';
 import { 
   TestSeries, 
@@ -71,13 +72,17 @@ import {
   MockSetMetadata,
   NavigationMenuItem,
   MenuPlacement,
-  MenuTargetType
+  MenuTargetType,
+  WebsiteContentConfig,
+  SocialChannelConfig
 } from '../types';
+import { INITIAL_WEBSITE_CONTENT, INITIAL_SOCIAL_CHANNELS } from '../utils/storage';
 import { exportToCsv, exportToXls, exportToPdfPrint, ExportColumn } from '../utils/exportReports';
 import { DynamicNavIcon, NAV_ICON_MAP, NavIconKey } from '../utils/navIcons';
 
 type AdminModuleTab = 
   | 'OVERVIEW'
+  | 'WEBSITE_CONTENT'
   | 'REPORTS'
   | 'MENUS'
   | 'SOCIAL'
@@ -186,6 +191,57 @@ export const AdminDashboardView: React.FC = () => {
     };
     reader.readAsDataURL(file);
   };
+
+  // CMS Sub-navigation tab
+  const [cmsSubTab, setCmsSubTab] = useState<'hero' | 'spotlight' | 'catalog_pillars' | 'footer' | 'social'>('hero');
+
+  // Website Content Updater helper
+  const updateWebsiteContent = (field: keyof WebsiteContentConfig, value: any) => {
+    setEditingSettings(prev => ({
+      ...prev,
+      websiteContent: {
+        ...(prev.websiteContent || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  // Social Channel Updater helper
+  const updateSocialChannel = (index: number, updatedChannel: Partial<SocialChannelConfig>) => {
+    setEditingSettings(prev => {
+      const channels = [...(prev.socialChannels || [])];
+      if (channels[index]) {
+        channels[index] = { ...channels[index], ...updatedChannel };
+      }
+      return {
+        ...prev,
+        socialChannels: channels
+      };
+    });
+  };
+
+  // Reset Website Content to Default
+  const handleResetWebsiteContent = () => {
+    if (window.confirm('क्या आप वेबसाइट के समस्त टेक्स्ट व कंटेंट को मूल डिफ़ॉल्ट रूप में रीसेट करना चाहते हैं?')) {
+      setEditingSettings(prev => ({
+        ...prev,
+        websiteContent: { ...INITIAL_WEBSITE_CONTENT }
+      }));
+      showToast('🔄 वेबसाइट कंटेंट डिफ़ॉल्ट रूप में रीसेट हो गया। सहेजने हेतु नीचे दिए बटन पर क्लिक करें।');
+    }
+  };
+
+  // Reset Social Channels to Default
+  const handleResetSocialChannels = () => {
+    if (window.confirm('क्या आप समस्त सोशल मीडिया लिंक्स व विवरण को मूल डिफ़ॉल्ट रूप में रीसेट करना चाहते हैं?')) {
+      setEditingSettings(prev => ({
+        ...prev,
+        socialChannels: [...INITIAL_SOCIAL_CHANNELS]
+      }));
+      showToast('🔄 सोशल मीडिया चैनल्स डिफ़ॉल्ट रूप में रीसेट हो गए। सहेजने हेतु नीचे दिए बटन पर क्लिक करें।');
+    }
+  };
+
   const [passwordModalUser, setPasswordModalUser] = useState<UserProfile | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState('123456');
 
@@ -569,6 +625,7 @@ export const AdminDashboardView: React.FC = () => {
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
     { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
+    { id: 'WEBSITE_CONTENT', label: 'वेबसाइट कंटेंट CMS (समस्त टेक्स्ट)', subLabel: 'Hero, Pillars, Footer, Banners', icon: Globe, badgeColor: 'bg-emerald-600' },
     { id: 'MENUS', label: 'शीर्ष व निचला मेन्यू प्रबंधक', subLabel: 'Top & Bottom Navigation', icon: Compass, count: navMenuItems.length, badgeColor: 'bg-amber-600' },
     { id: 'SOCIAL', label: 'सोशल मीडिया लिंक्स CMS', subLabel: 'FB, Insta, TG, YT, WA', icon: Share2, badgeColor: 'bg-rose-600' },
     { id: 'REPORTS', label: 'रिपोर्ट्स व डेटा एक्सपोर्ट', subLabel: 'XLS, PDF, CSV Reports', icon: FileSpreadsheet, count: users.length + orders.length, badgeColor: 'bg-emerald-600' },
@@ -3302,6 +3359,806 @@ export const AdminDashboardView: React.FC = () => {
           )}
 
           {/* ========================================================= */}
+          {/* TAB: WEBSITE CONTENT CMS (समस्त टेक्स्ट व सेक्शन संपादक) */}
+          {/* ========================================================= */}
+          {activeTab === 'WEBSITE_CONTENT' && (
+            <div className="space-y-6">
+              {/* Header Info */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-amber-500 to-[#7A2A1E] text-white flex items-center justify-center font-black shadow-md shrink-0">
+                    <Globe className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-[#2D2424] dark:text-white flex items-center gap-2">
+                      <span>संपूर्ण वेबसाइट कंटेंट CMS (Master Text Editor)</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-black uppercase">
+                        LIVE SYNC
+                      </span>
+                    </h3>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      होमपेज हेडर, मुख्य बैनर, स्टैट्स, पिलर्स, कैटलॉग व फुटर का एक-एक शब्द यहाँ से बदलें — बिना कोड बदले तुरंत लाइव लागू होगा।
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleResetWebsiteContent}
+                    className="px-3.5 py-2 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-stone-500" />
+                    <span>डिफ़ॉल्ट टेक्स्ट रीसेट</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate('home');
+                      showToast('🌐 होमपेज पूर्वावलोकन');
+                    }}
+                    className="px-4 py-2 bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] text-xs font-black rounded-xl flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>होमपेज लाइव देखें</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* CMS Sub-navigation Tabs */}
+              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-stone-100 dark:bg-stone-800/70 border border-stone-200 dark:border-stone-700 overflow-x-auto text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setCmsSubTab('hero')}
+                  className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap flex items-center gap-2 ${
+                    cmsSubTab === 'hero'
+                      ? 'bg-[#7A2A1E] text-[#D4A017] shadow-sm font-black'
+                      : 'text-stone-600 dark:text-stone-300 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>1. मुख्य हीरो व स्टैट्स (Hero & Stats)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCmsSubTab('spotlight')}
+                  className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap flex items-center gap-2 ${
+                    cmsSubTab === 'spotlight'
+                      ? 'bg-[#7A2A1E] text-[#D4A017] shadow-sm font-black'
+                      : 'text-stone-600 dark:text-stone-300 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <Target className="w-3.5 h-3.5" />
+                  <span>2. स्पॉटलाइट कार्ड व वेलकम बार (Spotlight & Bonus)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCmsSubTab('catalog_pillars')}
+                  className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap flex items-center gap-2 ${
+                    cmsSubTab === 'catalog_pillars'
+                      ? 'bg-[#7A2A1E] text-[#D4A017] shadow-sm font-black'
+                      : 'text-stone-600 dark:text-stone-300 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>3. कैटलॉग व 3 प्रमुख स्तंभ (Pillars & Catalog)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCmsSubTab('footer')}
+                  className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap flex items-center gap-2 ${
+                    cmsSubTab === 'footer'
+                      ? 'bg-[#7A2A1E] text-[#D4A017] shadow-sm font-black'
+                      : 'text-stone-600 dark:text-stone-300 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>4. फुटर, पता व कानूनी कॉपीराइट (Footer & Legal)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCmsSubTab('social')}
+                  className={`px-4 py-2.5 rounded-xl transition whitespace-nowrap flex items-center gap-2 ${
+                    cmsSubTab === 'social'
+                      ? 'bg-[#7A2A1E] text-[#D4A017] shadow-sm font-black'
+                      : 'text-stone-600 dark:text-stone-300 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>5. सोशल मीडिया सेक्शन टेक्स्ट (Social Section)</span>
+                </button>
+              </div>
+
+              {/* Master Content Form */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  savePlatformSettings(editingSettings);
+                  showToast('✅ समस्त वेबसाइट कंटेंट सफलतापूर्वक अपडेट व सुरक्षित हो गया!');
+                }}
+                className="space-y-6"
+              >
+                {/* SUB-TAB 1: HERO & STATS */}
+                {cmsSubTab === 'hero' && (
+                  <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                      <Sparkles className="w-5 h-5 text-amber-600" />
+                      <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                        होमपेज हीरो बैनर व मुख्य टैगलाइन संपादक
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4 text-xs">
+                      <div>
+                        <label className="block font-black uppercase text-stone-500 mb-1">
+                          शीर्ष ट्रस्ट बैज (Hero Top Trust Badge)
+                        </label>
+                        <input
+                          type="text"
+                          value={editingSettings.websiteContent?.heroTrustBadgeHi || ''}
+                          onChange={(e) => updateWebsiteContent('heroTrustBadgeHi', e.target.value)}
+                          placeholder="उदा: 🏆 100% नवीनतम MPESB & MPPSC पाठ्यक्रम 2026"
+                          className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-stone-500 mb-1">
+                          मुख्य हीरो शीर्षक (Main Hero Headline / Title)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={editingSettings.websiteContent?.heroTitleHi || ''}
+                          onChange={(e) => updateWebsiteContent('heroTitleHi', e.target.value)}
+                          placeholder="उदा: मध्यप्रदेश शासन भर्ती परीक्षाओं की प्रामाणिक डिजिटल टेस्ट सीरीज़"
+                          className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-stone-500 mb-1">
+                          उप-शीर्षक / विवरण (Hero Subtitle / Description)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editingSettings.websiteContent?.heroSubtitleHi || ''}
+                          onChange={(e) => updateWebsiteContent('heroSubtitleHi', e.target.value)}
+                          placeholder="उदा: MPPSC, पटवारी, पुलिस SI/आरक्षक, ग्रुप-4 व्यापम, वनरक्षक एवं TET की तैयारी के लिए सर्वश्रेष्ठ ऑल-एमपी रैंक व AI व्याख्या युक्त मॉक टेस्ट।"
+                          className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                        />
+                      </div>
+
+                      {/* Hero CTA Buttons */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बटन 1: फ्री डेमो बटन टेक्स्ट
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.heroCtaFreeMockHi || ''}
+                            onChange={(e) => updateWebsiteContent('heroCtaFreeMockHi', e.target.value)}
+                            placeholder="उदा: ⚡ 40 प्रश्नों का डेमो टेस्ट दें"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बटन 2: पैकेज कैटलॉग बटन
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.heroCtaCatalogHi || ''}
+                            onChange={(e) => updateWebsiteContent('heroCtaCatalogHi', e.target.value)}
+                            placeholder="उदा: 📚 संपूर्ण टेस्ट पैकेज देखें"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बटन 3: ई-नोट्स बटन टेक्स्ट
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.heroCtaNotesHi || ''}
+                            onChange={(e) => updateWebsiteContent('heroCtaNotesHi', e.target.value)}
+                            placeholder="उदा: 📄 फ्री हस्तलिखित PDF नोट्स"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Key Metric Stats Counters */}
+                      <div className="pt-4 border-t border-stone-100 dark:border-stone-800 space-y-3">
+                        <h5 className="font-black text-xs text-[#7A2A1E] dark:text-[#D4A017] uppercase">
+                          3 प्रमुख आंकड़े व उपलब्धियां (Hero Key Stats Counters)
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {/* Stat 1 */}
+                          <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-2">
+                            <label className="block font-black text-[10px] uppercase text-amber-800 dark:text-amber-300">
+                              स्टैट 1: संख्या व लेबल
+                            </label>
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.heroStat1Value || ''}
+                              onChange={(e) => updateWebsiteContent('heroStat1Value', e.target.value)}
+                              placeholder="50,000+"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-black text-emerald-600"
+                            />
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.heroStat1LabelHi || ''}
+                              onChange={(e) => updateWebsiteContent('heroStat1LabelHi', e.target.value)}
+                              placeholder="सक्रिय मध्य प्रदेश परीक्षार्थी"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-[11px]"
+                            />
+                          </div>
+
+                          {/* Stat 2 */}
+                          <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-2">
+                            <label className="block font-black text-[10px] uppercase text-amber-800 dark:text-amber-300">
+                              स्टैट 2: संख्या व लेबल
+                            </label>
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.heroStat2Value || ''}
+                              onChange={(e) => updateWebsiteContent('heroStat2Value', e.target.value)}
+                              placeholder="98.4%"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-black text-amber-600"
+                            />
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.heroStat2LabelHi || ''}
+                              onChange={(e) => updateWebsiteContent('heroStat2LabelHi', e.target.value)}
+                              placeholder="सटीक परीक्षा पैटर्न मैचिंग"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-[11px]"
+                            />
+                          </div>
+
+                          {/* Stat 3 */}
+                          <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-2">
+                            <label className="block font-black text-[10px] uppercase text-amber-800 dark:text-amber-300">
+                              स्टैट 3: संख्या व लेबल
+                            </label>
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.heroStat3Value || ''}
+                              onChange={(e) => updateWebsiteContent('heroStat3Value', e.target.value)}
+                              placeholder="20+"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-black text-rose-600"
+                            />
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.heroStat3LabelHi || ''}
+                              onChange={(e) => updateWebsiteContent('heroStat3LabelHi', e.target.value)}
+                              placeholder="फुल लेंथ AI CBT मॉक सेट्स"
+                              className="w-full p-2 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-[11px]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 2: SPOTLIGHT & WELCOME BONUS */}
+                {cmsSubTab === 'spotlight' && (
+                  <div className="space-y-6">
+                    {/* Spotlight Card Form */}
+                    <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-5 shadow-sm">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                        <Target className="w-5 h-5 text-emerald-600" />
+                        <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                          हीरो साइड लाइव मॉक टेस्ट स्पॉटलाइट कार्ड (Spotlight Card)
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            लाइव पिल टैग (Live Pill Tag)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightLivePillHi || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightLivePillHi', e.target.value)}
+                            placeholder="🔴 ऑल-एमपी लाइव परीक्षा"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बैज टैग (Badge Tag)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightBadgeHi || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightBadgeHi', e.target.value)}
+                            placeholder="🔥 2026 स्पेशल बैच"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            कार्ड शीर्षक (Card Title)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightTitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightTitleHi', e.target.value)}
+                            placeholder="MP पटवारी & MPPSC महा-मॉक टेस्ट"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            कार्ड उप-शीर्षक (Card Subtitle)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightSubtitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightSubtitleHi', e.target.value)}
+                            placeholder="200 प्रश्न • 180 मिनट • ऑल-एमपी रैंक व व्याख्या"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            अटेम्प्टेड छात्र काउंटर टेक्स्ट
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightAttemptedTextHi || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightAttemptedTextHi', e.target.value)}
+                            placeholder="1,240+ छात्रों ने अभी हल किया"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            स्टार्ट टेस्ट बटन टेक्स्ट
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightButtonHi || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightButtonHi', e.target.value)}
+                            placeholder="🚀 अभी टेस्ट शुरू करें"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-amber-700 dark:text-amber-400"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 4 Feature Points in Spotlight Card */}
+                      <div className="pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2 text-xs">
+                        <label className="block font-black uppercase text-stone-500">
+                          स्पॉटलाइट कार्ड के 4 प्रमुख फीचर्स (4 Bullet Points)
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightPillar1Text || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightPillar1Text', e.target.value)}
+                            placeholder="200 प्रश्नों का पूर्ण मानक टेस्ट"
+                            className="w-full p-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                          />
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightPillar2Text || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightPillar2Text', e.target.value)}
+                            placeholder="ऑल-एमपी रियल टाइम मेरिट रैंक"
+                            className="w-full p-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                          />
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightPillar3Text || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightPillar3Text', e.target.value)}
+                            placeholder="प्रत्येक प्रश्न की संपूर्ण व्याख्या व ट्रिक्स"
+                            className="w-full p-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                          />
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.spotlightPillar4Text || ''}
+                            onChange={(e) => updateWebsiteContent('spotlightPillar4Text', e.target.value)}
+                            placeholder="AI कमजोर विषय विश्लेषण रिपोर्ट"
+                            className="w-full p-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* New Student Registration Welcome Bonus Bar */}
+                    <div className="bg-white dark:bg-stone-900 border-2 border-amber-200 dark:border-amber-900/60 rounded-3xl p-6 sm:p-8 space-y-5 shadow-sm">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                        <Gift className="w-5 h-5 text-amber-600" />
+                        <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                          नवीन छात्र स्वागत बोनस बैनर (Welcome Bonus Bar)
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बैनर शीर्षक (Banner Title)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.regBannerTitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('regBannerTitleHi', e.target.value)}
+                            placeholder="🎁 नए छात्रों हेतु विशेष स्वागत उपहार"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बैनर उप-शीर्षक (Banner Subtitle)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.regBannerSubtitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('regBannerSubtitleHi', e.target.value)}
+                            placeholder="अभी रजिस्टर करें और पाएँ 500 बोनस XP और 1 फ्री फुल मॉक टेस्ट"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बटन 1 टेक्स्ट (Free Demo Button)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.regBannerBtn1Hi || ''}
+                            onChange={(e) => updateWebsiteContent('regBannerBtn1Hi', e.target.value)}
+                            placeholder="🎯 फ्री टेस्ट दें"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            बटन 2 टेक्स्ट (Register / Login Button)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.regBannerBtn2Hi || ''}
+                            onChange={(e) => updateWebsiteContent('regBannerBtn2Hi', e.target.value)}
+                            placeholder="🔐 रजिस्टर / लॉगिन करें"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 3: CATALOG & WHY CHOOSE US PILLARS */}
+                {cmsSubTab === 'catalog_pillars' && (
+                  <div className="space-y-6">
+                    {/* Catalog Section Headers */}
+                    <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-4 shadow-sm">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                        <BookPlus className="w-5 h-5 text-indigo-600" />
+                        <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                          टेस्ट सीरीज़ कैटलॉग सेक्शन हेडर्स (Catalog Section Copy)
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            कैटलॉग बैज (Badge)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.catalogBadgeHi || ''}
+                            onChange={(e) => updateWebsiteContent('catalogBadgeHi', e.target.value)}
+                            placeholder="🎯 MP शासन सरकारी भर्तियाँ"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            कैटलॉग मुख्य शीर्षक (Title)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.catalogTitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('catalogTitleHi', e.target.value)}
+                            placeholder="समस्त मध्य प्रदेश भर्ती परीक्षा टेस्ट सीरीज़"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            कैटलॉग उप-शीर्षक (Subtitle)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.catalogSubtitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('catalogSubtitleHi', e.target.value)}
+                            placeholder="नवीनतम परीक्षा पैटर्न एवं सिलेबस के अनुसार तैयार सर्वोत्तम टेस्ट पैकेज"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Why Choose Us Section & 3 Key Pillars */}
+                    <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+                      <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                        <Award className="w-5 h-5 text-amber-600" />
+                        <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                          'परीक्षा सेतु क्यों चुनें' एवं 3 प्रमुख स्तंभ (Why Choose Us Pillars)
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            सेक्शन बैज (Badge)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.whyChooseBadgeHi || ''}
+                            onChange={(e) => updateWebsiteContent('whyChooseBadgeHi', e.target.value)}
+                            placeholder="✨ परीक्षा सेतु की विशेषताएँ"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            सेक्शन मुख्य शीर्षक (Title)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.whyChooseTitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('whyChooseTitleHi', e.target.value)}
+                            placeholder="मध्य प्रदेश के लाखों परीक्षार्थियों का नंबर-1 भरोसा"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            सेक्शन उप-शीर्षक (Subtitle)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.whyChooseSubtitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('whyChooseSubtitleHi', e.target.value)}
+                            placeholder="परीक्षा से पहले वास्तविक परीक्षा जैसा अनुभव"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 3 Pillars Content Editor */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 text-xs">
+                        {/* Pillar 1 */}
+                        <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-3">
+                          <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-mono font-black text-[10px]">
+                            स्तंभ 1 (Pillar 1)
+                          </span>
+                          <div>
+                            <label className="block font-black uppercase text-stone-500 mb-1">
+                              शीर्षक (Title)
+                            </label>
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.pillar1TitleHi || ''}
+                              onChange={(e) => updateWebsiteContent('pillar1TitleHi', e.target.value)}
+                              placeholder="100% सटीक MP परीक्षा पैटर्न"
+                              className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-black uppercase text-stone-500 mb-1">
+                              विवरण (Description)
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={editingSettings.websiteContent?.pillar1DescHi || ''}
+                              onChange={(e) => updateWebsiteContent('pillar1DescHi', e.target.value)}
+                              placeholder="MPESB एवं MPPSC के पिछले 10 वर्षों के हल प्रश्न-पत्रों एवं नवीनतम सिलेबस पर आधारित प्रामाणिक प्रश्न बैंक।"
+                              className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Pillar 2 */}
+                        <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-3">
+                          <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-mono font-black text-[10px]">
+                            स्तंभ 2 (Pillar 2)
+                          </span>
+                          <div>
+                            <label className="block font-black uppercase text-stone-500 mb-1">
+                              शीर्षक (Title)
+                            </label>
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.pillar2TitleHi || ''}
+                              onChange={(e) => updateWebsiteContent('pillar2TitleHi', e.target.value)}
+                              placeholder="ऑल-एमपी रियल टाइम मेरिट रैंक"
+                              className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-black uppercase text-stone-500 mb-1">
+                              विवरण (Description)
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={editingSettings.websiteContent?.pillar2DescHi || ''}
+                              onChange={(e) => updateWebsiteContent('pillar2DescHi', e.target.value)}
+                              placeholder="टेस्ट सबमिट करते ही 52 ज़िलों के हज़ारों छात्रों में अपनी वास्तविक स्थिति, पर्सेंटाइल व कट-ऑफ तुलना देखें।"
+                              className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Pillar 3 */}
+                        <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-3">
+                          <span className="px-2 py-0.5 rounded bg-blue-200 text-blue-900 font-mono font-black text-[10px]">
+                            स्तंभ 3 (Pillar 3)
+                          </span>
+                          <div>
+                            <label className="block font-black uppercase text-stone-500 mb-1">
+                              शीर्षक (Title)
+                            </label>
+                            <input
+                              type="text"
+                              value={editingSettings.websiteContent?.pillar3TitleHi || ''}
+                              onChange={(e) => updateWebsiteContent('pillar3TitleHi', e.target.value)}
+                              placeholder="AI व्यक्तिगत रिपोर्ट व ई-नोट्स"
+                              className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-black uppercase text-stone-500 mb-1">
+                              विवरण (Description)
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={editingSettings.websiteContent?.pillar3DescHi || ''}
+                              onChange={(e) => updateWebsiteContent('pillar3DescHi', e.target.value)}
+                              placeholder="कमजोर विषयों की पहचान, 7-दिवसीय अध्ययन योजना और विषयवार प्रीमियम हस्तलिखित PDF नोट्स तुरंत डाउनलोड।"
+                              className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 4: FOOTER & LEGAL CONTENT */}
+                {cmsSubTab === 'footer' && (
+                  <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                      <FileText className="w-5 h-5 text-rose-600" />
+                      <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                        फुटर विवरण, ऑफिस पता व सर्वाधिकार कॉपीराइट (Footer CMS)
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4 text-xs">
+                      <div>
+                        <label className="block font-black uppercase text-stone-500 mb-1">
+                          फुटर संस्था परिचय (Footer About Description)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={editingSettings.websiteContent?.footerAboutHi || ''}
+                          onChange={(e) => updateWebsiteContent('footerAboutHi', e.target.value)}
+                          placeholder="मध्यप्रदेश की समस्त राज्य स्तरीय भर्ती परीक्षाओं (MPPSC, पटवारी, पुलिस SI/आरक्षक, व्यापम ESB, वनरक्षक, TET) के लिए समर्पित डिजिटल मॉक टेस्ट एवं AI मूल्यांकन मंच।"
+                          className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            ऑफिस पता (Office Location / Address)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.footerAddressHi || ''}
+                            onChange={(e) => updateWebsiteContent('footerAddressHi', e.target.value)}
+                            placeholder="परीक्षा सेतु भवन, एमपी नगर जोन-II, भोपाल (म.प्र.) 462011"
+                            className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            कॉपीराइट पाठ (Copyright Notice Text)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.footerCopyrightText || ''}
+                            onChange={(e) => updateWebsiteContent('footerCopyrightText', e.target.value)}
+                            placeholder="© 2026 MP परीक्षा सेतु (MP Pariksha Setu) • सर्वाधिकार सुरक्षित।"
+                            className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 5: SOCIAL SECTION TEXT */}
+                {cmsSubTab === 'social' && (
+                  <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 pb-3 border-b border-stone-100 dark:border-stone-800">
+                      <Share2 className="w-5 h-5 text-purple-600" />
+                      <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                        होमपेज सोशल मीडिया सेक्शन हेडिंग्स व विवरण (Social Section Text)
+                      </h4>
+                    </div>
+
+                    <div className="space-y-4 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            सोशल सेक्शन बैज (Badge Tag)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.socialSectionBadgeHi || ''}
+                            onChange={(e) => updateWebsiteContent('socialSectionBadgeHi', e.target.value)}
+                            placeholder="📲 24x7 एक्टिव कम्युनिटी"
+                            className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-black uppercase text-stone-500 mb-1">
+                            सोशल सेक्शन मुख्य शीर्षक (Main Heading)
+                          </label>
+                          <input
+                            type="text"
+                            value={editingSettings.websiteContent?.socialSectionTitleHi || ''}
+                            onChange={(e) => updateWebsiteContent('socialSectionTitleHi', e.target.value)}
+                            placeholder="मध्य प्रदेश के लाखों परीक्षार्थियों से जुड़ें"
+                            className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-stone-500 mb-1">
+                          सोशल सेक्शन उप-शीर्षक / विवरण (Subtitle / Description)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={editingSettings.websiteContent?.socialSectionSubtitleHi || ''}
+                          onChange={(e) => updateWebsiteContent('socialSectionSubtitleHi', e.target.value)}
+                          placeholder="दैनिक 50 क्विज़, हस्तलिखित नोट्स PDF, कट-ऑफ विश्लेषण व तत्काल जॉब अलर्ट हेतु आधिकारिक चैनलों से जुड़ें।"
+                          className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Master Save Button */}
+                <button
+                  type="submit"
+                  className="w-full py-4 rounded-2xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-sm uppercase tracking-wider border-2 border-[#D4A017] shadow-xl transition hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Globe className="w-5 h-5" />
+                  <span>💾 समस्त वेबसाइट कंटेंट सुरक्षित करें (Save Website Content)</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ========================================================= */}
           {/* TAB: SOCIAL MEDIA & COMMUNITY LINKS CMS */}
           {/* ========================================================= */}
           {activeTab === 'SOCIAL' && (
@@ -3313,25 +4170,41 @@ export const AdminDashboardView: React.FC = () => {
                     <Share2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-black text-lg text-[#2D2424] dark:text-white">
-                      सोशल मीडिया व कम्युनिटी लिंक्स प्रबंधक
+                    <h3 className="font-black text-lg text-[#2D2424] dark:text-white flex items-center gap-2">
+                      <span>सोशल मीडिया व कम्युनिटी लिंक्स CMS</span>
+                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 text-[10px] font-black uppercase">
+                        DYNAMIC CMS
+                      </span>
                     </h3>
                     <p className="text-xs text-stone-500 dark:text-stone-400">
-                      फेसबुक, इंस्टाग्राम, टेलीग्राम, यूट्यूब व व्हाट्सएप ग्रुप लिंक्स अपडेट करें — ये पूरे पोर्टल (होमपेज, फुटर, हेडर) पर तुरंत लागू होंगे।
+                      प्रत्येक सोशल चैनल (WhatsApp, Telegram, YouTube, Instagram, Facebook) के लिंक्स, सदस्य संख्या, बैज एवं विवरण अपनी इच्छानुसार बदलें।
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <button
+                    type="button"
+                    onClick={handleResetSocialChannels}
+                    className="px-3.5 py-2 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-stone-500" />
+                    <span>डिफ़ॉल्ट रीसेट</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       const el = document.getElementById('social-community-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      showToast('🌐 होमपेज पर सोशल मीडिया सेक्शन सक्रिय है!');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        navigate('home');
+                      }
+                      showToast('🌐 सोशल मीडिया सेक्शन लाइव पोर्टल पर देखें');
                     }}
-                    className="px-4 py-2 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                    className="px-4 py-2 bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] text-xs font-black rounded-xl flex items-center gap-1.5 transition shadow-sm cursor-pointer"
                   >
-                    <Eye className="w-4 h-4 text-amber-600" />
+                    <Eye className="w-3.5 h-3.5" />
                     <span>लाइव पोर्टल पर देखें</span>
                   </button>
                 </div>
@@ -3342,207 +4215,141 @@ export const AdminDashboardView: React.FC = () => {
                 onSubmit={(e) => {
                   e.preventDefault();
                   savePlatformSettings(editingSettings);
-                  showToast('✅ सभी सोशल मीडिया लिंक्स सफलतापूर्वक अपडेट हो गए!');
+                  showToast('✅ सभी सोशल मीडिया चैनल्स व लिंक्स सफलतापूर्वक सहेज लिए गए!');
                 }}
                 className="space-y-6"
               >
+                {/* Editable Channel Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  
-                  {/* 1. Facebook */}
-                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-blue-200 dark:border-blue-900/60 rounded-3xl space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#1877F2] text-white flex items-center justify-center shadow">
-                          <Facebook className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">फेसबुक (Facebook Group / Page)</h4>
-                          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">25K+ परीक्षार्थी कम्युनिटी</span>
-                        </div>
-                      </div>
-                      {editingSettings.facebookUrl && (
-                        <a
-                          href={editingSettings.facebookUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 hover:bg-blue-100"
-                          title="टेस्ट करें"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
+                  {(editingSettings.socialChannels || []).map((ch, idx) => {
+                    const iconColor = ch.id === 'whatsapp' ? 'bg-[#25D366]'
+                      : ch.id === 'telegram' ? 'bg-[#229ED9]'
+                      : ch.id === 'youtube' ? 'bg-[#FF0000]'
+                      : ch.id === 'instagram' ? 'bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600'
+                      : 'bg-[#1877F2]';
 
-                    <div>
-                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
-                        फेसबुक पेज या ग्रुप URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://facebook.com/groups/mpparikshasetu"
-                        value={editingSettings.facebookUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, facebookUrl: e.target.value })}
-                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
-                      />
-                    </div>
-                  </div>
+                    const borderAccent = ch.id === 'whatsapp' ? 'border-emerald-200 dark:border-emerald-900/60'
+                      : ch.id === 'telegram' ? 'border-sky-200 dark:border-sky-900/60'
+                      : ch.id === 'youtube' ? 'border-red-200 dark:border-red-900/60'
+                      : ch.id === 'instagram' ? 'border-rose-200 dark:border-rose-900/60'
+                      : 'border-blue-200 dark:border-blue-900/60';
 
-                  {/* 2. Instagram */}
-                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-rose-200 dark:border-rose-900/60 rounded-3xl space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white flex items-center justify-center shadow">
-                          <Instagram className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">इंस्टाग्राम (Instagram Profile / Reels)</h4>
-                          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">45K+ फॉलोअर्स • 60s GK रील्स</span>
-                        </div>
-                      </div>
-                      {editingSettings.instagramUrl && (
-                        <a
-                          href={editingSettings.instagramUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 hover:bg-rose-100"
-                          title="टेस्ट करें"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
+                    return (
+                      <div 
+                        key={ch.id || idx}
+                        className={`p-5 bg-white dark:bg-stone-900 border-2 ${borderAccent} rounded-3xl space-y-4 shadow-sm ${
+                          ch.id === 'whatsapp' ? 'md:col-span-2' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl ${iconColor} text-white flex items-center justify-center shadow`}>
+                              {ch.id === 'whatsapp' && <MessageCircle className="w-5 h-5" />}
+                              {ch.id === 'telegram' && <Send className="w-5 h-5" />}
+                              {ch.id === 'youtube' && <Youtube className="w-5 h-5" />}
+                              {ch.id === 'instagram' && <Instagram className="w-5 h-5" />}
+                              {ch.id === 'facebook' && <Facebook className="w-5 h-5" />}
+                            </div>
+                            <div>
+                              <h4 className="font-black text-sm text-[#2D2424] dark:text-white">
+                                {ch.nameHi}
+                              </h4>
+                              <span className="text-[10px] text-stone-500 font-bold font-mono">
+                                ID: {ch.id}
+                              </span>
+                            </div>
+                          </div>
 
-                    <div>
-                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
-                        इंस्टाग्राम प्रोफ़ाइल URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://instagram.com/mpparikshasetu_official"
-                        value={editingSettings.instagramUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, instagramUrl: e.target.value })}
-                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 3. Telegram */}
-                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-sky-200 dark:border-sky-900/60 rounded-3xl space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#229ED9] text-white flex items-center justify-center shadow">
-                          <Send className="w-5 h-5" />
+                          {ch.url && (
+                            <a
+                              href={ch.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-amber-100 transition"
+                              title="टेस्ट करें"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
                         </div>
-                        <div>
-                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">टेलीग्राम (Telegram Super Channel)</h4>
-                          <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">68K+ मेंबर्स • डेली 50 Qs क्विज़ & PDF</span>
-                        </div>
-                      </div>
-                      {editingSettings.telegramUrl && (
-                        <a
-                          href={editingSettings.telegramUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 hover:bg-sky-100"
-                          title="टेस्ट करें"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
 
-                    <div>
-                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
-                        टेलीग्राम चैनल / ग्रुप URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://t.me/mpparikshasetu_mp"
-                        value={editingSettings.telegramUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, telegramUrl: e.target.value })}
-                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
-                      />
-                    </div>
-                  </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                              प्लेटफॉर्म नाम (Hindi Name)
+                            </label>
+                            <input
+                              type="text"
+                              value={ch.nameHi || ''}
+                              onChange={(e) => updateSocialChannel(idx, { nameHi: e.target.value })}
+                              className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                            />
+                          </div>
 
-                  {/* 4. YouTube */}
-                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-red-200 dark:border-red-900/60 rounded-3xl space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#FF0000] text-white flex items-center justify-center shadow">
-                          <Youtube className="w-5 h-5" />
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                              सदस्य / हैंडल टैग (Handle / Count)
+                            </label>
+                            <input
+                              type="text"
+                              value={ch.handle || ''}
+                              onChange={(e) => updateSocialChannel(idx, { handle: e.target.value })}
+                              placeholder="उदा: 68K+ मेंबर्स"
+                              className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">यूट्यूब (YouTube Live Classes Channel)</h4>
-                          <span className="text-[10px] text-red-600 dark:text-red-400 font-bold">90K+ सब्सक्राइबर्स • मैराथन क्लासेज</span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                              बैज टेक्स्ट (Badge)
+                            </label>
+                            <input
+                              type="text"
+                              value={ch.badgeHi || ''}
+                              onChange={(e) => updateSocialChannel(idx, { badgeHi: e.target.value })}
+                              placeholder="उदा: ⚡ तत्काल जॉब अलर्ट्स"
+                              className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                              आधिकारिक लिंक URL (Direct Link)
+                            </label>
+                            <input
+                              type="url"
+                              value={ch.url || ''}
+                              onChange={(e) => {
+                                updateSocialChannel(idx, { url: e.target.value });
+                                // Keep root platformSettings urls in sync
+                                if (ch.id === 'whatsapp') setEditingSettings(prev => ({ ...prev, whatsappCommunityUrl: e.target.value }));
+                                if (ch.id === 'telegram') setEditingSettings(prev => ({ ...prev, telegramUrl: e.target.value }));
+                                if (ch.id === 'youtube') setEditingSettings(prev => ({ ...prev, youtubeUrl: e.target.value }));
+                                if (ch.id === 'instagram') setEditingSettings(prev => ({ ...prev, instagramUrl: e.target.value }));
+                                if (ch.id === 'facebook') setEditingSettings(prev => ({ ...prev, facebookUrl: e.target.value }));
+                              }}
+                              placeholder="https://..."
+                              className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-xs">
+                          <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
+                            विवरण (Description)
+                          </label>
+                          <input
+                            type="text"
+                            value={ch.descHi || ''}
+                            onChange={(e) => updateSocialChannel(idx, { descHi: e.target.value })}
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs"
+                          />
                         </div>
                       </div>
-                      {editingSettings.youtubeUrl && (
-                        <a
-                          href={editingSettings.youtubeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 hover:bg-red-100"
-                          title="टेस्ट करें"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
-                        यूट्यूब चैनल URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://youtube.com/@mpparikshasetu"
-                        value={editingSettings.youtubeUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, youtubeUrl: e.target.value })}
-                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 5. WhatsApp Community */}
-                  <div className="p-5 bg-white dark:bg-stone-900 border-2 border-emerald-200 dark:border-emerald-900/60 rounded-3xl space-y-4 shadow-sm md:col-span-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#25D366] text-white flex items-center justify-center shadow">
-                          <MessageCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-sm text-[#2D2424] dark:text-white">व्हाट्सएप जॉब अलर्ट कम्युनिटी (WhatsApp Group)</h4>
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">10K+ छात्र जुड़े • तत्काल भर्ती नोटिफिकेशन</span>
-                        </div>
-                      </div>
-                      {editingSettings.whatsappCommunityUrl && (
-                        <a
-                          href={editingSettings.whatsappCommunityUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 hover:bg-emerald-100"
-                          title="टेस्ट करें"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-black uppercase text-stone-500 mb-1">
-                        व्हाट्सएप ग्रुप या कम्युनिटी इनवाइट URL
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://chat.whatsapp.com/mpparikshasetu"
-                        value={editingSettings.whatsappCommunityUrl || ''}
-                        onChange={(e) => setEditingSettings({ ...editingSettings, whatsappCommunityUrl: e.target.value })}
-                        className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-mono text-stone-800 dark:text-stone-200"
-                      />
-                    </div>
-                  </div>
-
+                    );
+                  })}
                 </div>
 
                 {/* Save Button */}
@@ -3551,7 +4358,7 @@ export const AdminDashboardView: React.FC = () => {
                   className="w-full py-4 rounded-2xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-sm uppercase tracking-wider border-2 border-[#D4A017] shadow-xl transition hover:scale-[1.01] active:scale-98 cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span>💾 सभी सोशल मीडिया लिंक्स सहेजें (Save Social Links)</span>
+                  <span>💾 सभी सोशल मीडिया लिंक्स व विवरण सहेजें (Save Social CMS)</span>
                 </button>
               </form>
             </div>
