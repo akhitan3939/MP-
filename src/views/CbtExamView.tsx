@@ -55,12 +55,12 @@ export const CbtExamView: React.FC = () => {
 
   const isFreeMock40 = Boolean(viewParams?.isFreeMock40 || viewParams?.id === 'free_mock_40' || viewParams?.isDemoMode);
   const seriesId = viewParams?.id || (isFreeMock40 ? 'free_mock_40' : 'ts_patwari_2026');
-  const series: TestSeries = isFreeMock40 
+  const foundSeries = isFreeMock40 
     ? {
         id: 'free_mock_40',
         titleHi: 'ऑल-मध्यप्रदेश फ्री मॉक टेस्ट (40 प्रश्न)',
         titleEn: 'All-MP Free Mock Test (40 Questions)',
-        category: 'patwari',
+        category: 'patwari' as const,
         department: 'Govt of MP',
         departmentHi: 'म.प्र. शासन',
         descriptionHi: '40 प्रश्नों का विशेष फ्री मॉक टेस्ट',
@@ -88,7 +88,34 @@ export const CbtExamView: React.FC = () => {
           { section: 'General English', sectionHi: 'सामान्य अंग्रेजी', questionsCount: 4, marks: 4 }
         ]
       }
-    : (testSeries.find(s => s.id === seriesId) || testSeries[0]);
+    : testSeries.find(s => s.id === seriesId);
+
+  // If deleted or deactivated
+  if (!isFreeMock40 && (!foundSeries || (foundSeries.isActive === false && currentUser?.role !== 'admin'))) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 mx-auto flex items-center justify-center text-2xl font-black">
+          ⚠️
+        </div>
+        <h2 className="font-display font-black text-2xl text-stone-800 dark:text-white">
+          {lang === 'hi' ? 'यह टेस्ट वर्तमान में उपलब्ध नहीं है' : 'This Test is Currently Unavailable'}
+        </h2>
+        <p className="text-stone-600 dark:text-stone-400 text-sm max-w-md mx-auto">
+          {lang === 'hi' 
+            ? 'प्रशासक द्वारा यह टेस्ट सीरीज़ निष्क्रिय की गई है। कृपया अन्य टेस्ट में भाग लें।' 
+            : 'This test series is inactive. Please choose another test series.'}
+        </p>
+        <button
+          onClick={() => navigate('catalog')}
+          className="px-6 py-3 rounded-2xl bg-[#7A2A1E] text-[#D4A017] font-black border-2 border-[#D4A017] shadow-lg hover:bg-[#5E1F16] transition"
+        >
+          {lang === 'hi' ? 'सभी टेस्ट सीरीज़ देखें' : 'View Test Series'}
+        </button>
+      </div>
+    );
+  }
+
+  const series: TestSeries = foundSeries || testSeries[0];
   const initialSetNumber = viewParams?.setId ? Number(viewParams.setId) : 1;
 
   // Pre-Exam vs Running Exam state

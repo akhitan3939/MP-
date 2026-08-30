@@ -184,7 +184,8 @@ export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   siteTagline: 'मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल',
   helplinePhone: '+91 98930 12345',
   helplineWhatsapp: '919893012345',
-  supportEmail: 'support@mppariksha.in',
+  supportEmail: 'mpparikshasetu.support@gmail.com',
+  logoUrl: '/logo.svg',
   topTickerTextHi: '🔥 MP पटवारी 2026 के सभी 20 सेट्स लाइव! सेट #1 मुफ़्त डेमो अभी दें • कोड \'SETU50\' पर ₹50 फ्लैट छूट',
   topTickerTextEn: '🔥 MP Patwari 2026 All 20 Sets Live! Attempt Set #1 Free Demo • Use coupon \'SETU50\' for ₹50 Off',
   topTickerEnabled: true,
@@ -306,20 +307,11 @@ export const StorageService = {
   setCurrentUserId: (id: string) => setStorage(STORAGE_KEYS.CURRENT_USER_ID, id),
 
   getTestSeries: (): TestSeries[] => {
-    const raw = getStorage(STORAGE_KEYS.TEST_SERIES, INITIAL_TEST_SERIES);
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return INITIAL_TEST_SERIES.map(normalizeTestSeries);
+    const raw = getStorage<any[] | null>(STORAGE_KEYS.TEST_SERIES, null);
+    if (raw && Array.isArray(raw)) {
+      return raw.map(normalizeTestSeries);
     }
-    const map = new Map<string, any>();
-    INITIAL_TEST_SERIES.forEach(s => map.set(s.id, s));
-    raw.forEach((s: any) => {
-      if (map.has(s.id)) {
-        map.set(s.id, { ...map.get(s.id), ...s, syllabus: map.get(s.id).syllabus, totalQuestions: map.get(s.id).totalQuestions, totalMarks: map.get(s.id).totalMarks });
-      } else {
-        map.set(s.id, s);
-      }
-    });
-    return Array.from(map.values()).map(normalizeTestSeries);
+    return INITIAL_TEST_SERIES.map(normalizeTestSeries);
   },
   setTestSeries: (series: TestSeries[]) => setStorage(STORAGE_KEYS.TEST_SERIES, series.map(normalizeTestSeries)),
 

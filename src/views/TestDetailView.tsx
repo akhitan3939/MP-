@@ -21,10 +21,36 @@ import { ALL_20_PATWARI_SETS } from '../data/patwariSetsData';
 import { ALL_20_AGRI_SETS } from '../data/agriSetsData';
 
 export const TestDetailView: React.FC = () => {
-  const { testSeries, viewParams, lang, navigate, isEnrolled, openRazorpayModal, openNotesModal } = useApp();
+  const { testSeries, viewParams, lang, navigate, isEnrolled, openRazorpayModal, openNotesModal, currentUser } = useApp();
   
   const seriesId = viewParams?.id || 'ts_agri_ext_2026';
-  const series = testSeries.find(s => s.id === seriesId) || testSeries[0];
+  const series = testSeries.find(s => s.id === seriesId);
+
+  // If deleted or not found
+  if (!series || (series.isActive === false && currentUser?.role !== 'admin')) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 mx-auto flex items-center justify-center text-2xl font-black">
+          ⚠️
+        </div>
+        <h2 className="font-display font-black text-2xl text-stone-800 dark:text-white">
+          {lang === 'hi' ? 'यह टेस्ट सीरीज़ वर्तमान में उपलब्ध नहीं है' : 'This Test Series is Currently Unavailable'}
+        </h2>
+        <p className="text-stone-600 dark:text-stone-400 text-sm max-w-md mx-auto">
+          {lang === 'hi' 
+            ? 'प्रशासक द्वारा यह टेस्ट सीरीज़ निष्क्रिय अथवा अपडेट की जा रही है। कृपया अन्य सक्रिय मॉक टेस्ट देखें।' 
+            : 'This test series has been deactivated or is undergoing maintenance. Please explore our active mock tests.'}
+        </p>
+        <button
+          onClick={() => navigate('catalog')}
+          className="px-6 py-3 rounded-2xl bg-[#7A2A1E] text-[#D4A017] font-black border-2 border-[#D4A017] shadow-lg hover:bg-[#5E1F16] transition"
+        >
+          {lang === 'hi' ? 'सभी उपलब्ध टेस्ट सीरीज़ देखें' : 'View Available Test Series'}
+        </button>
+      </div>
+    );
+  }
+
   const enrolled = isEnrolled(series.id);
   const isPatwari = series.id === 'ts_patwari_2026';
   const isAgri = series.id === 'ts_agri_ext_2026';

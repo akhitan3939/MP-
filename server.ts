@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
@@ -9,8 +10,245 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Persistent Server-Side State Storage File
+const DATA_DIR = path.join(process.cwd(), 'data');
+const STATE_FILE_PATH = path.join(DATA_DIR, 'app_state.json');
+
+interface ServerAppState {
+  testSeries?: any[];
+  platformSettings?: any;
+  siteBanners?: any[];
+  announcements?: any[];
+  coupons?: any[];
+  navMenuItems?: any[];
+  notes?: any[];
+  questions?: any[];
+}
+
+function ensureDataDirExists() {
+  if (!fs.existsSync(DATA_DIR)) {
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch (e) {
+      console.warn('Failed to create data dir:', e);
+    }
+  }
+}
+
+function loadAppStateFromDisk(): ServerAppState {
+  ensureDataDirExists();
+  if (fs.existsSync(STATE_FILE_PATH)) {
+    try {
+      const content = fs.readFileSync(STATE_FILE_PATH, 'utf-8');
+      return JSON.parse(content);
+    } catch (err) {
+      console.warn('Error reading app_state.json from disk:', err);
+    }
+  }
+  return {};
+}
+
+function saveAppStateToDisk(state: ServerAppState) {
+  ensureDataDirExists();
+  try {
+    fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Error saving app_state.json to disk:', err);
+  }
+}
+
+let inMemoryAppState: ServerAppState = loadAppStateFromDisk();
+
+// Initialize default platform settings if not present
+if (!inMemoryAppState.platformSettings) {
+  inMemoryAppState.platformSettings = {
+    siteTitle: 'MP परीक्षा सेतु',
+    siteTagline: 'मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल',
+    helplinePhone: '+91 98930 12345',
+    helplineWhatsapp: '919893012345',
+    supportEmail: 'mpparikshasetu.support@gmail.com',
+    logoUrl: '/logo.svg',
+    topTickerTextHi: '🔥 MP पटवारी 2026 के सभी 20 सेट्स लाइव! सेट #1 मुफ़्त डेमो अभी दें • कोड \'SETU50\' पर ₹50 फ्लैट छूट',
+    topTickerTextEn: '🔥 MP Patwari 2026 All 20 Sets Live! Attempt Set #1 Free Demo • Use coupon \'SETU50\' for ₹50 Off',
+    topTickerEnabled: true,
+    paymentGatewayMode: 'LIVE',
+    enableAiEvaluation: true,
+    maintenanceMode: false,
+    facebookUrl: 'https://facebook.com/groups/mpparikshasetu',
+    instagramUrl: 'https://instagram.com/mpparikshasetu_official',
+    telegramUrl: 'https://t.me/mpparikshasetu_mp',
+    youtubeUrl: 'https://youtube.com/@mpparikshasetu',
+    whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu'
+  };
+  saveAppStateToDisk(inMemoryAppState);
+}
+
+// 0. Global App Data Fetch & Synchronization Endpoint
+app.get('/api/app-data', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: inMemoryAppState,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post('/api/app-data/sync', (req: Request, res: Response) => {
+  const incoming = req.body;
+  if (!incoming || typeof incoming !== 'object') {
+    return res.status(400).json({ success: false, message: 'Invalid payload' });
+  }
+
+  inMemoryAppState = {
+    ...inMemoryAppState,
+    ...incoming
+  };
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: 'Global app state synced successfully across all clients',
+    data: inMemoryAppState
+  });
+});
+
+// Platform Settings Endpoint
+app.get('/api/settings', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    settings: inMemoryAppState.platformSettings || {}
+  });
+});
+
+app.post('/api/settings', (req: Request, res: Response) => {
+  const updated = req.body;
+  inMemoryAppState.platformSettings = {
+    ...(inMemoryAppState.platformSettings || {}),
+    ...updated
+  };
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: 'Platform settings updated globally',
+    settings: inMemoryAppState.platformSettings
+  });
+});
+
+// Test Series Endpoints
+app.get('/api/test-series', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    testSeries: inMemoryAppState.testSeries || []
+  });
+});
+
+app.post('/api/test-series', (req: Request, res: Response) => {
+  const incomingSeries = req.body;
+  if (!incomingSeries || !incomingSeries.id) {
+    return res.status(400).json({ success: false, message: 'Invalid series data' });
+  }
+
+  let list = inMemoryAppState.testSeries || [];
+  const idx = list.findIndex(s => s.id === incomingSeries.id);
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], ...incomingSeries };
+  } else {
+    list = [incomingSeries, ...list];
+  }
+  inMemoryAppState.testSeries = list;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: 'Test series saved globally',
+    series: incomingSeries
+  });
+});
+
+app.post('/api/test-series/toggle-active', (req: Request, res: Response) => {
+  const { seriesId, isActive } = req.body;
+  if (!seriesId) {
+    return res.status(400).json({ success: false, message: 'Series ID required' });
+  }
+
+  let list = inMemoryAppState.testSeries || [];
+  let updatedStatus = true;
+  list = list.map(s => {
+    if (s.id === seriesId) {
+      updatedStatus = isActive !== undefined ? Boolean(isActive) : !s.isActive;
+      return { ...s, isActive: updatedStatus };
+    }
+    return s;
+  });
+
+  inMemoryAppState.testSeries = list;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    seriesId,
+    isActive: updatedStatus,
+    message: `Test series ${seriesId} is now ${updatedStatus ? 'ACTIVE' : 'INACTIVE'}`
+  });
+});
+
+app.delete('/api/test-series/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  let list = inMemoryAppState.testSeries || [];
+  inMemoryAppState.testSeries = list.filter(s => s.id !== id);
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: `Test series ${id} deleted globally`
+  });
+});
+
+// Logo Upload Endpoint
+app.post('/api/upload-logo', (req: Request, res: Response) => {
+  const { logoData, logoUrl } = req.body;
+  if (logoData && typeof logoData === 'string' && logoData.startsWith('data:image')) {
+    try {
+      const base64Data = logoData.replace(/^data:image\/\w+;base64,/, '');
+      const publicDir = path.join(process.cwd(), 'public');
+      const customLogoPath = path.join(publicDir, 'custom_logo.png');
+      fs.writeFileSync(customLogoPath, Buffer.from(base64Data, 'base64'));
+      
+      const newLogoUrl = '/custom_logo.png?v=' + Date.now();
+      inMemoryAppState.platformSettings = {
+        ...(inMemoryAppState.platformSettings || {}),
+        logoUrl: newLogoUrl
+      };
+      saveAppStateToDisk(inMemoryAppState);
+
+      return res.json({
+        success: true,
+        logoUrl: newLogoUrl,
+        message: 'Custom logo image uploaded and set successfully'
+      });
+    } catch (err) {
+      console.warn('Error saving custom logo image:', err);
+    }
+  }
+
+  if (logoUrl) {
+    inMemoryAppState.platformSettings = {
+      ...(inMemoryAppState.platformSettings || {}),
+      logoUrl
+    };
+    saveAppStateToDisk(inMemoryAppState);
+    return res.json({
+      success: true,
+      logoUrl,
+      message: 'Logo URL updated successfully'
+    });
+  }
+
+  res.status(400).json({ success: false, message: 'No valid logo image data or URL provided' });
+});
 
 // Lazy/Safe AI Initialization
 let genAIClient: GoogleGenAI | null = null;

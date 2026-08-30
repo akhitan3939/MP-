@@ -38,17 +38,28 @@ export const Footer: React.FC = () => {
           {/* Col 1: Brand & Cultural Mission */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-full bg-[#D4A017] p-0.5 flex items-center justify-center shadow-md">
-                <div className="w-full h-full rounded-full bg-[#7A2A1E] flex items-center justify-center font-black text-[#D4A017] text-sm">
-                  MP
+              {platformSettings?.logoUrl ? (
+                <img 
+                  src={platformSettings.logoUrl} 
+                  alt={platformSettings.siteTitle || 'MP परीक्षा सेतु'} 
+                  className="w-10 h-10 rounded-full object-cover bg-white shadow-md border border-[#D4A017]"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/logo.svg';
+                  }}
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#D4A017] p-0.5 flex items-center justify-center shadow-md">
+                  <div className="w-full h-full rounded-full bg-[#7A2A1E] flex items-center justify-center font-black text-[#D4A017] text-sm">
+                    MP
+                  </div>
                 </div>
-              </div>
+              )}
               <span className="font-display font-black text-xl text-white tracking-tight">
-                MP परीक्षा <span className="text-[#D4A017]">सेतु</span>
+                {platformSettings?.siteTitle || 'MP परीक्षा सेतु'}
               </span>
             </div>
             <p className="text-[#EAD8B1] text-xs leading-relaxed font-medium">
-              मध्यप्रदेश की समस्त राज्य स्तरीय भर्ती परीक्षाओं (MPPSC, पटवारी, पुलिस SI/आरक्षक, व्यापम ESB, वनरक्षक, TET) के लिए समर्पित डिजिटल मॉक टेस्ट एवं AI मूल्यांकन मंच।
+              {platformSettings?.siteTagline || 'मध्यप्रदेश की समस्त राज्य स्तरीय भर्ती परीक्षाओं (MPPSC, पटवारी, पुलिस SI/आरक्षक, व्यापम ESB, वनरक्षक, TET) के लिए समर्पित डिजिटल मॉक टेस्ट एवं AI मूल्यांकन मंच।'}
             </p>
             <div className="flex items-center gap-2 text-[#D4A017] text-[11px] font-bold">
               <ShieldCheck className="w-4 h-4" />
@@ -131,7 +142,12 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#D4A017]" />
-                <span>mpparikshasetu.support@gmail.com</span>
+                <a 
+                  href={`mailto:${platformSettings?.supportEmail || 'mpparikshasetu.support@gmail.com'}`}
+                  className="hover:underline hover:text-white transition"
+                >
+                  {platformSettings?.supportEmail || 'mpparikshasetu.support@gmail.com'}
+                </a>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#D4A017]" />

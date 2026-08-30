@@ -27,6 +27,7 @@ export const Header: React.FC = () => {
     navigate, 
     topNavItems,
     handleNavAction,
+    platformSettings,
     theme, 
     toggleTheme, 
     lang, 
@@ -39,6 +40,7 @@ export const Header: React.FC = () => {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-[#7A2A1E] text-white border-b-4 border-[#D4A017] shadow-xl w-full">
@@ -51,20 +53,33 @@ export const Header: React.FC = () => {
             onClick={() => navigate('home')}
             className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group shrink-0"
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#D4A017] rounded-full flex items-center justify-center font-black text-base sm:text-lg text-[#7A2A1E] shadow-md border-2 border-white/30 group-hover:scale-105 transition-transform duration-200 shrink-0">
-              MP
-            </div>
+            {platformSettings?.logoUrl && !logoError ? (
+              <img 
+                src={platformSettings.logoUrl} 
+                alt={platformSettings.siteTitle || 'MP परीक्षा सेतु Logo'} 
+                onError={() => setLogoError(true)}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover bg-white shadow-md border-2 border-[#D4A017] group-hover:scale-105 transition-transform duration-200 shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#D4A017] rounded-full flex items-center justify-center font-black text-base sm:text-lg text-[#7A2A1E] shadow-md border-2 border-white/30 group-hover:scale-105 transition-transform duration-200 shrink-0">
+                MP
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-display font-black text-lg sm:text-xl md:text-2xl text-white tracking-tight leading-none group-hover:text-[#FFFBF2] transition">
-                  MP परीक्षा <span className="text-[#D4A017]">सेतु</span>
+                  {platformSettings?.siteTitle ? (
+                    platformSettings.siteTitle
+                  ) : (
+                    <>MP परीक्षा <span className="text-[#D4A017]">सेतु</span></>
+                  )}
                 </h1>
                 <span className="bg-[#5E1F16] text-[#D4A017] text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded uppercase tracking-wider border border-[#D4A017]/40">
                   CBT 2026
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#EAD8B1] hidden sm:block font-bold tracking-wide mt-0.5">
-                मध्यप्रदेश प्रतियोगी परीक्षा टेस्ट सीरीज़ & AI मूल्यांकन
+                {platformSettings?.siteTagline || 'मध्यप्रदेश प्रतियोगी परीक्षा टेस्ट सीरीज़ & AI मूल्यांकन'}
               </p>
             </div>
           </div>

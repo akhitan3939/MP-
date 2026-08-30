@@ -125,6 +125,7 @@ export const AdminDashboardView: React.FC = () => {
     saveSiteBanner,
     deleteSiteBanner,
     savePlatformSettings,
+    uploadLogo,
     saveNote,
     deleteNote,
     refundOrder, 
@@ -162,7 +163,28 @@ export const AdminDashboardView: React.FC = () => {
   const [editingNote, setEditingNote] = useState<Partial<OfflineNote> | null>(null);
   const [editingSettings, setEditingSettings] = useState<PlatformSettings>({ ...platformSettings });
   
-  // Password Reset Modal
+  React.useEffect(() => {
+    setEditingSettings({ ...platformSettings });
+  }, [platformSettings]);
+
+  // Logo file upload handler
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('⚠️ फ़ाइल साइज़ 2MB से कम होना चाहिए');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      const res = await uploadLogo(base64);
+      if (res.success && res.logoUrl) {
+        setEditingSettings(prev => ({ ...prev, logoUrl: res.logoUrl }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const [passwordModalUser, setPasswordModalUser] = useState<UserProfile | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState('123456');
 
@@ -3177,6 +3199,99 @@ export const AdminDashboardView: React.FC = () => {
                 }}
                 className="space-y-4 text-xs"
               >
+                {/* Logo Management Section */}
+                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border-2 border-[#D4A017]/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
+                        <ImageIcon className="w-4 h-4" />
+                        <span>वेबसाइट लोगो प्रबंधन (Website Official Logo)</span>
+                      </h4>
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400">
+                        हेडर, फुटर व ब्रांडिंग में प्रदर्शित होने वाला लोगो अपलोड करें या इमेज URL सेट करें।
+                      </p>
+                    </div>
+                    {editingSettings.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSettings({ ...editingSettings, logoUrl: '/logo.svg' });
+                          showToast('डिफ़ॉल्ट लोगो रीसेट किया गया');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold hover:bg-stone-300 transition text-[10px]"
+                      >
+                        डिफ़ॉल्ट लोगो
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
+                    {/* Logo Preview */}
+                    <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 w-28 h-28 shrink-0 shadow-xs">
+                      {editingSettings.logoUrl ? (
+                        <img 
+                          src={editingSettings.logoUrl} 
+                          alt="Logo Preview" 
+                          className="max-h-20 max-w-20 object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/logo.svg';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-[#7A2A1E] text-[#D4A017] font-black text-xl flex items-center justify-center border-2 border-[#D4A017]">
+                          MP
+                        </div>
+                      )}
+                      <span className="text-[9px] text-stone-400 font-mono mt-1">Live Preview</span>
+                    </div>
+
+                    {/* Logo Actions */}
+                    <div className="flex-1 space-y-2.5 w-full">
+                      <div>
+                        <label className="block font-bold text-stone-600 dark:text-stone-400 mb-1">
+                          डिवाइस से लोगो अपलोड करें (PNG / SVG / JPG / WebP)
+                        </label>
+                        <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed border-[#D4A017] bg-white dark:bg-stone-900 hover:bg-amber-50/50 cursor-pointer transition font-bold text-stone-700 dark:text-stone-200 text-xs">
+                          <Plus className="w-4 h-4 text-[#7A2A1E] dark:text-[#D4A017]" />
+                          <span>नया लोगो चुनें व अपलोड करें (Upload Logo File)</span>
+                          <input 
+                            type="file" 
+                            accept="image/png, image/jpeg, image/svg+xml, image/webp" 
+                            onChange={handleLogoFileUpload}
+                            className="hidden" 
+                          />
+                        </label>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-stone-600 dark:text-stone-400 mb-1">
+                          या लोगो इमेज URL दर्ज करें (Image URL)
+                        </label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="url"
+                            placeholder="https://... या /logo.svg"
+                            value={editingSettings.logoUrl || ''}
+                            onChange={(e) => setEditingSettings({ ...editingSettings, logoUrl: e.target.value })}
+                            className="flex-1 p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (editingSettings.logoUrl) {
+                                uploadLogo(editingSettings.logoUrl);
+                              }
+                            }}
+                            className="px-3 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-bold border border-[#D4A017] hover:bg-[#5E1F16]"
+                          >
+                            लागू करें
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-black uppercase text-stone-500 mb-1">पोर्टल का नाम (Site Title)</label>

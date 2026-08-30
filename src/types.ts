@@ -122,6 +122,7 @@ export interface PlatformSettings {
   helplinePhone: string;
   helplineWhatsapp: string;
   supportEmail: string;
+  logoUrl?: string;
   topTickerTextHi: string;
   topTickerTextEn: string;
   topTickerEnabled: boolean;

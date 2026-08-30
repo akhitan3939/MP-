@@ -122,6 +122,7 @@ interface AppContextType {
   saveSiteBanner: (banner: SiteBanner) => void;
   deleteSiteBanner: (id: string) => void;
   savePlatformSettings: (settings: PlatformSettings) => void;
+  uploadLogo: (logoDataOrUrl: string) => Promise<{ success: boolean; logoUrl?: string; message: string }>;
   saveNote: (note: OfflineNote) => void;
   deleteNote: (id: string) => void;
   saveNavMenuItem: (item: NavigationMenuItem) => void;
@@ -223,6 +224,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     StorageService.setTheme(theme);
   }, [theme]);
+
+  // Load server-persisted state on initial startup
+  useEffect(() => {
+    fetch('/api/app-data')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.data) {
+          const s = data.data;
+          if (Array.isArray(s.testSeries) && s.testSeries.length > 0) {
+            setTestSeries(s.testSeries);
+            StorageService.setTestSeries(s.testSeries);
+          }
+          if (s.platformSettings && typeof s.platformSettings === 'object' && Object.keys(s.platformSettings).length > 0) {
+            setPlatformSettings(prev => ({ ...prev, ...s.platformSettings }));
+            StorageService.setPlatformSettings({ ...platformSettings, ...s.platformSettings });
+          }
+          if (Array.isArray(s.siteBanners) && s.siteBanners.length > 0) {
+            setSiteBanners(s.siteBanners);
+            StorageService.setSiteBanners(s.siteBanners);
+          }
+          if (Array.isArray(s.announcements) && s.announcements.length > 0) {
+            setAnnouncements(s.announcements);
+            StorageService.setAnnouncements(s.announcements);
+          }
+          if (Array.isArray(s.coupons) && s.coupons.length > 0) {
+            setCoupons(s.coupons);
+            StorageService.setCoupons(s.coupons);
+          }
+          if (Array.isArray(s.navMenuItems) && s.navMenuItems.length > 0) {
+            setNavMenuItems(s.navMenuItems);
+            StorageService.setNavMenus(s.navMenuItems);
+          }
+        }
+      })
+      .catch(e => {
+        console.log('App running in offline/local storage mode:', e);
+      });
+  }, []);
 
   // Save changes to storage
   useEffect(() => { StorageService.setUsers(users); }, [users]);
@@ -789,33 +828,56 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setReminders(prev => prev.filter(r => r.id !== id));
   };
 
-  // Admin Handlers
+  // Admin Handlers with Instant Multi-User Server Persistence
   const saveTestSeries = (series: TestSeries) => {
     setTestSeries(prev => {
       const exists = prev.some(s => s.id === series.id);
-      if (exists) {
-        return prev.map(s => s.id === series.id ? series : s);
-      }
-      return [series, ...prev];
+      const updated = exists ? prev.map(s => s.id === series.id ? series : s) : [series, ...prev];
+      StorageService.setTestSeries(updated);
+      return updated;
     });
+    fetch('/api/test-series', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(series)
+    }).catch(e => console.warn('Server sync error for test-series:', e));
     showToast(lang === 'hi' ? 'टेस्ट सीरीज़ सहेजी गई' : 'Test series saved');
   };
 
   const deleteTestSeries = (seriesId: string) => {
-    setTestSeries(prev => prev.filter(s => s.id !== seriesId));
-    setQuestions(prev => prev.filter(q => q.seriesId !== seriesId));
+    setTestSeries(prev => {
+      const updated = prev.filter(s => s.id !== seriesId);
+      StorageService.setTestSeries(updated);
+      return updated;
+    });
+    setQuestions(prev => {
+      const updated = prev.filter(q => q.seriesId !== seriesId);
+      StorageService.setQuestions(updated);
+      return updated;
+    });
+    fetch(`/api/test-series/${seriesId}`, { method: 'DELETE' }).catch(e => console.warn('Server sync error for test-series deletion:', e));
     showToast(lang === 'hi' ? 'टेस्ट सीरीज़ हटाई गई' : 'Test series deleted');
   };
 
   const toggleTestSeriesActive = (seriesId: string) => {
     let newStatus = true;
-    setTestSeries(prev => prev.map(s => {
-      if (s.id === seriesId) {
-        newStatus = s.isActive === false ? true : false;
-        return { ...s, isActive: newStatus };
-      }
-      return s;
-    }));
+    setTestSeries(prev => {
+      const updated = prev.map(s => {
+        if (s.id === seriesId) {
+          newStatus = s.isActive === false ? true : false;
+          return { ...s, isActive: newStatus };
+        }
+        return s;
+      });
+      StorageService.setTestSeries(updated);
+      return updated;
+    });
+    fetch('/api/test-series/toggle-active', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seriesId, isActive: newStatus })
+    }).catch(e => console.warn('Server sync error for toggle active:', e));
+
     showToast(
       lang === 'hi' 
         ? (newStatus ? '🟢 परीक्षा सक्रिय कर दी गई है (होमपेज पर दृश्यमान)' : '🔴 परीक्षा निष्क्रिय कर दी गई है (होमपेज से छिपी हुई)') 
@@ -826,70 +888,141 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const saveQuestion = (question: Question) => {
     setQuestions(prev => {
       const exists = prev.some(q => q.id === question.id);
-      if (exists) {
-        return prev.map(q => q.id === question.id ? question : q);
-      }
-      return [question, ...prev];
+      const updated = exists ? prev.map(q => q.id === question.id ? question : q) : [question, ...prev];
+      StorageService.setQuestions(updated);
+      return updated;
     });
     showToast(lang === 'hi' ? 'प्रश्न सहेजा गया' : 'Question saved');
   };
 
   const deleteQuestion = (questionId: string) => {
-    setQuestions(prev => prev.filter(q => q.id !== questionId));
+    setQuestions(prev => {
+      const updated = prev.filter(q => q.id !== questionId);
+      StorageService.setQuestions(updated);
+      return updated;
+    });
     showToast(lang === 'hi' ? 'प्रश्न हटाया गया' : 'Question deleted');
   };
 
   const saveAnnouncement = (announcement: Announcement) => {
     setAnnouncements(prev => {
       const exists = prev.some(a => a.id === announcement.id);
-      if (exists) {
-        return prev.map(a => a.id === announcement.id ? announcement : a);
-      }
-      return [announcement, ...prev];
+      const updated = exists ? prev.map(a => a.id === announcement.id ? announcement : a) : [announcement, ...prev];
+      StorageService.setAnnouncements(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcements: updated })
+      }).catch(e => console.warn('Server sync error:', e));
+      return updated;
     });
     showToast(lang === 'hi' ? 'अधिसूचना अपडेट की गई' : 'Announcement updated');
   };
 
   const deleteAnnouncement = (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
+    setAnnouncements(prev => {
+      const updated = prev.filter(a => a.id !== id);
+      StorageService.setAnnouncements(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcements: updated })
+      }).catch(e => console.warn('Server sync error:', e));
+      return updated;
+    });
     showToast(lang === 'hi' ? 'अधिसूचना हटाई गई' : 'Announcement deleted');
   };
 
   const saveCoupon = (coupon: Coupon) => {
     setCoupons(prev => {
       const exists = prev.some(c => c.code === coupon.code);
-      if (exists) {
-        return prev.map(c => c.code === coupon.code ? coupon : c);
-      }
-      return [coupon, ...prev];
+      const updated = exists ? prev.map(c => c.code === coupon.code ? coupon : c) : [coupon, ...prev];
+      StorageService.setCoupons(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coupons: updated })
+      }).catch(e => console.warn('Server sync error:', e));
+      return updated;
     });
     showToast(lang === 'hi' ? 'कूपन कोड सहेजा गया' : 'Coupon code saved');
   };
 
   const deleteCoupon = (code: string) => {
-    setCoupons(prev => prev.filter(c => c.code !== code));
+    setCoupons(prev => {
+      const updated = prev.filter(c => c.code !== code);
+      StorageService.setCoupons(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coupons: updated })
+      }).catch(e => console.warn('Server sync error:', e));
+      return updated;
+    });
     showToast(lang === 'hi' ? 'कूपन हटाया गया' : 'Coupon deleted');
   };
 
   const saveSiteBanner = (banner: SiteBanner) => {
     setSiteBanners(prev => {
       const exists = prev.some(b => b.id === banner.id);
-      if (exists) {
-        return prev.map(b => b.id === banner.id ? banner : b);
-      }
-      return [banner, ...prev];
+      const updated = exists ? prev.map(b => b.id === banner.id ? banner : b) : [banner, ...prev];
+      StorageService.setSiteBanners(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteBanners: updated })
+      }).catch(e => console.warn('Server sync error:', e));
+      return updated;
     });
     showToast(lang === 'hi' ? 'बैनर सहेजा गया' : 'Banner saved successfully');
   };
 
   const deleteSiteBanner = (id: string) => {
-    setSiteBanners(prev => prev.filter(b => b.id !== id));
+    setSiteBanners(prev => {
+      const updated = prev.filter(b => b.id !== id);
+      StorageService.setSiteBanners(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteBanners: updated })
+      }).catch(e => console.warn('Server sync error:', e));
+      return updated;
+    });
     showToast(lang === 'hi' ? 'बैनर हटाया गया' : 'Banner deleted');
   };
 
   const savePlatformSettings = (settings: PlatformSettings) => {
     setPlatformSettings(settings);
-    showToast(lang === 'hi' ? 'प्लेटफ़ॉर्म सेटिंग्स अपडेट हुईं' : 'Platform settings updated');
+    StorageService.setPlatformSettings(settings);
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    }).catch(e => console.warn('Server sync error for settings:', e));
+    showToast(lang === 'hi' ? 'प्लेटफ़ॉर्म सेटिंग्स अपडेट हुईं (सभी यूज़र्स के लिए लागू)' : 'Platform settings updated globally');
+  };
+
+  const uploadLogo = async (logoDataOrUrl: string): Promise<{ success: boolean; logoUrl?: string; message: string }> => {
+    try {
+      const isBase64 = logoDataOrUrl.startsWith('data:image');
+      const res = await fetch('/api/upload-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isBase64 ? { logoData: logoDataOrUrl } : { logoUrl: logoDataOrUrl })
+      });
+      const data = await res.json();
+      if (data && data.success && data.logoUrl) {
+        const updated = { ...platformSettings, logoUrl: data.logoUrl };
+        setPlatformSettings(updated);
+        StorageService.setPlatformSettings(updated);
+        showToast(lang === 'hi' ? '✅ नया लोगो सफलतापूर्वक अपडेट हो गया!' : '✅ Logo updated successfully!');
+        return { success: true, logoUrl: data.logoUrl, message: data.message };
+      }
+      return { success: false, message: data.message || 'Failed to upload logo' };
+    } catch (err: any) {
+      console.warn('Logo upload error:', err);
+      return { success: false, message: err.message || 'Error updating logo' };
+    }
   };
 
   const saveNote = (note: OfflineNote) => {
@@ -1091,6 +1224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         saveSiteBanner,
         deleteSiteBanner,
         savePlatformSettings,
+        uploadLogo,
         saveNote,
         deleteNote,
         saveNavMenuItem,
