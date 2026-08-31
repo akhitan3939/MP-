@@ -154,6 +154,8 @@ export const AdminDashboardView: React.FC = () => {
   const [searchStudents, setSearchStudents] = useState('');
   const [searchQuestions, setSearchQuestions] = useState('');
   const [searchMenus, setSearchMenus] = useState('');
+  const [searchAnnouncements, setSearchAnnouncements] = useState('');
+  const [announcementTagFilter, setAnnouncementTagFilter] = useState<string>('all');
   const [menuPlacementFilter, setMenuPlacementFilter] = useState<'all' | 'top' | 'footer' | 'bottom' | 'both'>('all');
   const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('all');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
@@ -421,20 +423,27 @@ export const AdminDashboardView: React.FC = () => {
     setEditingQuestion(null);
   };
 
-  // Handler: Save Announcement
+  // Handler: Save Announcement / News
   const handleSaveAnnouncement = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAnnouncement?.titleHi) return;
 
     const newAnn: Announcement = {
       id: editingAnnouncement.id || `ann_${Date.now()}`,
-      titleHi: editingAnnouncement.titleHi || '',
-      titleEn: editingAnnouncement.titleEn || editingAnnouncement.titleHi,
-      tag: editingAnnouncement.tag || 'VACANCY',
-      linkTextHi: editingAnnouncement.linkTextHi || 'अभी देखें',
-      linkTextEn: editingAnnouncement.linkTextEn || 'View Now',
-      isPinned: editingAnnouncement.isPinned ?? true,
-      publishedAt: new Date().toISOString()
+      titleHi: editingAnnouncement.titleHi.trim(),
+      titleEn: (editingAnnouncement.titleEn || editingAnnouncement.titleHi).trim(),
+      descriptionHi: editingAnnouncement.descriptionHi?.trim() || '',
+      descriptionEn: editingAnnouncement.descriptionEn?.trim() || '',
+      tag: (editingAnnouncement.tag || 'VACANCY') as any,
+      date: editingAnnouncement.date || new Date().toISOString().split('T')[0],
+      linkTextHi: editingAnnouncement.linkTextHi?.trim() || 'अभी देखें →',
+      linkTextEn: editingAnnouncement.linkTextEn?.trim() || 'View Now →',
+      targetUrl: editingAnnouncement.targetUrl?.trim() || '',
+      targetView: editingAnnouncement.targetView || 'catalog',
+      isPinned: editingAnnouncement.isPinned ?? false,
+      isActive: editingAnnouncement.isActive !== false,
+      isNew: editingAnnouncement.isNew ?? true,
+      publishedAt: editingAnnouncement.publishedAt || new Date().toISOString()
     };
 
     saveAnnouncement(newAnn);
@@ -3205,51 +3214,285 @@ export const AdminDashboardView: React.FC = () => {
           )}
 
           {/* ========================================================= */}
-          {/* TAB 9: ANNOUNCEMENTS & RECRUITMENT TICKER */}
+          {/* TAB 9: ANNOUNCEMENTS, NEWS & RECRUITMENT TICKER */}
           {/* ========================================================= */}
           {activeTab === 'ANNOUNCEMENTS' && (
             <div className="space-y-6">
-              <div className="space-y-4">
-                {announcements.map(ann => (
-                  <div 
-                    key={ann.id}
-                    className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center font-black shrink-0">
-                        <BellRing className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-black font-mono">
-                            {ann.tag}
-                          </span>
-                          {ann.isPinned && (
-                            <span className="text-[10px] font-black text-amber-600">📌 PINNED TICKER</span>
-                          )}
-                        </div>
-                        <h4 className="font-bold text-sm text-[#2D2424] dark:text-white mt-1">
-                          {ann.titleHi}
-                        </h4>
-                      </div>
+              {/* Header with stats and Add Button */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black">
+                      <BellRing className="w-5 h-5" />
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => setEditingAnnouncement({ ...ann })}
-                        className="p-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
-                      >
-                        <Edit className="w-4 h-4 text-stone-700 dark:text-stone-300" />
-                      </button>
-                      <button
-                        onClick={() => deleteAnnouncement(ann.id)}
-                        className="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <h3 className="font-display font-black text-lg text-[#2D2424] dark:text-white">
+                      नवीनतम सूचनाएँ, भर्ती टिकर व समाचार प्रबंधन
+                    </h3>
                   </div>
-                ))}
+                  <p className="text-xs text-stone-500">
+                    होमपेज अप-स्क्रॉलिंग टिकर एवं परीक्षा बुलेटिन की सभी प्रविष्टियाँ यहाँ से जोड़ें, संपादित करें या हटाएं।
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingAnnouncement({
+                      titleHi: '',
+                      titleEn: '',
+                      descriptionHi: '',
+                      descriptionEn: '',
+                      tag: 'VACANCY',
+                      date: new Date().toISOString().split('T')[0],
+                      linkTextHi: 'विवरण देखें →',
+                      linkTextEn: 'View Details →',
+                      targetView: 'catalog',
+                      targetUrl: '',
+                      isPinned: false,
+                      isActive: true,
+                      isNew: true
+                    })}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs border border-[#D4A017] shadow-sm hover:scale-105 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ नई अधिसूचना / समाचार जोड़ें</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats overview cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
+                  <div className="text-xs font-bold text-stone-500">कुल सूचनाएँ (Total)</div>
+                  <div className="font-mono font-black text-xl text-stone-900 dark:text-white mt-1">
+                    {announcements.length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
+                  <div className="text-xs font-bold text-emerald-600">सक्रिय (Active)</div>
+                  <div className="font-mono font-black text-xl text-emerald-600 mt-1">
+                    {announcements.filter(a => a.isActive !== false).length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
+                  <div className="text-xs font-bold text-amber-600">📌 पिन की गई (Pinned)</div>
+                  <div className="font-mono font-black text-xl text-amber-600 mt-1">
+                    {announcements.filter(a => a.isPinned).length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
+                  <div className="text-xs font-bold text-rose-600">नवीन भर्ती (Vacancies)</div>
+                  <div className="font-mono font-black text-xl text-rose-600 mt-1">
+                    {announcements.filter(a => a.tag === 'VACANCY').length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3 top-3.5" />
+                  <input
+                    type="text"
+                    value={searchAnnouncements}
+                    onChange={(e) => setSearchAnnouncements(e.target.value)}
+                    placeholder="शीर्षक या विवरण से खोजें..."
+                    className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-xs font-bold"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
+                  {[
+                    { id: 'all', label: 'सभी' },
+                    { id: 'VACANCY', label: 'भर्ती' },
+                    { id: 'ADMIT_CARD', label: 'प्रवेश पत्र' },
+                    { id: 'RESULT', label: 'परिणाम' },
+                    { id: 'NOTICE', label: 'सूचना' },
+                    { id: 'LIVE_TEST', label: 'लाइव टेस्ट' },
+                    { id: 'OFFER', label: 'ऑफर' }
+                  ].map(filter => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setAnnouncementTagFilter(filter.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase whitespace-nowrap transition cursor-pointer ${
+                        announcementTagFilter === filter.id
+                          ? 'bg-[#7A2A1E] text-[#D4A017]'
+                          : 'bg-white dark:bg-stone-900 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-800'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Announcement Cards List */}
+              <div className="space-y-4">
+                {announcements
+                  .filter(ann => {
+                    if (announcementTagFilter !== 'all' && ann.tag !== announcementTagFilter) return false;
+                    if (!searchAnnouncements) return true;
+                    const q = searchAnnouncements.toLowerCase();
+                    return ann.titleHi.toLowerCase().includes(q) || ann.titleEn.toLowerCase().includes(q) || (ann.descriptionHi && ann.descriptionHi.toLowerCase().includes(q));
+                  })
+                  .map(ann => {
+                    const isPinned = ann.isPinned;
+                    const isActive = ann.isActive !== false;
+
+                    return (
+                      <div 
+                        key={ann.id}
+                        className={`p-5 bg-white dark:bg-stone-900 border-2 ${
+                          isPinned ? 'border-[#D4A017]' : 'border-[#EAD8B1] dark:border-stone-800'
+                        } rounded-3xl shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all`}
+                      >
+                        <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                          <div className={`w-10 h-10 rounded-2xl ${
+                            ann.tag === 'VACANCY' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600' :
+                            ann.tag === 'LIVE_TEST' ? 'bg-rose-100 dark:bg-rose-950 text-rose-600' :
+                            ann.tag === 'ADMIT_CARD' ? 'bg-amber-100 dark:bg-amber-950 text-amber-600' :
+                            'bg-blue-100 dark:bg-blue-950 text-blue-600'
+                          } flex items-center justify-center font-black shrink-0 mt-0.5`}>
+                            <BellRing className="w-5 h-5" />
+                          </div>
+
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-black font-mono">
+                                {ann.tag}
+                              </span>
+
+                              {isPinned && (
+                                <span className="text-[10px] font-black text-amber-700 dark:text-[#D4A017] bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800">
+                                  📌 PINNED TOP
+                                </span>
+                              )}
+
+                              {ann.isNew && (
+                                <span className="text-[10px] font-black text-rose-600 bg-rose-50 dark:bg-rose-950 px-1.5 py-0.5 rounded border border-rose-200">
+                                  ⭐ NEW BLINK
+                                </span>
+                              )}
+
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                                isActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-stone-100 text-stone-500'
+                              }`}>
+                                {isActive ? '● सक्रिय (LIVE)' : '○ निष्क्रिय (OFF)'}
+                              </span>
+
+                              {ann.date && (
+                                <span className="text-[11px] text-stone-400 font-mono">
+                                  📅 {ann.date}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="font-bold text-sm text-[#2D2424] dark:text-white">
+                              {ann.titleHi}
+                            </h4>
+
+                            {ann.titleEn && ann.titleEn !== ann.titleHi && (
+                              <div className="text-xs text-stone-400 font-medium">
+                                EN: {ann.titleEn}
+                              </div>
+                            )}
+
+                            {(ann.descriptionHi || ann.descriptionEn) && (
+                              <p className="text-xs text-stone-600 dark:text-stone-400 line-clamp-2">
+                                {ann.descriptionHi || ann.descriptionEn}
+                              </p>
+                            )}
+
+                            <div className="text-[11px] text-stone-400 flex items-center gap-3">
+                              <span>लिंक बटन: <strong className="text-stone-700 dark:text-stone-200">{ann.linkTextHi || 'विवरण देखें'}</strong></span>
+                              {ann.targetView && <span>टारगेट: <code className="text-amber-600">{ann.targetView}</code></span>}
+                              {ann.targetUrl && <span>URL: <code className="text-blue-500 truncate max-w-xs">{ann.targetUrl}</code></span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons: Pin toggle, Active toggle, Edit, Delete */}
+                        <div className="flex items-center gap-2 shrink-0 self-end lg:self-center pt-2 lg:pt-0 border-t lg:border-t-0 border-stone-100 dark:border-stone-800 w-full lg:w-auto justify-end">
+                          
+                          {/* Toggle Pin */}
+                          <button
+                            type="button"
+                            onClick={() => saveAnnouncement({ ...ann, isPinned: !ann.isPinned })}
+                            className={`p-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                              ann.isPinned ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-stone-100 dark:bg-stone-800 text-stone-500'
+                            }`}
+                            title={ann.isPinned ? 'पिन हटाएं' : 'होमपेज पर सबसे ऊपर पिन करें'}
+                          >
+                            📌
+                          </button>
+
+                          {/* Toggle Active */}
+                          <button
+                            type="button"
+                            onClick={() => saveAnnouncement({ ...ann, isActive: !isActive })}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                              isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-stone-200 text-stone-600'
+                            }`}
+                            title="विजिबिलिटी ऑन/ऑफ करें"
+                          >
+                            {isActive ? 'सक्रिय' : 'छिपाएं'}
+                          </button>
+
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => setEditingAnnouncement({ ...ann })}
+                            className="inline-flex items-center gap-1 p-2 px-3 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 text-xs font-bold transition cursor-pointer"
+                            title="संपादित करें"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-stone-600 dark:text-stone-300" />
+                            <span>संपादित करें</span>
+                          </button>
+
+                          {/* Delete Button with Confirm */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`क्या आप वाकई "${ann.titleHi.substring(0, 40)}..." को हटाना चाहते हैं?`)) {
+                                deleteAnnouncement(ann.id);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 p-2 px-3 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 text-xs font-bold transition cursor-pointer"
+                            title="अधिसूचना हटाएं"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>हटाएं</span>
+                          </button>
+
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {announcements.length === 0 && (
+                  <div className="p-12 text-center bg-white dark:bg-stone-900 border-2 border-dashed border-stone-300 dark:border-stone-700 rounded-3xl space-y-3">
+                    <BellRing className="w-10 h-10 text-stone-400 mx-auto" />
+                    <div className="font-bold text-stone-600 dark:text-stone-300">
+                      कोई अधिसूचना मौजूद नहीं है।
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingAnnouncement({
+                        titleHi: '',
+                        titleEn: '',
+                        tag: 'VACANCY',
+                        linkTextHi: 'विवरण देखें →',
+                        linkTextEn: 'View Details →',
+                        isPinned: false,
+                        isActive: true
+                      })}
+                      className="px-4 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs"
+                    >
+                      + पहली अधिसूचना जोड़ें
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -4071,7 +4314,7 @@ export const AdminDashboardView: React.FC = () => {
                             type="text"
                             value={editingSettings.websiteContent?.footerAddressHi || ''}
                             onChange={(e) => updateWebsiteContent('footerAddressHi', e.target.value)}
-                            placeholder="परीक्षा सेतु भवन, एमपी नगर जोन-II, भोपाल (म.प्र.) 462011"
+                            placeholder="भोपाल"
                             className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
                           />
                         </div>
@@ -5397,6 +5640,249 @@ export const AdminDashboardView: React.FC = () => {
                 +XP छात्र को जोड़ें
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 6: ANNOUNCEMENT / NEWS CREATE & EDIT MODAL */}
+      {/* ========================================================= */}
+      {editingAnnouncement && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-2xl w-full p-6 sm:p-7 space-y-5 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black">
+                  <BellRing className="w-5 h-5" />
+                </div>
+                <h3 className="font-display font-black text-base sm:text-lg text-[#2D2424] dark:text-white">
+                  {editingAnnouncement.id ? 'अधिसूचना / समाचार संपादित करें' : 'नई अधिसूचना / समाचार जोड़ें'}
+                </h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditingAnnouncement(null)} 
+                className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAnnouncement} className="space-y-4 text-xs max-h-[75vh] overflow-y-auto pr-1">
+              
+              {/* Category Tag & Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    श्रेणी / टैग (Category Tag) *
+                  </label>
+                  <select
+                    value={editingAnnouncement.tag || 'VACANCY'}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, tag: e.target.value as any })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  >
+                    <option value="VACANCY">📢 नवीन भर्ती (Vacancy Alert)</option>
+                    <option value="ADMIT_CARD">🎫 प्रवेश पत्र (Admit Card)</option>
+                    <option value="RESULT">🏆 परीक्षा परिणाम (Result Announcement)</option>
+                    <option value="NOTICE">📜 महत्वपूर्ण सूचना (Official Notice)</option>
+                    <option value="LIVE_TEST">⚡ लाइव मॉक टेस्ट (Live Mock Test)</option>
+                    <option value="OFFER">🎁 विशेष डिस्काउंट ऑफर (Special Offer)</option>
+                    <option value="EXAM_DATE">📅 परीक्षा तिथि (Exam Date Update)</option>
+                    <option value="NEWS">📰 राज्य समाचार (State Bulletin)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    प्रकाशन दिनांक (Publish Date)
+                  </label>
+                  <input
+                    type="date"
+                    value={editingAnnouncement.date || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, date: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Title Hindi */}
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">
+                  अधिसूचना शीर्षक (हिंदी में) *
+                </label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="उदा: MPESB समूह-02 उपसमूह-04 भर्ती 2026: 20 फुल मॉक सेट्स लाइव"
+                  value={editingAnnouncement.titleHi || ''}
+                  onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, titleHi: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-stone-900 dark:text-white"
+                />
+              </div>
+
+              {/* Title English */}
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">
+                  Notification Title (In English)
+                </label>
+                <input 
+                  type="text"
+                  placeholder="e.g. MPESB Group-02 SubGroup-04 Recruitment 2026 Mock Sets Live"
+                  value={editingAnnouncement.titleEn || ''}
+                  onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, titleEn: e.target.value })}
+                  className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-medium"
+                />
+              </div>
+
+              {/* Description Hindi */}
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">
+                  विस्तृत विवरण (Description in Hindi)
+                </label>
+                <textarea 
+                  rows={2}
+                  placeholder="सूचना का संक्षिप्त विवरण जो छात्रों को पॉपअप में दिखेगा..."
+                  value={editingAnnouncement.descriptionHi || ''}
+                  onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, descriptionHi: e.target.value })}
+                  className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
+                />
+              </div>
+
+              {/* Action Button Texts */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    बटन टेक्स्ट (हिंदी)
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="उदा: अभी देखें →"
+                    value={editingAnnouncement.linkTextHi || ''}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, linkTextHi: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    Button Text (English)
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="e.g. View Now →"
+                    value={editingAnnouncement.linkTextEn || ''}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, linkTextEn: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Redirection Target */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    ऐप में पेज नेविगेशन (Internal View)
+                  </label>
+                  <select
+                    value={editingAnnouncement.targetView || 'catalog'}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, targetView: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  >
+                    <option value="catalog">📚 टेस्ट सीरीज़ कैटलॉग (Catalog)</option>
+                    <option value="freeMockTest">⚡ ऑल-एमपी फ्री लाइव मॉक टेस्ट</option>
+                    <option value="leaderboard">🏆 जिलावार लीडरबोर्ड</option>
+                    <option value="pyq">📝 पूर्व वर्षों के प्रश्न पत्र (PYQ)</option>
+                    <option value="syllabus">📑 परीक्षा सिलेबस व पैटर्न</option>
+                    <option value="home">🏠 होमपेज (Home)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    या बाहरी वेब लिंक (Optional External URL)
+                  </label>
+                  <input 
+                    type="url"
+                    placeholder="https://esb.mp.gov.in/..."
+                    value={editingAnnouncement.targetUrl || ''}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, targetUrl: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-blue-600 dark:text-blue-400"
+                  />
+                </div>
+              </div>
+
+              {/* Toggles: Pin, New, Active */}
+              <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/70 border border-stone-200 dark:border-stone-700 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-black text-xs text-stone-900 dark:text-white flex items-center gap-1.5">
+                      <span>📌 होमपेज पर शीर्ष पर पिन करें (Pin to Top)</span>
+                    </div>
+                    <div className="text-[11px] text-stone-500">
+                      टिकर एवं सूची में यह अधिसूचना हमेशा सबसे ऊपर दिखाई देगी।
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editingAnnouncement.isPinned ?? false}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, isPinned: e.target.checked })}
+                    className="w-5 h-5 accent-[#7A2A1E] cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-stone-200 dark:border-stone-700">
+                  <div>
+                    <div className="font-black text-xs text-stone-900 dark:text-white flex items-center gap-1.5">
+                      <span>⭐ 'NEW' ब्लिंकिंग बैज दिखाएं</span>
+                    </div>
+                    <div className="text-[11px] text-stone-500">
+                      अधिसूचना के साथ आकर्षक ब्लिंकिंग NEW टैग जुड़ेगा।
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editingAnnouncement.isNew ?? true}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, isNew: e.target.checked })}
+                    className="w-5 h-5 accent-rose-600 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-stone-200 dark:border-stone-700">
+                  <div>
+                    <div className="font-black text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <span>👁️ सक्रिय रखें (Active & Visible)</span>
+                    </div>
+                    <div className="text-[11px] text-stone-500">
+                      अनचेक करने पर यह अधिसूचना छात्रों से छिपी रहेगी।
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editingAnnouncement.isActive !== false}
+                    onChange={(e) => setEditingAnnouncement({ ...editingAnnouncement, isActive: e.target.checked })}
+                    className="w-5 h-5 accent-emerald-600 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingAnnouncement(null)}
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-200 transition cursor-pointer"
+                >
+                  रद्द करें
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-md hover:scale-[1.02] transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>💾 {editingAnnouncement.id ? 'अपडेट करें व सहेजें' : 'प्रकाशित करें व सहेजें'}</span>
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
       )}

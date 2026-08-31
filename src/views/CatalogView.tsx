@@ -5,7 +5,7 @@ import { ExamCategory } from '../types';
 import { Search, Filter, SlidersHorizontal, BookOpen, Sparkles, HelpCircle } from 'lucide-react';
 
 export const CatalogView: React.FC = () => {
-  const { testSeries, viewParams, lang } = useApp();
+  const { testSeries, viewParams, lang, platformSettings } = useApp();
   
   const initialCategory = (viewParams?.category as ExamCategory) || 'all';
   const [selectedCategory, setSelectedCategory] = useState<ExamCategory>(initialCategory);
@@ -49,21 +49,40 @@ export const CatalogView: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
       
-      {/* Page Header */}
+      {/* Page Header with Big Logo */}
       <div className="bg-[#7A2A1E] text-white rounded-3xl p-6 sm:p-10 border-2 border-[#D4A017] border-b-6 border-r-6 shadow-xl relative overflow-hidden">
         <div className="absolute inset-0 bg-gond-pattern opacity-15 pointer-events-none"></div>
-        <div className="relative z-10 space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-[#D4A017]">
-            {lang === 'hi' ? 'मध्यप्रदेश प्रतियोगी परीक्षा टेस्ट बैंक' : 'MP Govt Exam Test Series Catalog'}
-          </span>
-          <h1 className="font-display font-black text-2xl sm:text-4xl text-white tracking-tight">
-            {lang === 'hi' ? 'समस्त टेस्ट सीरीज़ एवं मॉक टेस्ट पैकेज' : 'All Mock Test Packages (2026 Edition)'}
-          </h1>
-          <p className="text-[#FFFBF2]/90 text-xs sm:text-sm max-w-2xl font-medium">
-            {lang === 'hi'
-              ? 'नवीनतम पाठ्यक्रम व परीक्षा समिति (ESB / MPPSC) द्वारा निर्धारित ब्लू-प्रिंट के अनुरूप तैयार द्विभाषी मॉक टेस्ट।'
-              : 'Curated by top educators and state rank holders based on the latest 2026 syllabus guidelines.'}
-          </p>
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-center sm:text-left flex-1">
+            <span className="text-xs font-black uppercase tracking-widest text-[#D4A017]">
+              {lang === 'hi' ? 'मध्यप्रदेश प्रतियोगी परीक्षा टेस्ट बैंक' : 'MP Govt Exam Test Series Catalog'}
+            </span>
+            <h1 className="font-display font-black text-2xl sm:text-4xl text-white tracking-tight">
+              {lang === 'hi' ? 'समस्त टेस्ट सीरीज़ एवं मॉक टेस्ट पैकेज' : 'All Mock Test Packages (2026 Edition)'}
+            </h1>
+            <p className="text-[#FFFBF2]/90 text-xs sm:text-sm max-w-2xl font-medium">
+              {lang === 'hi'
+                ? 'नवीनतम पाठ्यक्रम व परीक्षा समिति (ESB / MPPSC) द्वारा निर्धारित ब्लू-प्रिंट के अनुरूप तैयार द्विभाषी मॉक टेस्ट।'
+                : 'Curated by top educators and state rank holders based on the latest 2026 syllabus guidelines.'}
+            </p>
+          </div>
+
+          {/* Large Logo Emblem */}
+          <div className="relative group shrink-0 hidden sm:block">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full bg-white p-1.5 shadow-2xl border-4 border-[#D4A017] flex items-center justify-center overflow-hidden transform group-hover:scale-105 transition-transform duration-300">
+              <img 
+                src={platformSettings?.logoUrl || '/logo.svg'} 
+                alt="MP परीक्षा सेतु Logo" 
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== window.location.origin + '/logo.svg') {
+                    target.src = '/logo.svg';
+                  }
+                }}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

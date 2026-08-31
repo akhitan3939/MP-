@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TestCard } from '../components/TestCard';
 import { BannerCarousel } from '../components/BannerCarousel';
+import { LatestNewsSection } from '../components/LatestNewsSection';
 import { SocialMediaSection } from '../components/SocialMediaSection';
 import { SocialLiveTicker } from '../components/SocialLiveTicker';
 import { 
@@ -56,8 +57,8 @@ export const HomeView: React.FC = () => {
   return (
     <div className="space-y-12 sm:space-y-16 pb-16">
       
-      {/* 1. Hero Section with MP Cultural Motifs */}
-      <section className="relative overflow-hidden bg-[#7A2A1E] text-white pt-10 sm:pt-16 pb-16 sm:pb-24 border-b-4 border-[#D4A017]">
+      {/* 1. Hero Section with MP Cultural Motifs and Prominent Official Logo */}
+      <section className="relative overflow-hidden bg-[#7A2A1E] text-white pt-8 sm:pt-14 pb-14 sm:pb-20 border-b-4 border-[#D4A017]">
         
         {/* Background Gond Motif Overlay */}
         <div className="absolute inset-0 bg-gond-pattern pointer-events-none opacity-20"></div>
@@ -67,13 +68,42 @@ export const HomeView: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
-            {/* Left Hero Content */}
+            {/* Left Hero Content with Big Logo Presentation */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               
-              {/* Trust Badge */}
-              <div className="inline-flex items-center gap-2 bg-[#5E1F16] border-2 border-[#D4A017]/60 text-[#D4A017] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-inner">
-                <Shield className="w-4 h-4 text-[#D4A017]" />
-                <span>{lang === 'hi' ? (wc?.heroTrustBadgeHi || 'मध्यप्रदेश की प्रामाणिक परीक्षा टेस्ट सीरीज़') : (wc?.heroTrustBadgeEn || 'Madhya Pradesh Govt Exam Portal 2026')}</span>
+              {/* Trust Badge & Large Brand Logo Bar */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-4 justify-center lg:justify-start">
+                {/* Grand Official Logo Medallion in Hero */}
+                <div className="relative group shrink-0">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 via-[#D4A017] to-amber-600 rounded-full blur-md opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full bg-white p-1.5 shadow-2xl border-4 border-[#D4A017] flex items-center justify-center overflow-hidden transform group-hover:scale-105 transition-transform duration-300">
+                    <img 
+                      src={platformSettings?.logoUrl || '/logo.svg'} 
+                      alt={platformSettings?.siteTitle || 'MP परीक्षा सेतु Logo'} 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (target.src !== window.location.origin + '/logo.svg') {
+                          target.src = '/logo.svg';
+                        }
+                      }}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-[#5E1F16] text-[#D4A017] text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-[#D4A017] whitespace-nowrap shadow">
+                    MP ESTD 2026
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-center sm:text-left">
+                  {/* Trust Badge */}
+                  <div className="inline-flex items-center gap-2 bg-[#5E1F16] border-2 border-[#D4A017]/60 text-[#D4A017] text-xs sm:text-sm font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-inner">
+                    <Shield className="w-4 h-4 text-[#D4A017]" />
+                    <span>{lang === 'hi' ? (wc?.heroTrustBadgeHi || 'मध्यप्रदेश की प्रामाणिक परीक्षा टेस्ट सीरीज़') : (wc?.heroTrustBadgeEn || 'Madhya Pradesh Govt Exam Portal 2026')}</span>
+                  </div>
+                  <p className="text-[#EAD8B1] text-xs font-bold tracking-wide">
+                    {lang === 'hi' ? '🏛️ मध्य प्रदेश शासन भर्ती परीक्षा हेतु अधिकृत CBT मंच' : '🏛️ Authorized MP State Exam CBT Preparation Platform'}
+                  </p>
+                </div>
               </div>
 
               {/* Main Headline */}
@@ -157,7 +187,7 @@ export const HomeView: React.FC = () => {
             <div className="lg:col-span-5 flex justify-center">
               <div className="w-full max-w-md bg-[#5E1F16] border-2 border-[#D4A017] rounded-3xl p-6 shadow-2xl relative">
                 
-                {/* Traditional Arch Header */}
+                {/* Traditional Arch Header with Emblem */}
                 <div className="flex items-center justify-between border-b border-[#963E2F] pb-3 mb-4">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#D4A017] animate-ping"></span>
@@ -165,7 +195,10 @@ export const HomeView: React.FC = () => {
                       {lang === 'hi' ? (wc?.spotlightLivePillHi || 'लाइव मॉक टेस्ट एक्टिव') : (wc?.spotlightLivePillEn || 'Live Mock Active')}
                     </span>
                   </div>
-                  <span className="text-xs font-mono font-bold text-[#EAD8B1]">2026 Batch</span>
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#EAD8B1]">
+                    <Award className="w-3.5 h-3.5 text-[#D4A017]" />
+                    <span>2026 Batch</span>
+                  </div>
                 </div>
 
                 {/* Featured Test Spotlight */}
@@ -206,7 +239,7 @@ export const HomeView: React.FC = () => {
                     <span className="text-white text-[11px] font-bold">{wc?.spotlightPillar1Text || 'AI मूल्यांकन'}</span>
                   </div>
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-[#D4A017] shrink-0" />
+                    <Trophy className="w-4 h-4 text-[#D4A017]" />
                     <span className="text-white text-[11px] font-bold">{wc?.spotlightPillar2Text || 'ऑल-एमपी लाइव रैंक'}</span>
                   </div>
                   <div className="p-2.5 bg-[#7A2A1E]/80 border border-[#963E2F] rounded-xl flex items-center gap-2">
@@ -226,9 +259,19 @@ export const HomeView: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. 10-Item 4-Second Auto-Scrolling Banner Carousel */}
-      <section className="pt-2">
-        <BannerCarousel />
+      {/* 2. Main Showcase & Live Notice Board: 2/3 Banner Carousel (Left) + 1/3 Compact Up-Scrolling Notice Board (Right) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Left 2/3: Main Auto-Rotating Showcase Carousel */}
+          <div className="lg:col-span-8 flex flex-col justify-center">
+            <BannerCarousel className="h-full" />
+          </div>
+
+          {/* Right 1/3: Compact Up-Scrolling Latest News & Notifications Notice Board */}
+          <div className="lg:col-span-4 flex flex-col">
+            <LatestNewsSection className="h-full" maxHeight="h-[270px] sm:h-[300px] lg:h-[280px]" />
+          </div>
+        </div>
       </section>
 
       {/* 3. New Student Sign Up Quick Callout Bar */}
@@ -250,16 +293,142 @@ export const HomeView: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => openAuthModal('register')}
-              className="px-5 py-2.5 bg-stone-950 hover:bg-stone-800 text-[#D4A017] text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow-md transition hover:scale-105"
+              className="px-5 py-2.5 bg-stone-950 hover:bg-stone-800 text-[#D4A017] text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow-md transition hover:scale-105 cursor-pointer"
             >
               {lang === 'hi' ? (wc?.regBannerBtn1Hi || '📝 नया खाता बनाएँ (Sign Up)') : (wc?.regBannerBtn1En || 'Sign Up Free')}
             </button>
             <button
               onClick={() => openAuthModal('login')}
-              className="px-4 py-2.5 bg-white/80 hover:bg-white text-stone-950 text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow transition"
+              className="px-4 py-2.5 bg-white/80 hover:bg-white text-stone-950 text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow transition cursor-pointer"
             >
               {lang === 'hi' ? (wc?.regBannerBtn2Hi || 'लॉगिन करें') : (wc?.regBannerBtn2En || 'Login')}
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 3.5. Grand Official Logo & MP Pariksha Setu State Identity Showcase (Body Highlight) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-gradient-to-br from-[#7A2A1E] via-[#5E1F16] to-[#40130C] text-white rounded-3xl p-6 sm:p-10 md:p-12 border-4 border-[#D4A017] shadow-2xl relative overflow-hidden">
+          
+          {/* Subtle Gond & Sunburst Motif in Background */}
+          <div className="absolute inset-0 bg-gond-pattern opacity-10 pointer-events-none"></div>
+          <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-[#D4A017]/15 blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-[#D4A017]/10 blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            
+            {/* Centerpiece: Large Official Logo Emblem */}
+            <div className="lg:col-span-4 flex flex-col items-center justify-center text-center">
+              <div className="relative group">
+                {/* Glowing Outer Halo */}
+                <div className="absolute -inset-3 bg-gradient-to-r from-amber-400 via-[#D4A017] to-amber-600 rounded-full blur-xl opacity-60 group-hover:opacity-100 transition duration-500 animate-pulse"></div>
+                
+                {/* Massive Crystal-Clear Logo Container */}
+                <div className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full bg-white p-3 shadow-2xl border-4 sm:border-6 border-[#D4A017] flex items-center justify-center overflow-hidden transform group-hover:scale-105 transition-all duration-300">
+                  <img 
+                    src={platformSettings?.logoUrl || '/logo.svg'} 
+                    alt={platformSettings?.siteTitle || 'MP परीक्षा सेतु Official Logo'} 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== window.location.origin + '/logo.svg') {
+                        target.src = '/logo.svg';
+                      }
+                    }}
+                    className="w-full h-full object-contain p-1"
+                  />
+                </div>
+
+                {/* Seal Tag underneath Logo */}
+                <div className="mt-3 inline-flex items-center gap-1.5 bg-[#5E1F16] border-2 border-[#D4A017] text-[#D4A017] px-3.5 py-1 rounded-full shadow text-xs font-black uppercase tracking-wider">
+                  <Award className="w-3.5 h-3.5 text-[#D4A017]" />
+                  <span>{lang === 'hi' ? 'अधिकृत डिजिटल संकुल' : 'Official State Seal'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Official Portal Credentials & Mission */}
+            <div className="lg:col-span-8 space-y-4 text-center lg:text-left">
+              
+              <div className="inline-flex items-center gap-2 bg-[#5E1F16]/90 border border-[#D4A017]/60 text-[#D4A017] text-xs font-black uppercase tracking-widest px-3.5 py-1 rounded-full">
+                <CheckCircle2 className="w-4 h-4 text-[#D4A017]" />
+                <span>{lang === 'hi' ? 'मध्यप्रदेश शासन भर्ती परीक्षा तैयारी मंच 2026' : 'Government of MP Recruitment Exam Portal 2026'}</span>
+              </div>
+
+              <h2 className="font-display font-black text-2xl sm:text-4xl lg:text-5xl text-white tracking-tight leading-tight">
+                {platformSettings?.siteTitle ? (
+                  platformSettings.siteTitle
+                ) : (
+                  <>MP परीक्षा <span className="text-[#D4A017]">सेतु</span> (MP Pariksha Setu)</>
+                )}
+              </h2>
+
+              <p className="text-[#EAD8B1] text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
+                {lang === 'hi'
+                  ? 'मध्यप्रदेश के 55 जिलों (इंदौर, भोपाल, ग्वालियर, जबलपुर, उज्जैन, सागर, रीवा आदि) के 50,000+ प्रतियोगी छात्र-छात्राओं को समर्पित राज्य का सबसे विश्वसनीय व प्रामाणिक ऑनलाइन कंप्यूटर आधारित टेस्ट (CBT) एवं AI विश्लेषण मंच।'
+                  : 'Madhya Pradesh\'s most trusted digital CBT Mock Test and AI performance analytics portal dedicated to 50,000+ aspirants across all 55 districts.'}
+              </p>
+
+              {/* 4 Feature Badges Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#5E1F16]/80 border border-[#D4A017]/30">
+                  <GraduationCap className="w-5 h-5 text-[#D4A017] shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <div className="font-bold text-xs text-white">{lang === 'hi' ? 'समस्त MP राज्य भर्ती परीक्षाएं' : 'All MP Govt Recruitment Exams'}</div>
+                    <div className="text-[11px] text-[#EAD8B1]">{lang === 'hi' ? 'व्यापम ESB, MPPSC, समूह-2, पुलिस आरक्षक & SI' : 'ESB, MPPSC, Patwari, Police Constable & SI'}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#5E1F16]/80 border border-[#D4A017]/30">
+                  <Cpu className="w-5 h-5 text-[#D4A017] shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <div className="font-bold text-xs text-white">{lang === 'hi' ? 'तत्काल AI विस्तृत उत्तर विश्लेषण' : 'Instant AI Deep Explanations'}</div>
+                    <div className="text-[11px] text-[#EAD8B1]">{lang === 'hi' ? 'कमजोर विषयों की पहचान एवं गति (Speed) ट्रैकिंग' : 'Weak topic diagnosis & speed insights'}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#5E1F16]/80 border border-[#D4A017]/30">
+                  <Trophy className="w-5 h-5 text-[#D4A017] shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <div className="font-bold text-xs text-white">{lang === 'hi' ? 'ऑल-मध्यप्रदेश लाइव रैंक & मेरिट' : 'All-MP Live State Rank'}</div>
+                    <div className="text-[11px] text-[#EAD8B1]">{lang === 'hi' ? 'जिलावार पर्सेंटाइल एवं वास्तविक कट-ऑफ तुलना' : 'District percentiles & real cut-off simulation'}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#5E1F16]/80 border border-[#D4A017]/30">
+                  <FileText className="w-5 h-5 text-[#D4A017] shrink-0 mt-0.5" />
+                  <div className="text-left">
+                    <div className="font-bold text-xs text-white">{lang === 'hi' ? 'पंजीकरण स्लिप & मेरिट सर्टिफिकेट' : 'Registration Slip & Certificate'}</div>
+                    <div className="text-[11px] text-[#EAD8B1]">{lang === 'hi' ? 'डाउनलोडेबल इमेज व QR सत्यापित ई-प्रमाण पत्र' : 'Instant download & QR verified certificates'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons in Logo Showcase Section */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-3">
+                <button
+                  onClick={() => navigate('freeMockTest')}
+                  className="inline-flex items-center gap-2 bg-[#D4A017] hover:bg-[#c08f12] text-stone-950 font-black uppercase tracking-wider px-5 py-2.5 rounded-xl shadow-lg transition hover:scale-105 text-xs sm:text-sm border border-white/30 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-stone-950" />
+                  <span>{lang === 'hi' ? 'फ्री 40Q मॉक टेस्ट दें' : 'Start Free 40Q Mock'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    const catalogEl = document.getElementById('catalog-section');
+                    catalogEl?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center gap-2 bg-[#5E1F16] hover:bg-[#963E2F] text-white border border-[#D4A017]/60 font-black uppercase tracking-wider px-4 py-2.5 rounded-xl shadow transition text-xs sm:text-sm cursor-pointer"
+                >
+                  <BookOpen className="w-4 h-4 text-[#D4A017]" />
+                  <span>{lang === 'hi' ? 'टेस्ट सीरीज़ सूची' : 'Explore Test Series'}</span>
+                </button>
+              </div>
+
+            </div>
+
           </div>
         </div>
       </section>

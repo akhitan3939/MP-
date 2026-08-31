@@ -1,0 +1,21 @@
+{
+  "platformSettings": {
+    "siteTitle": "MP परीक्षा सेतु",
+    "siteTagline": "मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल",
+    "helplinePhone": "",
+    "helplineWhatsapp": "919893012345",
+    "supportEmail": "mpparikshasetu.support@gmail.com",
+    "logoUrl": "/logo.svg",
+    "topTickerTextHi": "🔥 MP पटवारी 2026 के सभी 20 सेट्स लाइव! सेट #1 मुफ़्त डेमो अभी दें • कोड 'SETU50' पर ₹50 फ्लैट छूट",
+    "topTickerTextEn": "🔥 MP Patwari 2026 All 20 Sets Live! Attempt Set #1 Free Demo • Use coupon 'SETU50' for ₹50 Off",
+    "topTickerEnabled": true,
+    "paymentGatewayMode": "LIVE",
+    "enableAiEvaluation": true,
+    "maintenanceMode": false,
+    "facebookUrl": "https://facebook.com/groups/mpparikshasetu",
+    "instagramUrl": "https://instagram.com/mpparikshasetu_official",
+    "telegramUrl": "https://t.me/mpparikshasetu_mp",
+    "youtubeUrl": "https://youtube.com/@mpparikshasetu",
+    "whatsappCommunityUrl": "https://chat.whatsapp.com/mpparikshasetu"
+  }
+}

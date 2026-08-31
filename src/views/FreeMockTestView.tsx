@@ -19,7 +19,7 @@ import {
 import { EXCLUSIVE_FREE_MOCK_QUESTIONS } from '../data/freeMockQuestions';
 
 export const FreeMockTestView: React.FC = () => {
-  const { lang, navigate, openAuthModal, currentUser } = useApp();
+  const { lang, navigate, openAuthModal, currentUser, platformSettings } = useApp();
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('ALL');
 
   const totalQuestions = EXCLUSIVE_FREE_MOCK_QUESTIONS.length; // Exactly 40 questions
@@ -45,7 +45,7 @@ export const FreeMockTestView: React.FC = () => {
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
         
-        {/* Top Header Banner */}
+        {/* Top Header Banner with Big Logo */}
         <div className="bg-gradient-to-r from-[#7A2A1E] via-[#5E1F16] to-[#7A2A1E] text-white rounded-3xl p-6 sm:p-10 border-4 border-[#D4A017] shadow-2xl relative overflow-hidden">
           {/* Subtle decorative background circle */}
           <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-[#D4A017]/10 blur-2xl pointer-events-none"></div>
@@ -53,9 +53,24 @@ export const FreeMockTestView: React.FC = () => {
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-8 space-y-4">
               
-              <div className="inline-flex items-center gap-2 bg-[#D4A017] text-stone-950 text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl shadow">
-                <Sparkles className="w-4 h-4 fill-stone-950" />
-                <span>{lang === 'hi' ? '100% निःशुल्क एवं बिना किसी पेमेंट के' : '100% Free • No Payment Required'}</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white p-1 shadow-md border-2 border-[#D4A017] flex items-center justify-center shrink-0">
+                  <img 
+                    src={platformSettings?.logoUrl || '/logo.svg'} 
+                    alt="MP Pariksha Setu Logo" 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== window.location.origin + '/logo.svg') {
+                        target.src = '/logo.svg';
+                      }
+                    }}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="inline-flex items-center gap-2 bg-[#D4A017] text-stone-950 text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl shadow">
+                  <Sparkles className="w-4 h-4 fill-stone-950" />
+                  <span>{lang === 'hi' ? '100% निःशुल्क एवं बिना किसी पेमेंट के' : '100% Free • No Payment Required'}</span>
+                </div>
               </div>
 
               <h1 className="font-display font-black text-2xl sm:text-4xl lg:text-5xl text-white tracking-tight leading-tight">

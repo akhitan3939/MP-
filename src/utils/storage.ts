@@ -342,8 +342,8 @@ export const INITIAL_WEBSITE_CONTENT: WebsiteContentConfig = {
   // Footer Content
   footerAboutHi: 'मध्यप्रदेश कर्मचारी चयन मंडल (MPESB), MPPSC एवं पुलिस भर्ती परीक्षाओं के लिए भारत का सबसे विश्वसनीय द्विभाषी CBT टेस्ट पोर्टल।',
   footerAboutEn: 'India\'s most authentic bilingual CBT Mock Test Portal for MPESB, MPPSC, and MP Police examinations.',
-  footerAddressHi: 'परीक्षा सेतु भवन, एमपी नगर जोन-II, भोपाल (म.प्र.) 462011',
-  footerAddressEn: 'Pariksha Setu Bhawan, MP Nagar Zone-II, Bhopal (M.P.) 462011',
+  footerAddressHi: 'भोपाल',
+  footerAddressEn: 'Bhopal',
   footerDisclaimerHi: 'यह एक स्वतंत्र प्रतियोगी परीक्षा तैयारी पोर्टल है और इसका किसी भी सरकारी विभाग या आयोग से सीधा संबंध नहीं है। समस्त प्रश्न व सामग्री शैक्षणिक उद्देश्य हेतु तैयार की गई है।',
   footerDisclaimerEn: 'This is an independent competitive examination test portal and is not directly affiliated with any government department or commission.',
   footerCopyrightText: '© 2026 MP परीक्षा सेतु (MP Pariksha Setu). सर्वाधिकार सुरक्षित। (All Rights Reserved).'
@@ -352,7 +352,7 @@ export const INITIAL_WEBSITE_CONTENT: WebsiteContentConfig = {
 export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   siteTitle: 'MP परीक्षा सेतु',
   siteTagline: 'मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल',
-  helplinePhone: '+91 98930 12345',
+  helplinePhone: '',
   helplineWhatsapp: '919893012345',
   supportEmail: 'mpparikshasetu.support@gmail.com',
   logoUrl: '/logo.svg',
@@ -462,6 +462,14 @@ function normalizePlatformSettings(s: any): PlatformSettings {
     ...INITIAL_WEBSITE_CONTENT,
     ...(s.websiteContent || {})
   };
+
+  // Ensure address is clean and strictly Bhopal
+  if (!mergedWebsiteContent.footerAddressHi || mergedWebsiteContent.footerAddressHi.includes('परीक्षा सेतु भवन') || mergedWebsiteContent.footerAddressHi.includes('एमपी नगर')) {
+    mergedWebsiteContent.footerAddressHi = 'भोपाल';
+  }
+  if (!mergedWebsiteContent.footerAddressEn || mergedWebsiteContent.footerAddressEn.includes('Pariksha Setu Bhawan') || mergedWebsiteContent.footerAddressEn.includes('MP Nagar')) {
+    mergedWebsiteContent.footerAddressEn = 'Bhopal';
+  }
 
   const initialChannels = INITIAL_SOCIAL_CHANNELS.map(ch => ({ ...ch }));
   let mergedChannels: SocialChannelConfig[] = initialChannels;

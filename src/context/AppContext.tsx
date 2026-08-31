@@ -89,7 +89,7 @@ interface AppContextType {
   awardXp: (amount: number, reason?: string) => void;
   redeemXpForCoupon: (xpToRedeem: number) => { success: boolean; couponCode?: string; message: string };
   login: (identifier: string, password?: string, role?: 'student' | 'admin') => boolean;
-  register: (user: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>) => boolean;
+  register: (user: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>) => { success: boolean; message: string; user?: UserProfile };
   resetPassword: (identifier: string, newPassword: string) => { success: boolean; message: string; user?: UserProfile };
   logout: () => void;
   switchUser: (userId: string) => void;
@@ -110,6 +110,8 @@ interface AppContextType {
   showToast: (msg: string) => void;
 
   // Admin Operations
+  saveUser: (user: UserProfile) => { success: boolean; message: string };
+  deleteUser: (userId: string) => { success: boolean; message: string };
   saveTestSeries: (series: TestSeries) => void;
   deleteTestSeries: (seriesId: string) => void;
   toggleTestSeriesActive: (seriesId: string) => void;
@@ -392,24 +394,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return true;
   };
 
-  const register = (data: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>): boolean => {
+  const register = (data: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>): { success: boolean; message: string; user?: UserProfile } => {
     const cleanEmail = data.email.trim().toLowerCase();
     const cleanUsername = (data.username || '').trim().toLowerCase();
+    const cleanPhone = (data.phone || '').trim().replace(/\D/g, '').slice(-10);
+
+    // Check duplicate phone number
+    if (cleanPhone.length >= 10 && users.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
+      const msg = lang === 'hi' 
+        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया किसी अन्य नंबर का उपयोग करें या सीधे लॉगिन करें।` 
+        : `❌ Mobile number (+91-${cleanPhone}) is already registered! Please login or use another number.`;
+      showToast(msg);
+      return { success: false, message: msg };
+    }
 
     // Check if email already registered
     if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-      return false;
+      const msg = lang === 'hi'
+        ? `❌ यह ईमेल (${cleanEmail}) पहले से पंजीकृत है! कृपया सीधे लॉगिन करें।`
+        : `❌ Email (${cleanEmail}) is already registered! Please login directly.`;
+      showToast(msg);
+      return { success: false, message: msg };
     }
 
     // Check if username already taken
     if (cleanUsername && users.some(u => u.username && u.username.toLowerCase() === cleanUsername)) {
-      return false;
+      const msg = lang === 'hi'
+        ? `❌ यूज़रनेम '@${cleanUsername}' पहले से लिया जा चुका है। कृपया दूसरा यूज़रनेम चुनें।`
+        : `❌ Username '@${cleanUsername}' is already taken. Please choose another username.`;
+      showToast(msg);
+      return { success: false, message: msg };
     }
 
     const autoUsername = cleanUsername || cleanEmail.split('@')[0];
 
     const newUser: UserProfile = {
       ...data,
+      phone: cleanPhone || data.phone.trim(),
       username: autoUsername,
       id: `usr_${Date.now()}`,
       joinedAt: new Date().toISOString(),
@@ -418,12 +439,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       badges: ['🌟 New Aspirant', '🎯 MP Ready']
     };
 
-    setUsers(prev => [newUser, ...prev]);
+    setUsers(prev => {
+      const updated = [newUser, ...prev];
+      StorageService.setUsers(updated);
+      return updated;
+    });
     setCurrentUserId(newUser.id);
     StorageService.setCurrentUserId(newUser.id);
-    closeAuthModal();
-    showToast(lang === 'hi' ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा और ₹500 वेलकम बोनस XP मिला।` : `🎉 Welcome, ${newUser.name}! Registration successful with 500 XP bonus.`);
-    return true;
+    
+    const successMsg = lang === 'hi' 
+      ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा और ₹500 वेलकम बोनस XP मिला।` 
+      : `🎉 Welcome, ${newUser.name}! Registration successful with 500 XP bonus.`;
+    showToast(successMsg);
+    return { success: true, message: successMsg, user: newUser };
   };
 
   const resetPassword = (identifier: string, newPassword: string): { success: boolean; message: string; user?: UserProfile } => {
@@ -829,6 +857,74 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Admin Handlers with Instant Multi-User Server Persistence
+  const saveUser = (user: UserProfile): { success: boolean; message: string } => {
+    const cleanPhone = (user.phone || '').replace(/\D/g, '').slice(-10);
+    const cleanEmail = (user.email || '').trim().toLowerCase();
+    const cleanUsername = (user.username || '').trim().toLowerCase();
+
+    // Check duplicate phone for other users
+    if (cleanPhone.length >= 10 && users.some(u => u.id !== user.id && (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
+      const msg = lang === 'hi' 
+        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) किसी अन्य छात्र के पास पहले से दर्ज है!` 
+        : `❌ Mobile number (+91-${cleanPhone}) is already registered with another user!`;
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    // Check duplicate email for other users
+    if (cleanEmail && users.some(u => u.id !== user.id && (u.email || '').trim().toLowerCase() === cleanEmail)) {
+      const msg = lang === 'hi' 
+        ? `❌ यह ईमेल (${cleanEmail}) किसी अन्य खाते में पहले से उपयोग में है!` 
+        : `❌ Email (${cleanEmail}) is already in use by another user!`;
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    // Check duplicate username for other users
+    if (cleanUsername && users.some(u => u.id !== user.id && (u.username || '').trim().toLowerCase() === cleanUsername)) {
+      const msg = lang === 'hi' 
+        ? `❌ यह यूज़रनेम '@${cleanUsername}' किसी अन्य यूज़र के पास पहले से है!` 
+        : `❌ Username '@${cleanUsername}' is already taken!`;
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    setUsers(prev => {
+      const exists = prev.some(u => u.id === user.id);
+      const updated = exists ? prev.map(u => u.id === user.id ? user : u) : [user, ...prev];
+      StorageService.setUsers(updated);
+      return updated;
+    });
+
+    const successMsg = lang === 'hi' ? '✅ यूज़र विवरण सफलतापूर्वक सहेज लिया गया।' : '✅ User profile updated successfully.';
+    showToast(successMsg);
+    return { success: true, message: successMsg };
+  };
+
+  const deleteUser = (userId: string): { success: boolean; message: string } => {
+    if (userId === currentUser?.id) {
+      const msg = lang === 'hi' ? '⚠️ आप वर्तमान में सक्रिय लॉगिन किए गए स्वयं के एडमिन खाते को नहीं हटा सकते।' : '⚠️ Cannot delete currently active logged in admin account.';
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    const target = users.find(u => u.id === userId);
+    if (!target) {
+      const msg = lang === 'hi' ? '❌ यूज़र नहीं मिला।' : '❌ User not found.';
+      return { success: false, message: msg };
+    }
+
+    setUsers(prev => {
+      const updated = prev.filter(u => u.id !== userId);
+      StorageService.setUsers(updated);
+      return updated;
+    });
+
+    const successMsg = lang === 'hi' ? `🗑️ यूज़र '${target.name}' सफलतापूर्वक हटा दिया गया।` : `🗑️ User '${target.name}' deleted successfully.`;
+    showToast(successMsg);
+    return { success: true, message: successMsg };
+  };
+
   const saveTestSeries = (series: TestSeries) => {
     setTestSeries(prev => {
       const exists = prev.some(s => s.id === series.id);
@@ -1222,6 +1318,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toastMessage,
         showToast,
 
+        saveUser,
+        deleteUser,
         saveTestSeries,
         deleteTestSeries,
         toggleTestSeriesActive,

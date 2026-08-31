@@ -2,7 +2,6 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   ShieldCheck, 
-  Phone, 
   Mail, 
   MapPin, 
   Award, 
@@ -31,8 +30,8 @@ export const Footer: React.FC = () => {
   const waUrl = platformSettings?.whatsappCommunityUrl || 'https://chat.whatsapp.com/mpparikshasetu';
 
   const addressText = lang === 'hi'
-    ? (wc?.footerAddressHi || 'परीक्षा सेतु भवन, एमपी नगर जोन-II, भोपाल (म.प्र.) 462011')
-    : (wc?.footerAddressEn || 'Pariksha Setu Bhawan, MP Nagar Zone-II, Bhopal (M.P.) 462011');
+    ? (wc?.footerAddressHi && !wc.footerAddressHi.includes('परीक्षा सेतु') && !wc.footerAddressHi.includes('एमपी नगर') ? wc.footerAddressHi : 'भोपाल')
+    : (wc?.footerAddressEn && !wc.footerAddressEn.includes('Pariksha Setu') && !wc.footerAddressEn.includes('MP Nagar') ? wc.footerAddressEn : 'Bhopal');
 
   const aboutText = lang === 'hi'
     ? (wc?.footerAboutHi || platformSettings?.siteTagline || 'मध्यप्रदेश की समस्त राज्य स्तरीय भर्ती परीक्षाओं (MPPSC, पटवारी, पुलिस SI/आरक्षक, व्यापम ESB, वनरक्षक, TET) के लिए समर्पित डिजिटल मॉक टेस्ट एवं AI मूल्यांकन मंच।')
@@ -146,23 +145,14 @@ export const Footer: React.FC = () => {
           {/* Col 4: Trust & Support */}
           <div className="space-y-3">
             <h4 className="font-display font-black text-sm uppercase tracking-wider text-[#D4A017]">
-              {lang === 'hi' ? 'हेल्पलाइन व संपर्क' : 'Support & Helpline'}
+              {lang === 'hi' ? 'सपोर्ट व संपर्क' : 'Support & Contact'}
             </h4>
-            <div className="space-y-1.5 text-[#EAD8B1] font-medium">
+            <div className="space-y-2 text-[#EAD8B1] font-medium">
               <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-[#D4A017]" />
-                <a 
-                  href={`tel:${platformSettings?.helplinePhone || '+919893012345'}`}
-                  className="hover:underline hover:text-white transition"
-                >
-                  {platformSettings?.helplinePhone || '+91 98930 12345'} (10 AM - 7 PM)
-                </a>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-[#D4A017]" />
+                <Mail className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
                 <a 
                   href={`mailto:${platformSettings?.supportEmail || 'mpparikshasetu.support@gmail.com'}`}
-                  className="hover:underline hover:text-white transition"
+                  className="hover:underline hover:text-white transition font-mono text-[11px] sm:text-xs"
                 >
                   {platformSettings?.supportEmail || 'mpparikshasetu.support@gmail.com'}
                 </a>

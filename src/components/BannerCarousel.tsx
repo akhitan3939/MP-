@@ -37,7 +37,11 @@ interface BannerItem {
   icon: React.ReactNode;
 }
 
-export const BannerCarousel: React.FC = () => {
+interface BannerCarouselProps {
+  className?: string;
+}
+
+export const BannerCarousel: React.FC<BannerCarouselProps> = ({ className = '' }) => {
   const { lang, navigate, openAuthModal, openRazorpayModal, testSeries, siteBanners } = useApp();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -317,7 +321,7 @@ export const BannerCarousel: React.FC = () => {
 
   return (
     <div 
-      className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-6 select-none"
+      className={`relative w-full select-none ${className}`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
@@ -349,29 +353,29 @@ export const BannerCarousel: React.FC = () => {
         </div>
 
         {/* Main Banner Content */}
-        <div className="relative z-10 px-6 sm:px-10 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <div className="relative z-10 px-5 sm:px-8 py-5 sm:py-7 grid grid-cols-1 xl:grid-cols-12 gap-5 items-center">
           
           {/* Left Column: Headings & Value Props */}
-          <div className="lg:col-span-8 space-y-3 sm:space-y-4">
+          <div className="xl:col-span-8 space-y-3">
             
-            <h2 className="font-display font-black text-2xl sm:text-4xl text-white tracking-tight leading-tight">
+            <h2 className="font-display font-black text-xl sm:text-2xl lg:text-3xl text-white tracking-tight leading-tight">
               {lang === 'hi' ? currentBanner.titleHi : currentBanner.titleEn}
             </h2>
 
-            <p className="text-[#FFFBF2]/90 text-xs sm:text-base font-medium leading-relaxed max-w-2xl">
+            <p className="text-[#FFFBF2]/90 text-xs sm:text-sm font-medium leading-relaxed max-w-xl line-clamp-2 sm:line-clamp-3">
               {lang === 'hi' ? currentBanner.subtitleHi : currentBanner.subtitleEn}
             </p>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#D4A017] bg-black/30 w-fit px-3.5 py-1.5 rounded-xl border border-[#D4A017]/30">
-              <Sparkles className="w-4 h-4 shrink-0 text-[#D4A017]" />
-              <span>{lang === 'hi' ? currentBanner.highlightHi : currentBanner.highlightEn}</span>
+            <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-[#D4A017] bg-black/30 w-fit px-3 py-1 rounded-xl border border-[#D4A017]/30">
+              <Sparkles className="w-3.5 h-3.5 shrink-0 text-[#D4A017]" />
+              <span className="truncate max-w-[280px] sm:max-w-md">{lang === 'hi' ? currentBanner.highlightHi : currentBanner.highlightEn}</span>
             </div>
 
             {/* Action Buttons */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+            <div className="pt-1.5 flex flex-wrap items-center gap-2.5">
               <button
                 onClick={() => handleBannerAction(currentBanner)}
-                className="inline-flex items-center gap-2 bg-[#D4A017] hover:bg-[#c08f12] text-black font-black uppercase tracking-wider text-xs sm:text-sm px-6 py-3 rounded-2xl shadow-xl transition transform hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-1.5 bg-[#D4A017] hover:bg-[#c08f12] text-black font-black uppercase tracking-wider text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xl transition transform hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <span>{lang === 'hi' ? currentBanner.ctaTextHi : currentBanner.ctaTextEn}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -379,26 +383,26 @@ export const BannerCarousel: React.FC = () => {
 
               <button
                 onClick={() => openAuthModal('register')}
-                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm px-4 py-3 rounded-2xl border border-white/20 backdrop-blur-sm transition"
+                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-white/20 backdrop-blur-sm transition cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#D4A017]" />
-                <span>{lang === 'hi' ? 'नया छात्र रजिस्ट्रेशन' : 'New Registration'}</span>
+                <span>{lang === 'hi' ? 'नया छात्र रजिस्ट्रेशन' : 'New Sign Up'}</span>
               </button>
             </div>
 
           </div>
 
-          {/* Right Column: Visual Feature Badge */}
-          <div className="hidden lg:flex lg:col-span-4 items-center justify-center">
-            <div className="relative p-6 rounded-3xl bg-black/30 border-2 border-white/15 backdrop-blur-md shadow-2xl flex flex-col items-center text-center space-y-3 max-w-xs transform hover:rotate-1 transition">
-              <div className="p-4 rounded-2xl bg-white/10 border border-white/20 shadow-inner">
+          {/* Right Column: Visual Feature Badge (on xl screens) */}
+          <div className="hidden xl:flex xl:col-span-4 items-center justify-center">
+            <div className="relative p-5 rounded-2xl bg-black/30 border border-white/15 backdrop-blur-md shadow-xl flex flex-col items-center text-center space-y-2 max-w-[220px]">
+              <div className="p-3 rounded-xl bg-white/10 border border-white/20 shadow-inner">
                 {currentBanner.icon}
               </div>
-              <div className="text-white font-display font-black text-sm">
-                MP परीक्षा सेतु प्रामाणिक सामग्री
+              <div className="text-white font-display font-black text-xs">
+                MP परीक्षा सेतु 2026
               </div>
-              <div className="text-[11px] text-[#EAD8B1] font-medium leading-normal">
-                मध्य प्रदेश सामान्य ज्ञान, पंचायती राज, हिन्दी, गणित व विज्ञान का सबसे विश्वसनीय मंच।
+              <div className="text-[10px] text-[#EAD8B1] font-medium leading-normal line-clamp-2">
+                मध्य प्रदेश सामान्य ज्ञान, टेस्ट सीरीज़ व सटीक ऑल-एमपी रैंक
               </div>
             </div>
           </div>

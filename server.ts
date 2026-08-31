@@ -67,7 +67,7 @@ if (!inMemoryAppState.platformSettings) {
   inMemoryAppState.platformSettings = {
     siteTitle: 'MP परीक्षा सेतु',
     siteTagline: 'मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल',
-    helplinePhone: '+91 98930 12345',
+    helplinePhone: '',
     helplineWhatsapp: '919893012345',
     supportEmail: 'mpparikshasetu.support@gmail.com',
     logoUrl: '/logo.svg',

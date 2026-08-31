@@ -403,16 +403,33 @@ export interface Coupon {
   validTill?: string;
 }
 
+export type AnnouncementTag = 
+  | 'VACANCY' 
+  | 'ADMIT_CARD' 
+  | 'RESULT' 
+  | 'OFFER' 
+  | 'LIVE_TEST' 
+  | 'NOTICE' 
+  | 'EXAM_DATE' 
+  | 'NEWS';
+
 export interface Announcement {
   id: string;
   titleHi: string;
   titleEn: string;
-  tag: 'VACANCY' | 'ADMIT_CARD' | 'RESULT' | 'OFFER' | 'LIVE_TEST';
+  descriptionHi?: string;
+  descriptionEn?: string;
+  tag: AnnouncementTag;
   date?: string;
   publishedAt?: string;
   linkTextHi: string;
   linkTextEn: string;
+  targetUrl?: string;
+  targetView?: string;
   isPinned: boolean;
+  isActive?: boolean;
+  isNew?: boolean;
+  order?: number;
 }
 
 export interface StudyReminder {
