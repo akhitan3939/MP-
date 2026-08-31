@@ -645,7 +645,7 @@ export const AdminDashboardView: React.FC = () => {
     { id: 'STUDENTS', label: 'छात्र व एक्सेस नियंत्रण', subLabel: 'Students & Role Access', icon: Users, count: users.length, badgeColor: 'bg-blue-600' },
     { id: 'ORDERS', label: 'रेज़रपे ऑर्डर्स व लेन-देन', subLabel: 'Transactions & Refunds', icon: CreditCard, count: orders.length, badgeColor: 'bg-teal-600' },
     { id: 'COUPONS', label: 'कूपन व डिस्काउंट कोड्स', subLabel: 'Promo Codes & Offers', icon: Ticket, count: coupons.length, badgeColor: 'bg-purple-600' },
-    { id: 'ANNOUNCEMENTS', label: 'भर्ती टिकर व सूचनाएँ', subLabel: 'News & Vacancy Alerts', icon: BellRing, count: announcements.length, badgeColor: 'bg-rose-600' },
+    { id: 'ANNOUNCEMENTS', label: 'नवीनतम समाचार व सूचनाएँ (Latest News & Bulletins)', subLabel: 'News & Vacancy Alerts CMS', icon: BellRing, count: announcements.length, badgeColor: 'bg-rose-600' },
     { id: 'BROADCAST', label: 'लाइव पुश ब्रॉडकास्ट', subLabel: 'Instant Student Alerts', icon: Send },
     { id: 'NOTES', label: 'ई-नोट्स व पीडीएफ CMS', subLabel: 'Handwritten PDF Material', icon: FileText, count: notes.length, badgeColor: 'bg-cyan-700' },
     { id: 'SETTINGS', label: 'प्लेटफ़ॉर्म सेटिंग्स', subLabel: 'Site Branding & Gateway', icon: Settings },
