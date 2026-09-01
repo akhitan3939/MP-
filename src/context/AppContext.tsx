@@ -169,9 +169,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
 
-  // Navigation View
-  const [activeView, setActiveView] = useState<string>('home');
-  const [viewParams, setViewParams] = useState<Record<string, any>>({});
+  // Helper to parse route from window.location for robust mobile, tablet, laptop & desktop link opening
+  const parseCurrentUrlRoute = (): { view: string; params: Record<string, any> } => {
+    try {
+      const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#\/?/, '') : '';
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+      
+      let view = 'home';
+      const params: Record<string, any> = {};
+
+      if (searchParams.get('view')) {
+        view = searchParams.get('view')!;
+        searchParams.forEach((value, key) => {
+          if (key !== 'view') params[key] = value === 'true' ? true : value === 'false' ? false : value;
+        });
+      } else if (hash) {
+        const [hashRoute, hashQuery] = hash.split('?');
+        if (hashRoute) {
+          view = hashRoute;
+        }
+        if (hashQuery) {
+          const hp = new URLSearchParams(hashQuery);
+          hp.forEach((value, key) => {
+            params[key] = value === 'true' ? true : value === 'false' ? false : value;
+          });
+        }
+      }
+
+      if (params.isFreeMock40 === 'true' || params.isFreeMock40 === true) params.isFreeMock40 = true;
+      if (params.attemptId) params.attemptId = String(params.attemptId);
+
+      return { view: view || 'home', params };
+    } catch {
+      return { view: 'home', params: {} };
+    }
+  };
+
+  const initialRoute = parseCurrentUrlRoute();
+
+  // Navigation View & Params
+  const [activeView, setActiveView] = useState<string>(initialRoute.view || 'home');
+  const [viewParams, setViewParams] = useState<Record<string, any>>(initialRoute.params || {});
+
+  // URL hash / popstate listener for back/forward and cross-device deep links
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const { view, params } = parseCurrentUrlRoute();
+      if (view) {
+        setActiveView(view);
+        setViewParams(params);
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -263,6 +319,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .catch(e => {
         console.log('App running in offline/local storage mode:', e);
       });
+
+    // Auto-track hit counter (starts at 50 minimum)
+    try {
+      const hasCountedSession = sessionStorage.getItem('mp_hit_counted_v1');
+      if (!hasCountedSession) {
+        sessionStorage.setItem('mp_hit_counted_v1', '1');
+        const nextLocal = StorageService.incrementHitCounter(1);
+        setPlatformSettings(prev => ({
+          ...prev,
+          visitorHitsCount: Math.max(50, nextLocal)
+        }));
+
+        fetch('/api/hit-counter/increment', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.success && typeof data.count === 'number') {
+              const serverCount = Math.max(50, data.count);
+              StorageService.setHitCounter(serverCount);
+              setPlatformSettings(prev => ({
+                ...prev,
+                visitorHitsCount: serverCount,
+                lastUpdatedDateHi: data.lastUpdatedDateHi || prev.lastUpdatedDateHi,
+                lastUpdatedDateEn: data.lastUpdatedDateEn || prev.lastUpdatedDateEn
+              }));
+            }
+          })
+          .catch(() => {});
+      } else {
+        fetch('/api/hit-counter')
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.success && typeof data.count === 'number') {
+              const serverCount = Math.max(50, data.count);
+              StorageService.setHitCounter(serverCount);
+              setPlatformSettings(prev => ({
+                ...prev,
+                visitorHitsCount: serverCount,
+                lastUpdatedDateHi: data.lastUpdatedDateHi || prev.lastUpdatedDateHi,
+                lastUpdatedDateEn: data.lastUpdatedDateEn || prev.lastUpdatedDateEn,
+                showHitCounter: data.showHitCounter !== undefined ? data.showHitCounter : prev.showHitCounter,
+                showLastUpdated: data.showLastUpdated !== undefined ? data.showLastUpdated : prev.showLastUpdated
+              }));
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // safe fallback
+    }
   }, []);
 
   // Save changes to storage
@@ -310,6 +415,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActiveView(view);
     setViewParams(params);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Update URL hash smoothly for cross-device sharing (Mobile, Tablet, Laptop, Desktop)
+    try {
+      if (typeof window !== 'undefined' && window.history) {
+        const q = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') {
+            q.set(k, String(v));
+          }
+        });
+        const qStr = q.toString();
+        const newHash = `#${view}${qStr ? `?${qStr}` : ''}`;
+        if (window.location.hash !== newHash) {
+          window.history.pushState({ view, params }, '', newHash);
+        }
+      }
+    } catch {
+      // safe fallback
+    }
   };
 
   const handleNavAction = (item: NavigationMenuItem) => {
@@ -735,36 +859,70 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   };
 
-  // Test Attempt Submissions (Instantaneous - 0 lag)
+  // Test Attempt Submissions (Instantaneous - 0 lag, highly resilient)
   const submitTestAttempt = async (
     rawAttempt: Omit<TestAttempt, 'id' | 'certificateId' | 'rank' | 'totalParticipants' | 'percentile'>
   ): Promise<TestAttempt> => {
-    const user = currentUser || users[1];
-    const totalParticipants = 1250 + attempts.length * 15;
-    const rank = Math.max(1, Math.floor((1 - (rawAttempt.score / rawAttempt.totalMarks)) * totalParticipants) + 1);
+    // 1. Safe user fallback so guest or any student can submit without errors
+    const defaultGuestUser: UserProfile = {
+      id: 'usr_guest',
+      name: 'परीक्षार्थी (Aspirant)',
+      email: 'student@mpparikshasetu.in',
+      phone: '9893000000',
+      role: 'student',
+      district: 'भोपाल (Bhopal)',
+      state: 'मध्यप्रदेश (MP)',
+      xp: 100,
+      streak: 1,
+      badges: ['🎯 MP Aspirant', '📝 Mock Tested']
+    };
+
+    const user: UserProfile = currentUser || (users && users.length > 0 ? (users.find(u => u.role === 'student') || users[0]) : defaultGuestUser);
+
+    const safeScore = Number(rawAttempt.score) || 0;
+    const safeTotalMarks = Number(rawAttempt.totalMarks) || 40;
+    const safeTotalQuestions = Number(rawAttempt.totalQuestions) || 40;
+    const safeDuration = Number(rawAttempt.durationSeconds) || 60;
+    const safeCorrect = Number(rawAttempt.correctAnswers) || 0;
+    const safeIncorrect = Number(rawAttempt.incorrectAnswers) || 0;
+    const safeUnattempted = Number(rawAttempt.unattempted) || Math.max(0, safeTotalQuestions - (safeCorrect + safeIncorrect));
+
+    const totalParticipants = 1250 + (attempts?.length || 0) * 15;
+    const scoreRatio = safeTotalMarks > 0 ? Math.max(0, Math.min(1, safeScore / safeTotalMarks)) : 0;
+    const rank = Math.max(1, Math.floor((1 - scoreRatio) * totalParticipants) + 1);
     const percentile = +((1 - (rank / totalParticipants)) * 100).toFixed(1);
     const certificateId = `CERT-MPSETU-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     const instantAiReport = buildInstantEvaluationReport({
-      seriesTitle: rawAttempt.seriesTitle,
-      score: rawAttempt.score,
-      totalMarks: rawAttempt.totalMarks,
-      studentName: user.name,
+      seriesTitle: rawAttempt.seriesTitle || 'मॉक टेस्ट',
+      score: safeScore,
+      totalMarks: safeTotalMarks,
+      studentName: user.name || 'परीक्षार्थी',
     });
 
     // Calculate Dynamic XP Breakdown (+10 for correct, -5 penalty for wrong, streak & speed bonus)
     const xpBreakdown = calculateAttemptXp({
-      correctCount: rawAttempt.correctAnswers || 0,
-      incorrectCount: rawAttempt.incorrectAnswers || 0,
-      unattemptedCount: rawAttempt.unattempted || 0,
+      correctCount: safeCorrect,
+      incorrectCount: safeIncorrect,
+      unattemptedCount: safeUnattempted,
       streak: user.streak || 1,
-      durationSeconds: rawAttempt.durationSeconds,
-      totalQuestions: rawAttempt.totalQuestions || 100,
+      durationSeconds: safeDuration,
+      totalQuestions: safeTotalQuestions,
     });
 
     const newAttempt: TestAttempt = {
       ...rawAttempt,
-      id: `att_${Date.now()}`,
+      id: `att_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      userId: user.id || 'usr_guest',
+      userName: user.name || 'परीक्षार्थी',
+      userDistrict: user.district || 'भोपाल (Bhopal)',
+      score: safeScore,
+      totalMarks: safeTotalMarks,
+      totalQuestions: safeTotalQuestions,
+      correctAnswers: safeCorrect,
+      incorrectAnswers: safeIncorrect,
+      unattempted: safeUnattempted,
+      durationSeconds: safeDuration,
       certificateId,
       rank,
       totalParticipants,
@@ -773,61 +931,81 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       aiReport: instantAiReport
     };
 
-    // Save to attempts state immediately
-    setAttempts(prev => [newAttempt, ...prev]);
+    // Save to attempts state immediately and sync to StorageService
+    setAttempts(prev => {
+      const updated = [newAttempt, ...(prev || [])];
+      StorageService.setAttempts(updated);
+      return updated;
+    });
 
     // Update Leaderboard if top score
     const newLeaderboardEntry: LeaderboardEntry = {
       rank,
-      userId: user.id,
-      userName: user.name,
-      district: user.district,
-      score: rawAttempt.score,
-      totalMarks: rawAttempt.totalMarks,
-      accuracy: rawAttempt.accuracy,
-      timeTaken: `${Math.floor(rawAttempt.durationSeconds / 60)}m ${rawAttempt.durationSeconds % 60}s`,
+      userId: user.id || 'usr_guest',
+      userName: user.name || 'परीक्षार्थी',
+      district: user.district || 'भोपाल',
+      score: safeScore,
+      totalMarks: safeTotalMarks,
+      accuracy: rawAttempt.accuracy || Math.round((safeCorrect / Math.max(1, safeCorrect + safeIncorrect)) * 100),
+      timeTaken: `${Math.floor(safeDuration / 60)}m ${safeDuration % 60}s`,
       seriesTitle: rawAttempt.seriesTitle,
       seriesId: rawAttempt.seriesId,
-      streak: user.streak,
+      streak: user.streak || 1,
       badge: rank <= 3 ? '🏆 Top 3 All-MP' : rank <= 10 ? '⭐ Top 10 Aspirant' : '🎯 Qualifier',
       date: new Date().toISOString().split('T')[0]
     };
 
     setLeaderboard(prev => {
-      const filtered = prev.filter(p => !(p.userId === user.id && p.seriesId === rawAttempt.seriesId));
+      const filtered = (prev || []).filter(p => !(p.userId === user.id && p.seriesId === rawAttempt.seriesId));
       const updated = [...filtered, newLeaderboardEntry].sort((a, b) => b.score - a.score || b.accuracy - a.accuracy);
-      return updated.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+      const ranked = updated.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+      StorageService.setLeaderboard(ranked);
+      return ranked;
     });
 
     // Award / Penalize XP dynamically (Net XP applied to user profile)
-    setUsers(prev => prev.map(u => u.id === user.id ? { 
-      ...u, 
-      xp: Math.max(0, (u.xp || 0) + xpBreakdown.netXp), 
-      streak: (u.streak || 0) + 1 
-    } : u));
+    if (user.id && user.id !== 'usr_guest') {
+      setUsers(prev => {
+        const updated = (prev || []).map(u => u.id === user.id ? { 
+          ...u, 
+          xp: Math.max(0, (u.xp || 0) + xpBreakdown.netXp), 
+          streak: (u.streak || 0) + 1 
+        } : u);
+        StorageService.setUsers(updated);
+        return updated;
+      });
+    }
 
     // Non-blocking background AI enhancement (does not block immediate result display)
-    fetch('/api/ai/evaluate-attempt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        seriesTitle: rawAttempt.seriesTitle,
-        score: rawAttempt.score,
-        totalMarks: rawAttempt.totalMarks,
-        durationSeconds: rawAttempt.durationSeconds,
-        sectionScores: rawAttempt.sectionScores,
-        studentName: user.name,
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.report) {
-          setAttempts(prev => prev.map(a => a.id === newAttempt.id ? { ...a, aiReport: data.report } : a));
-        }
+    try {
+      fetch('/api/ai/evaluate-attempt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seriesTitle: rawAttempt.seriesTitle,
+          score: safeScore,
+          totalMarks: safeTotalMarks,
+          durationSeconds: safeDuration,
+          sectionScores: rawAttempt.sectionScores,
+          studentName: user.name,
+        }),
       })
-      .catch(e => {
-        console.warn('Background AI enhancement note:', e);
-      });
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && data.report) {
+            setAttempts(prev => {
+              const updated = (prev || []).map(a => a.id === newAttempt.id ? { ...a, aiReport: data.report } : a);
+              StorageService.setAttempts(updated);
+              return updated;
+            });
+          }
+        })
+        .catch(e => {
+          console.warn('Background AI evaluation note:', e);
+        });
+    } catch {
+      // safe fallback
+    }
 
     return newAttempt;
   };
@@ -1088,13 +1266,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const savePlatformSettings = (settings: PlatformSettings) => {
-    setPlatformSettings(settings);
-    StorageService.setPlatformSettings(settings);
+    const cleanSettings = {
+      ...settings,
+      visitorHitsCount: typeof settings.visitorHitsCount === 'number' ? Math.max(50, settings.visitorHitsCount) : 50
+    };
+    setPlatformSettings(cleanSettings);
+    StorageService.setPlatformSettings(cleanSettings);
+    if (cleanSettings.visitorHitsCount) {
+      StorageService.setHitCounter(cleanSettings.visitorHitsCount);
+    }
     fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
+      body: JSON.stringify(cleanSettings)
     }).catch(e => console.warn('Server sync error for settings:', e));
+
+    fetch('/api/hit-counter/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        count: cleanSettings.visitorHitsCount,
+        lastUpdatedDateHi: cleanSettings.lastUpdatedDateHi,
+        lastUpdatedDateEn: cleanSettings.lastUpdatedDateEn,
+        showHitCounter: cleanSettings.showHitCounter,
+        showLastUpdated: cleanSettings.showLastUpdated
+      })
+    }).catch(e => console.warn('Server hit counter update error:', e));
+
     showToast(lang === 'hi' ? 'प्लेटफ़ॉर्म सेटिंग्स अपडेट हुईं (सभी यूज़र्स के लिए लागू)' : 'Platform settings updated globally');
   };
 

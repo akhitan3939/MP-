@@ -58,7 +58,9 @@ import {
   Youtube,
   MessageCircle,
   Share2,
-  Gift
+  Gift,
+  Calendar,
+  Activity
 } from 'lucide-react';
 import { 
   TestSeries, 
@@ -79,11 +81,13 @@ import {
 import { INITIAL_WEBSITE_CONTENT, INITIAL_SOCIAL_CHANNELS } from '../utils/storage';
 import { exportToCsv, exportToXls, exportToPdfPrint, ExportColumn } from '../utils/exportReports';
 import { DynamicNavIcon, NAV_ICON_MAP, NavIconKey } from '../utils/navIcons';
+import { AdminQuestionBankHub } from '../components/admin/AdminQuestionBankHub';
 
 type AdminModuleTab = 
   | 'OVERVIEW'
   | 'WEBSITE_CONTENT'
   | 'REPORTS'
+  | 'ATTEMPTS'
   | 'MENUS'
   | 'SOCIAL'
   | 'BANNERS'
@@ -104,6 +108,7 @@ export const AdminDashboardView: React.FC = () => {
     testSeries, 
     questions, 
     users, 
+    attempts,
     announcements, 
     coupons, 
     siteBanners,
@@ -152,6 +157,7 @@ export const AdminDashboardView: React.FC = () => {
   // Search States
   const [searchOrders, setSearchOrders] = useState('');
   const [searchStudents, setSearchStudents] = useState('');
+  const [searchAttempts, setSearchAttempts] = useState('');
   const [searchQuestions, setSearchQuestions] = useState('');
   const [searchMenus, setSearchMenus] = useState('');
   const [searchAnnouncements, setSearchAnnouncements] = useState('');
@@ -254,6 +260,52 @@ export const AdminDashboardView: React.FC = () => {
   // Push Broadcast
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMsg, setBroadcastMsg] = useState('');
+
+  // Format today's date in Hindi and English
+  const formatTodayDates = () => {
+    const now = new Date();
+    const monthsHi = ['जनवरी', 'फरवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितम्बर', 'अक्टूबर', 'नवम्बर', 'दिसम्बर'];
+    const monthsEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    const day = String(now.getDate()).padStart(2, '0');
+    const monthHi = monthsHi[now.getMonth()];
+    const monthEn = monthsEn[now.getMonth()];
+    const year = now.getFullYear();
+
+    return {
+      dateHi: `${day} ${monthHi} ${year}`,
+      dateEn: `${day} ${monthEn} ${year}`
+    };
+  };
+
+  const handleSetTodayUpdateDate = () => {
+    const dates = formatTodayDates();
+    setEditingSettings(prev => ({
+      ...prev,
+      lastUpdatedDateHi: dates.dateHi,
+      lastUpdatedDateEn: dates.dateEn,
+      websiteContent: {
+        ...(prev.websiteContent || {}),
+        lastUpdatedDateHi: dates.dateHi,
+        lastUpdatedDateEn: dates.dateEn
+      }
+    }));
+    showToast(`📅 अंतिम अपडेट दिनांक आज पर सेट की गई: ${dates.dateHi}`);
+  };
+
+  const handleAdjustHitCounter = (amount: number) => {
+    const current = typeof editingSettings.visitorHitsCount === 'number' ? editingSettings.visitorHitsCount : 50;
+    const nextVal = Math.max(50, current + amount);
+    setEditingSettings(prev => ({
+      ...prev,
+      visitorHitsCount: nextVal,
+      websiteContent: {
+        ...(prev.websiteContent || {}),
+        visitorHitsCount: nextVal
+      }
+    }));
+    showToast(`🔢 विज़िटर्स हिट काउंटर: ${nextVal}`);
+  };
 
   // 1. Sales & Metric Calculations
   const successfulOrders = orders.filter(o => o.status === 'SUCCESS');
@@ -631,6 +683,36 @@ export const AdminDashboardView: React.FC = () => {
     }
   };
 
+  // Generic export dispatcher for Mock Test Attempts / Submissions
+  const handleExportAttempts = (format: 'xls' | 'csv' | 'pdf') => {
+    const data = attempts.map(a => ({
+      'प्रयास ID': a.id,
+      'परीक्षार्थी नाम': a.userName,
+      'गृह जिला': a.userDistrict,
+      'टेस्ट सीरीज़ / मॉक नाम': a.seriesTitle,
+      'प्राप्तांक (Marks)': a.score,
+      'कुल अंक (Max Marks)': a.totalMarks,
+      'प्रतिशत (%)': `${a.percentage}%`,
+      'सटीकता (Accuracy %)': `${a.accuracy}%`,
+      'सही उत्तर': a.correctAnswers ?? 0,
+      'गलत उत्तर': a.incorrectAnswers ?? 0,
+      'अप्रयासित': a.unattempted ?? 0,
+      'कुल प्रश्न': a.totalQuestions ?? 40,
+      'समय (सेकंड)': a.durationSeconds,
+      'सबमिशन समय': new Date(a.completedAt).toLocaleString('hi-IN')
+    }));
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'xls') {
+      exportToXls(data, `MP_Pariksha_Setu_Mock_Attempts_${dateStr}`);
+      showToast('📊 टेस्ट सबमिशन रिकॉर्ड Excel (.xls) में डाउनलोड हो गया।');
+    } else if (format === 'csv') {
+      exportToCsv(data, `MP_Pariksha_Setu_Mock_Attempts_${dateStr}`);
+      showToast('📄 टेस्ट सबमिशन रिकॉर्ड CSV में डाउनलोड हो गया।');
+    } else {
+      exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु — समस्त मॉक टेस्ट सबमिशन एवं स्कोर रिकॉर्ड', data);
+    }
+  };
+
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
     { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
@@ -638,6 +720,7 @@ export const AdminDashboardView: React.FC = () => {
     { id: 'MENUS', label: 'शीर्ष व निचला मेन्यू प्रबंधक', subLabel: 'Top & Bottom Navigation', icon: Compass, count: navMenuItems.length, badgeColor: 'bg-amber-600' },
     { id: 'SOCIAL', label: 'सोशल मीडिया लिंक्स CMS', subLabel: 'FB, Insta, TG, YT, WA', icon: Share2, badgeColor: 'bg-rose-600' },
     { id: 'REPORTS', label: 'रिपोर्ट्स व डेटा एक्सपोर्ट', subLabel: 'XLS, PDF, CSV Reports', icon: FileSpreadsheet, count: users.length + orders.length, badgeColor: 'bg-emerald-600' },
+    { id: 'ATTEMPTS', label: 'मॉक टेस्ट प्रयास व परिणाम', subLabel: 'Live Student Test Records', icon: Award, count: attempts.length, badgeColor: 'bg-emerald-600' },
     { id: 'BANNERS', label: 'बैनर व थंबनेल प्रबंधक', subLabel: 'Hero Banners & Posters', icon: ImageIcon, count: siteBanners.length, badgeColor: 'bg-indigo-600' },
     { id: 'SERIES', label: 'टेस्ट सीरीज़ व पैकेज', subLabel: 'Packages & Pricing', icon: BookPlus, count: testSeries.length, badgeColor: 'bg-[#7A2A1E]' },
     { id: 'MOCK_SETS', label: '20 मॉक सेट्स CMS', subLabel: 'Sets 1-20 Controller', icon: Target, count: 20, badgeColor: 'bg-emerald-700' },
@@ -2214,6 +2297,37 @@ export const AdminDashboardView: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* 5. Mock Test Attempts & Submissions Report */}
+                  <div className="p-4 bg-white dark:bg-stone-900 border border-emerald-300 dark:border-emerald-800 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-800 dark:text-white">5. मॉक टेस्ट सबमिशन रिपोर्ट</span>
+                        <Award className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1">परीक्षार्थी, टेस्ट नाम, प्राप्तांक, प्रतिशत, सही/गलत एवं सबमिशन समय</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
+                      <button
+                        onClick={() => handleExportAttempts('xls')}
+                        className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        Excel (.xls)
+                      </button>
+                      <button
+                        onClick={() => handleExportAttempts('csv')}
+                        className="flex-1 py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-lg text-[10px] font-bold text-center"
+                      >
+                        CSV
+                      </button>
+                      <button
+                        onClick={() => handleExportAttempts('pdf')}
+                        className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black text-center"
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
@@ -2310,7 +2424,7 @@ export const AdminDashboardView: React.FC = () => {
                             return (
                               <tr key={user.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
                                 <td className="py-3.5 px-4">
-                                  <div className="flex items-center gap-2.5">
+                                   <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-8 rounded-xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black text-xs shadow-sm">
                                       {user.name.charAt(0)}
                                     </div>
@@ -2386,6 +2500,211 @@ export const AdminDashboardView: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: MOCK TEST ATTEMPTS & STUDENT SUBMISSIONS TRACKER */}
+          {/* ========================================================= */}
+          {activeTab === 'ATTEMPTS' && (
+            <div className="space-y-6">
+              
+              {/* Header & Export Actions */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-display font-black text-xl text-stone-900 dark:text-white flex items-center gap-2.5">
+                      <Award className="w-6 h-6 text-emerald-600" />
+                      <span>मॉक टेस्ट प्रयास व परिणाम रिकॉर्ड (Live Mock Test Attempts Tracker)</span>
+                    </h2>
+                    <p className="text-xs text-stone-500 mt-1">
+                      यहाँ उन सभी छात्रों का रिकॉर्ड उपलब्ध है जिन्होंने 40 प्रश्नों का फ्री मॉक टेस्ट अथवा 200 प्रश्नों का फुल टेस्ट दिया है।
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleExportAttempts('xls')}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Excel (.xls)</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportAttempts('csv')}
+                      className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>CSV</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportAttempts('pdf')}
+                      className="px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>PDF</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Summary Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                  <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
+                    <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">कुल टेस्ट सबमिशन</div>
+                    <div className="text-xl font-black text-emerald-950 dark:text-emerald-100 mt-0.5 font-mono">{attempts.length}</div>
+                  </div>
+                  <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl">
+                    <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300">औसत प्राप्तांक (Avg Marks)</div>
+                    <div className="text-xl font-black text-amber-950 dark:text-amber-100 mt-0.5 font-mono">
+                      {attempts.length > 0 
+                        ? (attempts.reduce((acc, curr) => acc + (curr.score || 0), 0) / attempts.length).toFixed(1)
+                        : 0}
+                    </div>
+                  </div>
+                  <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl">
+                    <div className="text-[11px] font-bold text-blue-800 dark:text-blue-300">औसत सटीकता (Avg Accuracy)</div>
+                    <div className="text-xl font-black text-blue-950 dark:text-blue-100 mt-0.5 font-mono">
+                      {attempts.length > 0 
+                        ? Math.round(attempts.reduce((acc, curr) => acc + (curr.accuracy || 0), 0) / attempts.length)
+                        : 0}%
+                    </div>
+                  </div>
+                  <div className="p-3.5 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl">
+                    <div className="text-[11px] font-bold text-purple-800 dark:text-purple-300">सर्वोत्तम स्कोर (Top Score)</div>
+                    <div className="text-xl font-black text-purple-950 dark:text-purple-100 mt-0.5 font-mono">
+                      {attempts.length > 0 ? Math.max(...attempts.map(a => a.score || 0)) : 0}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter Search */}
+                <div className="pt-2">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                    <input
+                      type="text"
+                      placeholder="परीक्षार्थी का नाम, जिला, अथवा टेस्ट सीरीज़ खोजें..."
+                      value={searchAttempts}
+                      onChange={(e) => setSearchAttempts(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Attempts Detailed Table */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-stone-200 dark:border-stone-800 rounded-3xl p-5 shadow-sm">
+                {attempts.length === 0 ? (
+                  <div className="p-12 text-center text-stone-500">
+                    <Award className="w-12 h-12 text-stone-300 dark:text-stone-700 mx-auto mb-3" />
+                    <h4 className="font-bold text-stone-700 dark:text-stone-300 text-sm">अभी कोई टेस्ट सबमिट नहीं हुआ है</h4>
+                    <p className="text-xs text-stone-400 mt-1">जैसे ही कोई छात्र 40 प्रश्नों का फ्री टेस्ट या फुल टेस्ट देगा, उसका संपूर्ण विवरण यहाँ प्रदर्शित होगा।</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-stone-50 dark:bg-stone-800/80 border-b-2 border-stone-200 dark:border-stone-700 text-stone-500 uppercase text-[10px] font-black">
+                          <th className="py-3 px-4">परीक्षार्थी विवरण</th>
+                          <th className="py-3 px-4">टेस्ट सीरीज़ / मॉक पेपर</th>
+                          <th className="py-3 px-4">प्राप्तांक / कुल अंक</th>
+                          <th className="py-3 px-4">सटीकता (Accuracy)</th>
+                          <th className="py-3 px-4">सही / गलत / अप्रयासित</th>
+                          <th className="py-3 px-4">समय</th>
+                          <th className="py-3 px-4">सबमिशन दिनांक</th>
+                          <th className="py-3 px-4 text-center">कार्रवाई</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
+                        {attempts
+                          .filter(a => !searchAttempts ||
+                            (a.userName && a.userName.toLowerCase().includes(searchAttempts.toLowerCase())) ||
+                            (a.userDistrict && a.userDistrict.toLowerCase().includes(searchAttempts.toLowerCase())) ||
+                            (a.seriesTitle && a.seriesTitle.toLowerCase().includes(searchAttempts.toLowerCase()))
+                          )
+                          .map((attempt) => {
+                            const totalQ = attempt.totalQuestions || 40;
+                            const isFree = attempt.seriesId === 'free_mock_40' || totalQ === 40;
+
+                            return (
+                              <tr key={attempt.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                                <td className="py-3.5 px-4">
+                                  <div className="font-black text-stone-800 dark:text-white flex items-center gap-1.5">
+                                    <span>{attempt.userName || 'परीक्षार्थी'}</span>
+                                  </div>
+                                  <div className="text-[11px] text-stone-400">{attempt.userDistrict || 'मध्यप्रदेश'}</div>
+                                  <div className="text-[9px] font-mono text-stone-400 mt-0.5">{attempt.id}</div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="font-bold text-stone-800 dark:text-stone-200 line-clamp-1">
+                                    {attempt.seriesTitle || (isFree ? 'ऑल-मध्यप्रदेश फ्री मॉक टेस्ट' : 'पटवारी टेस्ट सीरीज़')}
+                                  </div>
+                                  <div className="text-[10px] text-stone-500 font-mono flex items-center gap-1 mt-0.5">
+                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                      isFree ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'
+                                    }`}>
+                                      {totalQ} प्रश्न
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4 font-mono">
+                                  <div className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                                    {attempt.score} / {attempt.totalMarks}
+                                  </div>
+                                  <div className="text-[10px] text-stone-500 font-bold">{attempt.percentage}% अंक</div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-12 bg-stone-200 dark:bg-stone-700 h-2 rounded-full overflow-hidden">
+                                      <div 
+                                        className="bg-emerald-500 h-full rounded-full" 
+                                        style={{ width: `${Math.min(100, attempt.accuracy || 0)}%` }}
+                                      />
+                                    </div>
+                                    <span className="font-mono font-bold text-xs">{attempt.accuracy || 0}%</span>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4 font-mono text-[11px]">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-emerald-600 font-bold">✓ {attempt.correctAnswers ?? 0}</span>
+                                    <span className="text-stone-300">|</span>
+                                    <span className="text-rose-600 font-bold">✗ {attempt.incorrectAnswers ?? 0}</span>
+                                    <span className="text-stone-300">|</span>
+                                    <span className="text-stone-400">○ {attempt.unattempted ?? 0}</span>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4 font-mono text-[11px] text-stone-600 dark:text-stone-400">
+                                  {Math.floor(attempt.durationSeconds / 60)}m {attempt.durationSeconds % 60}s
+                                </td>
+
+                                <td className="py-3.5 px-4 text-stone-400 font-mono text-[10px]">
+                                  {new Date(attempt.completedAt).toLocaleString('hi-IN')}
+                                </td>
+
+                                <td className="py-3.5 px-4 text-center">
+                                  <button
+                                    onClick={() => navigate('resultAnalytics', { attemptId: attempt.id })}
+                                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition mx-auto cursor-pointer"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>{totalQ === 40 ? '40 प्रश्न देखें' : 'रिजल्ट देखें'}</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
 
@@ -2738,162 +3057,44 @@ export const AdminDashboardView: React.FC = () => {
           )}
 
           {/* ========================================================= */}
-          {/* TAB 5: QUESTION BANK CMS */}
+          {/* TAB 5: QUESTION BANK CMS & MOCK ENGINE */}
           {/* ========================================================= */}
           {activeTab === 'QUESTIONS' && (
-            <div className="space-y-6">
-              
-              {/* Search & Filter Bar & Export Buttons */}
-              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-                <div className="relative flex-1 w-full">
-                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
-                  <input 
-                    type="text"
-                    placeholder="प्रश्न पाठ, विषय या टॉपिक खोजें..."
-                    value={searchQuestions}
-                    onChange={(e) => setSearchQuestions(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none focus:border-[#7A2A1E]"
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  <select
-                    value={selectedSubjectFilter}
-                    onChange={(e) => setSelectedSubjectFilter(e.target.value)}
-                    className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold"
-                  >
-                    <option value="all">सभी विषय ({questions.length})</option>
-                    <option value="म.प्र. सामान्य ज्ञान">म.प्र. सामान्य ज्ञान</option>
-                    <option value="सामान्य हिन्दी">सामान्य हिन्दी</option>
-                    <option value="सामान्य गणित">सामान्य गणित</option>
-                    <option value="कंप्यूटर विज्ञान">कंप्यूटर विज्ञान</option>
-                    <option value="सामान्य प्रबंधन">सामान्य प्रबंधन</option>
-                    <option value="सामान्य विज्ञान">सामान्य विज्ञान</option>
-                    <option value="सामान्य तार्किक योग्यता">तार्किक योग्यता</option>
-                    <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी</option>
-                  </select>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleExportQuestions('xls')}
-                      className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
-                      title="प्रश्नोत्तरी Excel में डाउनलोड करें"
-                    >
-                      <FileSpreadsheet className="w-3.5 h-3.5" />
-                      <span>XLS</span>
-                    </button>
-                    <button
-                      onClick={() => handleExportQuestions('csv')}
-                      className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
-                      title="प्रश्नोत्तरी CSV में डाउनलोड करें"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>CSV</span>
-                    </button>
-                    <button
-                      onClick={() => handleExportQuestions('pdf')}
-                      className="px-2.5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
-                      title="प्रश्नोत्तरी PDF प्रिंट / डाउनलोड करें"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>PDF</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Questions List */}
-              <div className="space-y-4">
-                {questions
-                  .filter(q => {
-                    const matchesSearch = !searchQuestions || 
-                      q.questionHi.toLowerCase().includes(searchQuestions.toLowerCase()) ||
-                      (q.subject && q.subject.toLowerCase().includes(searchQuestions.toLowerCase()));
-                    const matchesSubject = selectedSubjectFilter === 'all' || q.subject === selectedSubjectFilter;
-                    return matchesSearch && matchesSubject;
-                  })
-                  .slice(0, 40)
-                  .map((q, idx) => (
-                    <div 
-                      key={q.id}
-                      className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-[#7A2A1E] text-[#D4A017] text-[10px] font-mono font-black px-2 py-0.5 rounded">
-                            Q#{idx + 1}
-                          </span>
-                          <span className="text-xs font-bold text-stone-500">
-                            {q.subject || q.section} • {q.topic}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setEditingQuestion({ ...q })}
-                            className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300"
-                            title="संपादित करें"
-                          >
-                            <Edit className="w-4 h-4 text-[#7A2A1E]" />
-                          </button>
-                          <button
-                            onClick={() => deleteQuestion(q.id)}
-                            className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 hover:bg-rose-100"
-                            title="हटाएँ"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Question Text */}
-                      <p className="font-bold text-sm text-[#2D2424] dark:text-stone-100 leading-relaxed">
-                        {q.questionHi}
-                      </p>
-
-                      {/* Diagram Image if any */}
-                      {q.imageUrl && (
-                        <div className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl max-w-sm">
-                          <img src={q.imageUrl} alt="Question diagram" className="rounded-lg max-h-36 object-contain" />
-                        </div>
-                      )}
-
-                      {/* Options Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
-                        {(q.optionsHi || q.options?.map(o => o.textHi) || []).map((optText, oIdx) => {
-                          const isCorrect = (q.correctOption ?? q.correctOptionIndex) === oIdx;
-                          return (
-                            <div 
-                              key={oIdx}
-                              className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-                                isCorrect 
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-900 dark:text-emerald-200' 
-                                  : 'bg-stone-50 dark:bg-stone-800/40 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300'
-                              }`}
-                            >
-                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                                isCorrect ? 'bg-emerald-600 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600'
-                              }`}>
-                                {String.fromCharCode(65 + oIdx)}
-                              </span>
-                              <span className="truncate">{optText}</span>
-                              {isCorrect && <Check className="w-3.5 h-3.5 text-emerald-600 ml-auto" />}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Explanation */}
-                      {q.explanationHi && (
-                        <div className="p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl text-[11px] text-amber-950 dark:text-amber-200">
-                          <span className="font-black text-[#7A2A1E] dark:text-[#D4A017]">व्याख्या: </span>
-                          {q.explanationHi}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
+            <AdminQuestionBankHub
+              questions={questions}
+              testSeries={testSeries}
+              saveQuestion={(q) => {
+                saveQuestion(q);
+                showToast('💾 प्रश्न सफलतापूर्वक सहेज लिया गया!');
+              }}
+              deleteQuestion={(id) => {
+                deleteQuestion(id);
+                showToast('🗑️ प्रश्न हटा दिया गया।');
+              }}
+              showToast={showToast}
+              navigate={navigate}
+              onEditQuestion={(q) => setEditingQuestion({ ...q })}
+              onAddNewQuestion={(seriesId) => setEditingQuestion({
+                id: `q_custom_${Date.now()}`,
+                seriesId: seriesId || 'free_mock_40',
+                subject: 'म.प्र. सामान्य ज्ञान',
+                section: 'म.प्र. सामान्य ज्ञान',
+                topic: '',
+                difficulty: 'medium',
+                questionHi: '',
+                questionEn: '',
+                optionsHi: ['', '', '', ''],
+                optionsEn: ['', '', '', ''],
+                correctOption: 0,
+                correctOptionIndex: 0,
+                explanationHi: '',
+                explanationEn: '',
+                marks: 1,
+                negativeMarks: 0
+              })}
+            />
           )}
+
 
           {/* ========================================================= */}
           {/* TAB 6: STUDENTS & ACCESS CONTROL */}
@@ -4331,6 +4532,199 @@ export const AdminDashboardView: React.FC = () => {
                           />
                         </div>
                       </div>
+
+                      {/* ========================================================= */}
+                      {/* HIT COUNTER & LAST UPDATED DATE CMS SECTION */}
+                      {/* ========================================================= */}
+                      <div className="pt-4 border-t-2 border-[#D4A017]/40 space-y-4 bg-amber-50/50 dark:bg-amber-950/20 p-5 rounded-2xl border">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Eye className="w-5 h-5 text-[#7A2A1E] dark:text-[#D4A017]" />
+                            <div>
+                              <h5 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] uppercase tracking-wider">
+                                वेबसाइट हिट काउंटर एवं अंतिम अद्यतन दिनांक (Hit Counter & Last Update)
+                              </h5>
+                              <p className="text-[11px] text-stone-600 dark:text-stone-400">
+                                वेबसाइट फुटर पर लाइव विज़िटर्स संख्या (50 से प्रारंभ) और पोर्टल अपडेट दिनांक प्रबंधित करें।
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-[#7A2A1E] text-[#D4A017] font-black text-[10px] uppercase font-mono tracking-wider w-fit">
+                            COUNT 50+ MIN
+                          </span>
+                        </div>
+
+                        {/* Hit Counter Controls */}
+                        <div className="p-4 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-stone-800 dark:text-stone-200 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={editingSettings.showHitCounter !== false}
+                                onChange={(e) => {
+                                  const val = e.target.checked;
+                                  setEditingSettings(prev => ({
+                                    ...prev,
+                                    showHitCounter: val,
+                                    websiteContent: { ...(prev.websiteContent || {}), showHitCounter: val }
+                                  }));
+                                }}
+                                className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                              />
+                              <span>वेबसाइट फुटर पर लाइव विज़िटर्स हिट काउंटर दिखाएँ (Show Visitor Counter)</span>
+                            </label>
+
+                            {/* Live Digit Counter Box Preview */}
+                            <div className="flex items-center gap-1.5 bg-[#330F0A] px-3 py-1 rounded-xl border border-[#D4A017]/40 w-fit">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span className="text-[10px] text-[#EAD8B1] font-bold mr-1">Preview:</span>
+                              {String(Math.max(50, Number(editingSettings.visitorHitsCount) || 50)).padStart(6, '0').split('').map((d, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-[#120403] text-[#D4A017] font-mono font-black text-xs rounded border border-[#D4A017]/60">
+                                  {d}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center pt-2">
+                            <div>
+                              <label className="block font-black uppercase text-stone-500 mb-1">
+                                वर्तमान हिट्स संख्या (Current Count - न्यूनतम 50)
+                              </label>
+                              <input
+                                type="number"
+                                min={50}
+                                value={editingSettings.visitorHitsCount || 50}
+                                onChange={(e) => {
+                                  const val = Math.max(50, parseInt(e.target.value) || 50);
+                                  setEditingSettings(prev => ({
+                                    ...prev,
+                                    visitorHitsCount: val,
+                                    websiteContent: { ...(prev.websiteContent || {}), visitorHitsCount: val }
+                                  }));
+                                }}
+                                className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-black text-sm text-[#7A2A1E] dark:text-[#D4A017]"
+                              />
+                            </div>
+
+                            {/* Quick Increment Buttons */}
+                            <div className="space-y-1">
+                              <span className="block text-[10px] font-black uppercase text-stone-400">
+                                त्वरित समायोजन (Quick Adjust):
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdjustHitCounter(10)}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-stone-800 dark:text-stone-200 text-xs font-bold transition cursor-pointer"
+                                >
+                                  +10
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdjustHitCounter(50)}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-stone-800 dark:text-stone-200 text-xs font-bold transition cursor-pointer"
+                                >
+                                  +50
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdjustHitCounter(500)}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-stone-800 dark:text-stone-200 text-xs font-bold transition cursor-pointer"
+                                >
+                                  +500
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingSettings(prev => ({
+                                      ...prev,
+                                      visitorHitsCount: 50,
+                                      websiteContent: { ...(prev.websiteContent || {}), visitorHitsCount: 50 }
+                                    }));
+                                    showToast('🔄 विज़िटर हिट काउंटर 50 पर रीसेट किया गया');
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold transition cursor-pointer"
+                                >
+                                  रीसेट 50
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Last Updated Date Controls */}
+                        <div className="p-4 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-stone-800 dark:text-stone-200 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={editingSettings.showLastUpdated !== false}
+                                onChange={(e) => {
+                                  const val = e.target.checked;
+                                  setEditingSettings(prev => ({
+                                    ...prev,
+                                    showLastUpdated: val,
+                                    websiteContent: { ...(prev.websiteContent || {}), showLastUpdated: val }
+                                  }));
+                                }}
+                                className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                              />
+                              <span>वेबसाइट फुटर पर 'अंतिम अद्यतन दिनांक' दिखाएँ (Show Last Update Date)</span>
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={handleSetTodayUpdateDate}
+                              className="px-3 py-1.5 rounded-xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs w-fit"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>📅 आज की तारीख सेट करें</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                              <label className="block font-black uppercase text-stone-500 mb-1">
+                                अंतिम अद्यतन दिनांक (Hindi - e.g. 01 सितम्बर 2026)
+                              </label>
+                              <input
+                                type="text"
+                                value={editingSettings.lastUpdatedDateHi || editingSettings.websiteContent?.lastUpdatedDateHi || '01 सितम्बर 2026'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingSettings(prev => ({
+                                    ...prev,
+                                    lastUpdatedDateHi: val,
+                                    websiteContent: { ...(prev.websiteContent || {}), lastUpdatedDateHi: val }
+                                  }));
+                                }}
+                                placeholder="01 सितम्बर 2026"
+                                className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-black uppercase text-stone-500 mb-1">
+                                अंतिम अद्यतन दिनांक (English - e.g. 01 September 2026)
+                              </label>
+                              <input
+                                type="text"
+                                value={editingSettings.lastUpdatedDateEn || editingSettings.websiteContent?.lastUpdatedDateEn || '01 September 2026'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingSettings(prev => ({
+                                    ...prev,
+                                    lastUpdatedDateEn: val,
+                                    websiteContent: { ...(prev.websiteContent || {}), lastUpdatedDateEn: val }
+                                  }));
+                                }}
+                                placeholder="01 September 2026"
+                                className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-xs"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -4834,6 +5228,122 @@ export const AdminDashboardView: React.FC = () => {
                         className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-[11px]"
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* Hit Counter & Last Updated Card in General Settings */}
+                <div className="p-5 rounded-3xl bg-amber-50/60 dark:bg-amber-950/30 border-2 border-[#D4A017]/60 space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black shadow-xs">
+                        <Eye className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017]">
+                          वेबसाइट विज़िटर्स हिट काउंटर एवं अंतिम अद्यतन (Website Hit Counter & Last Update)
+                        </h4>
+                        <p className="text-[11px] text-stone-600 dark:text-stone-400">
+                          पोर्टल फुटर पर दिखने वाली कुल विज़िट्स (50 से प्रारंभ) एवं अंतिम अपडेट दिनांक कॉन्फ़िगर करें।
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-mono font-black text-[10px] w-fit">
+                      LIVE TRACKING
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-black uppercase text-stone-500 mb-1">
+                        कुल विज़िटर्स संख्या (Visitor Hits - न्यूनतम 50)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={50}
+                          value={editingSettings.visitorHitsCount || 50}
+                          onChange={(e) => {
+                            const val = Math.max(50, parseInt(e.target.value) || 50);
+                            setEditingSettings(prev => ({
+                              ...prev,
+                              visitorHitsCount: val,
+                              websiteContent: { ...(prev.websiteContent || {}), visitorHitsCount: val }
+                            }));
+                          }}
+                          className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-black text-sm text-[#7A2A1E] dark:text-[#D4A017]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustHitCounter(50)}
+                          className="px-3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs shrink-0 cursor-pointer"
+                        >
+                          +50
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-black uppercase text-stone-500 mb-1 flex items-center justify-between">
+                        <span>अंतिम अपडेट दिनांक (Last Updated)</span>
+                        <button
+                          type="button"
+                          onClick={handleSetTodayUpdateDate}
+                          className="text-[10px] text-amber-700 dark:text-amber-300 font-bold hover:underline"
+                        >
+                          📅 आज की तारीख
+                        </button>
+                      </label>
+                      <input
+                        type="text"
+                        value={editingSettings.lastUpdatedDateHi || editingSettings.websiteContent?.lastUpdatedDateHi || '01 सितम्बर 2026'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditingSettings(prev => ({
+                            ...prev,
+                            lastUpdatedDateHi: val,
+                            websiteContent: { ...(prev.websiteContent || {}), lastUpdatedDateHi: val }
+                          }));
+                        }}
+                        placeholder="01 सितम्बर 2026"
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs">
+                      <input
+                        type="checkbox"
+                        checked={editingSettings.showHitCounter !== false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setEditingSettings(prev => ({
+                            ...prev,
+                            showHitCounter: val,
+                            websiteContent: { ...(prev.websiteContent || {}), showHitCounter: val }
+                          }));
+                        }}
+                        className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                      />
+                      <span>हिट काउंटर दिखाएँ</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs">
+                      <input
+                        type="checkbox"
+                        checked={editingSettings.showLastUpdated !== false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setEditingSettings(prev => ({
+                            ...prev,
+                            showLastUpdated: val,
+                            websiteContent: { ...(prev.websiteContent || {}), showLastUpdated: val }
+                          }));
+                        }}
+                        className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                      />
+                      <span>अंतिम अपडेट दिनांक दिखाएँ</span>
+                    </label>
                   </div>
                 </div>
 
@@ -5435,11 +5945,11 @@ export const AdminDashboardView: React.FC = () => {
       {/* ========================================================= */}
       {editingQuestion && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-3xl w-full p-6 space-y-5 shadow-2xl my-8">
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
               <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
                 <FileQuestion className="w-5 h-5 text-amber-600" />
-                <span>{editingQuestion.id ? 'प्रश्न संपादित करें' : 'नया प्रश्न जोड़ें'}</span>
+                <span>{editingQuestion.id ? 'प्रश्न संपादित करें (Edit Question)' : 'नया प्रश्न जोड़ें (Add Question)'}</span>
               </h3>
               <button 
                 onClick={() => setEditingQuestion(null)} 
@@ -5449,30 +5959,66 @@ export const AdminDashboardView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveQuestion} className="space-y-4 text-xs max-h-[75vh] overflow-y-auto pr-1">
+            <form onSubmit={handleSaveQuestion} className="space-y-4 text-xs max-h-[75vh] overflow-y-auto pr-2">
+              {/* Series & Category Assignment */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    🎯 संबद्ध टेस्ट सीरीज़ / मॉक सेट (Assign to Series / Free Mock)
+                  </label>
+                  <select
+                    value={editingQuestion.seriesId || 'free_mock_40'}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, seriesId: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-amber-50/50 dark:bg-stone-800 border border-amber-300 dark:border-amber-700 font-bold text-stone-900 dark:text-amber-300"
+                  >
+                    <option value="free_mock_40">🎁 40-प्रश्न फ्री डेमो मॉक टेस्ट (All Exams Demo)</option>
+                    {testSeries.map(ts => (
+                      <option key={ts.id} value={ts.id}>
+                        📚 {ts.titleHi} (₹{ts.price})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">कठिनाई स्तर (Difficulty)</label>
+                  <select
+                    value={editingQuestion.difficulty || 'medium'}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, difficulty: e.target.value as any })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                  >
+                    <option value="easy">🟢 सरल (Easy)</option>
+                    <option value="medium">🟡 मध्यम (Medium)</option>
+                    <option value="hard">🔴 कठिन (Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Subject & Topic */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-black uppercase text-stone-500 mb-1">विषय (Subject)</label>
+                  <label className="block font-black uppercase text-stone-500 mb-1">विषय (Subject / Section)</label>
                   <select
                     value={editingQuestion.subject || 'म.प्र. सामान्य ज्ञान'}
                     onChange={(e) => setEditingQuestion({ ...editingQuestion, subject: e.target.value, section: e.target.value })}
                     className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
                   >
-                    <option value="म.प्र. सामान्य ज्ञान">म.प्र. सामान्य ज्ञान</option>
-                    <option value="सामान्य हिन्दी">सामान्य हिन्दी</option>
-                    <option value="सामान्य गणित">सामान्य गणित</option>
-                    <option value="कंप्यूटर विज्ञान">कंप्यूटर विज्ञान</option>
-                    <option value="सामान्य प्रबंधन">सामान्य प्रबंधन</option>
-                    <option value="सामान्य विज्ञान">सामान्य विज्ञान</option>
-                    <option value="सामान्य तार्किक योग्यता">सामान्य तार्किक योग्यता</option>
-                    <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी</option>
+                    <option value="म.प्र. सामान्य ज्ञान">म.प्र. सामान्य ज्ञान (MP GK)</option>
+                    <option value="सामान्य हिन्दी">सामान्य हिन्दी (Hindi)</option>
+                    <option value="सामान्य गणित">सामान्य गणित (Maths)</option>
+                    <option value="कंप्यूटर विज्ञान">कंप्यूटर विज्ञान (Computer)</option>
+                    <option value="सामान्य प्रबंधन">सामान्य प्रबंधन (Management)</option>
+                    <option value="सामान्य विज्ञान">सामान्य विज्ञान (Science)</option>
+                    <option value="सामान्य तार्किक योग्यता">सामान्य तार्किक योग्यता (Reasoning)</option>
+                    <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी (English)</option>
+                    <option value="कृषि विज्ञान">कृषि विज्ञान (Agriculture / RAEO)</option>
+                    <option value="पंचायती राज">पंचायती राज व ग्रामीण अर्थव्यवस्था</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-black uppercase text-stone-500 mb-1">टॉपिक (Topic)</label>
+                  <label className="block font-black uppercase text-stone-500 mb-1">टॉपिक / अध्याय (Topic)</label>
                   <input 
                     type="text"
-                    placeholder="उदा: नदियाँ व जलप्रपात"
+                    placeholder="उदा: नदियाँ व जलप्रपात, वर्तनी, प्रतिशत, संधि..."
                     value={editingQuestion.topic || ''}
                     onChange={(e) => setEditingQuestion({ ...editingQuestion, topic: e.target.value })}
                     className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
@@ -5480,85 +6026,178 @@ export const AdminDashboardView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Hindi Question */}
               <div>
-                <label className="block font-black uppercase text-stone-500 mb-1">प्रश्न का हिंदी पाठ (Question in Hindi)</label>
+                <label className="block font-black uppercase text-stone-500 mb-1">
+                  प्रश्न पाठ (हिन्दी में) <span className="text-rose-500">*अनिवार्य</span>
+                </label>
                 <textarea 
-                  rows={3}
+                  rows={2}
                   required
-                  placeholder="प्रश्न यहाँ लिखें..."
+                  placeholder="यहाँ हिन्दी में प्रश्न लिखें..."
                   value={editingQuestion.questionHi || ''}
                   onChange={(e) => setEditingQuestion({ ...editingQuestion, questionHi: e.target.value })}
                   className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
                 />
               </div>
 
+              {/* English Question */}
+              <div>
+                <label className="block font-black uppercase text-stone-500 mb-1">
+                  Question Text in English (वैकल्पिक / Optional)
+                </label>
+                <textarea 
+                  rows={2}
+                  placeholder="Enter English translation of question..."
+                  value={editingQuestion.questionEn || ''}
+                  onChange={(e) => setEditingQuestion({ ...editingQuestion, questionEn: e.target.value })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs"
+                />
+              </div>
+
+              {/* Diagram / Image URL */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200 dark:border-stone-700">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">डायग्राम / इमेज URL (Image / Chart URL)</label>
+                  <input 
+                    type="text"
+                    placeholder="https://... (यदि प्रश्न में चित्र हो)"
+                    value={editingQuestion.imageUrl || ''}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, imageUrl: e.target.value })}
+                    className="w-full p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">चित्र विवरण / कैप्शन (Caption)</label>
+                  <input 
+                    type="text"
+                    placeholder="चित्र 1: मध्य भारत का भौतिक मानचित्र"
+                    value={editingQuestion.imageCaption || ''}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, imageCaption: e.target.value })}
+                    className="w-full p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs"
+                  />
+                </div>
+                {editingQuestion.imageUrl && (
+                  <div className="sm:col-span-2 pt-1 flex items-center gap-3">
+                    <img src={editingQuestion.imageUrl} alt="preview" className="h-16 w-auto rounded-lg object-contain border bg-white p-1" />
+                    <span className="text-[11px] text-emerald-600 font-bold">✓ इमेज प्रीव्यू सक्रिय</span>
+                  </div>
+                )}
+              </div>
+
               {/* 4 Options */}
-              <div className="space-y-2">
-                <label className="block font-black uppercase text-stone-500">4 बहुविकल्पीय उत्तर (4 Options)</label>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block font-black uppercase text-stone-500">
+                    4 बहुविकल्पीय उत्तर (Click letter to mark as Correct)
+                  </label>
+                  <span className="text-[11px] text-emerald-600 font-bold">
+                    ✓ सही उत्तर: विकल्प {String.fromCharCode(65 + (editingQuestion.correctOption ?? 0))}
+                  </span>
+                </div>
+
                 {['A', 'B', 'C', 'D'].map((letter, idx) => {
-                  const opts = editingQuestion.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
+                  const optsHi = editingQuestion.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
+                  const optsEn = editingQuestion.optionsEn || ['', '', '', ''];
                   const isCorrect = (editingQuestion.correctOption ?? 0) === idx;
 
                   return (
-                    <div key={idx} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingQuestion({ ...editingQuestion, correctOption: idx })}
-                        className={`w-8 h-8 rounded-xl font-black text-xs shrink-0 ${
-                          isCorrect ? 'bg-emerald-600 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600'
-                        }`}
-                        title="सही उत्तर के रूप में सेट करें"
-                      >
-                        {letter}
-                      </button>
+                    <div key={idx} className="p-2.5 rounded-2xl border transition-all space-y-2 bg-stone-50/70 dark:bg-stone-800/40">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingQuestion({ ...editingQuestion, correctOption: idx, correctOptionIndex: idx })}
+                          className={`w-8 h-8 rounded-xl font-black text-xs shrink-0 transition-all ${
+                            isCorrect ? 'bg-emerald-600 text-white shadow' : 'bg-stone-200 dark:bg-stone-700 text-stone-600 hover:bg-stone-300'
+                          }`}
+                          title="इस विकल्प को सही उत्तर के रूप में सेट करें"
+                        >
+                          {letter}
+                        </button>
+                        <input 
+                          type="text"
+                          required
+                          placeholder={`विकल्प ${letter} (हिन्दी)`}
+                          value={optsHi[idx] || ''}
+                          onChange={(e) => {
+                            const updated = [...optsHi];
+                            updated[idx] = e.target.value;
+                            setEditingQuestion({ ...editingQuestion, optionsHi: updated });
+                          }}
+                          className={`flex-1 p-2 rounded-xl border text-xs font-bold ${
+                            isCorrect ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-200' : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900'
+                          }`}
+                        />
+                        {isCorrect && (
+                          <span className="px-2 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-lg text-[10px] font-black shrink-0">
+                            ✓ सही उत्तर
+                          </span>
+                        )}
+                      </div>
                       <input 
                         type="text"
-                        required
-                        value={opts[idx] || ''}
+                        placeholder={`Option ${letter} in English (optional)`}
+                        value={optsEn[idx] || ''}
                         onChange={(e) => {
-                          const updated = [...opts];
+                          const updated = [...optsEn];
                           updated[idx] = e.target.value;
-                          setEditingQuestion({ ...editingQuestion, optionsHi: updated });
+                          setEditingQuestion({ ...editingQuestion, optionsEn: updated });
                         }}
-                        className={`flex-1 p-2 rounded-xl border text-xs font-medium ${
-                          isCorrect ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800'
-                        }`}
+                        className="w-full pl-10 pr-2 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-[11px] font-mono text-stone-600 dark:text-stone-300"
                       />
                     </div>
                   );
                 })}
               </div>
 
-              <div>
-                <label className="block font-black uppercase text-stone-500 mb-1">विस्तृत व्याख्या व ट्रिक्स (Detailed Solution)</label>
-                <textarea 
-                  rows={3}
-                  placeholder="हल एवं महत्वपूर्ण ट्रिक्स यहाँ लिखें..."
-                  value={editingQuestion.explanationHi || ''}
-                  onChange={(e) => setEditingQuestion({ ...editingQuestion, explanationHi: e.target.value })}
-                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700"
-                />
+              {/* Explanations */}
+              <div className="space-y-2">
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    विस्तृत व्याख्या व शॉर्टकट ट्रिक्स (Detailed Solution in Hindi)
+                  </label>
+                  <textarea 
+                    rows={2}
+                    placeholder="हल, संबंधित अधिनियम, ऐतिहासिक तथ्य एवं याद रखने की ट्रिक यहाँ लिखें..."
+                    value={editingQuestion.explanationHi || ''}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, explanationHi: e.target.value })}
+                    className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    English Solution / Explanation (Optional)
+                  </label>
+                  <textarea 
+                    rows={2}
+                    placeholder="Enter English explanation or notes..."
+                    value={editingQuestion.explanationEn || ''}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, explanationEn: e.target.value })}
+                    className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono text-xs"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
                 <button
                   type="button"
                   onClick={() => setEditingQuestion(null)}
-                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600"
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600 hover:bg-stone-200"
                 >
                   रद्द करें
                 </button>
                 <button
                   type="submit"
-                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-sm"
+                  className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black border border-[#D4A017] shadow-sm transition"
                 >
-                  💾 प्रश्न सहेजें
+                  💾 प्रश्न सहेजें व अपडेट करें (Save Question)
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
 
       {/* ========================================================= */}
       {/* MODAL 4: PASSWORD RESET MODAL */}

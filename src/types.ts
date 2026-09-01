@@ -13,9 +13,9 @@ export interface UserProfile {
   role: UserRole;
   state?: string;
   district: string;
-  targetExam: string;
+  targetExam?: string;
   avatarUrl?: string;
-  joinedAt: string;
+  joinedAt?: string;
   createdAt?: string;
   xp: number;
   streak: number;
@@ -229,6 +229,11 @@ export interface WebsiteContentConfig {
   footerDisclaimerHi?: string;
   footerDisclaimerEn?: string;
   footerCopyrightText?: string;
+  visitorHitsCount?: number;
+  lastUpdatedDateHi?: string;
+  lastUpdatedDateEn?: string;
+  showHitCounter?: boolean;
+  showLastUpdated?: boolean;
 }
 
 export interface PlatformSettings {
@@ -249,6 +254,11 @@ export interface PlatformSettings {
   telegramUrl?: string;
   youtubeUrl?: string;
   whatsappCommunityUrl?: string;
+  visitorHitsCount?: number;
+  lastUpdatedDateHi?: string;
+  lastUpdatedDateEn?: string;
+  showHitCounter?: boolean;
+  showLastUpdated?: boolean;
   websiteContent?: WebsiteContentConfig;
   socialChannels?: SocialChannelConfig[];
 }
@@ -288,19 +298,23 @@ export interface SectionScore {
 }
 
 export interface AiEvaluationReport {
-  overallSummaryHi: string;
-  overallSummaryEn: string;
+  overallSummaryHi?: string;
+  overallSummaryEn?: string;
+  summaryHi?: string;
+  summaryEn?: string;
   summary?: string;
-  keyStrengthsHi: string[];
-  keyStrengthsEn: string[];
+  keyStrengthsHi?: string[];
+  keyStrengthsEn?: string[];
   keyInsights?: string[];
-  criticalWeaknessesHi: string[];
-  criticalWeaknessesEn: string[];
-  sevenDayPlanHi: string[];
-  sevenDayPlanEn: string[];
+  keyInsightsHi?: string[];
+  keyInsightsEn?: string[];
+  criticalWeaknessesHi?: string[];
+  criticalWeaknessesEn?: string[];
+  sevenDayPlanHi?: string[];
+  sevenDayPlanEn?: string[];
   sevenDayPlan?: { day: number; subject: string; focusTopic: string }[];
-  memoryTricksHi: string[];
-  memoryTricksEn: string[];
+  memoryTricksHi?: string[];
+  memoryTricksEn?: string[];
   mnemonicTip?: string;
   expectedCutoffScore: number;
   percentileRank: number;

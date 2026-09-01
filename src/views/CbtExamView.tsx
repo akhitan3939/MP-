@@ -363,9 +363,11 @@ export const CbtExamView: React.FC = () => {
     const sectionMap: Record<string, { correct: number; incorrect: number; total: number; marks: number }> = {};
 
     questionsList.forEach(q => {
-      totalPossibleMarks += q.marks;
+      const qMarks = Number(q.marks) || 1;
+      totalPossibleMarks += qMarks;
       const selected = userAnswers[q.id];
       const subj = getQuestionSubject(q);
+      const correctIdx = q.correctOptionIndex !== undefined ? q.correctOptionIndex : (q.correctOption !== undefined ? q.correctOption : 0);
       
       if (!sectionMap[subj]) {
         sectionMap[subj] = { correct: 0, incorrect: 0, total: 0, marks: 0 };
@@ -373,21 +375,22 @@ export const CbtExamView: React.FC = () => {
       sectionMap[subj].total += 1;
 
       if (selected !== undefined) {
-        if (selected === q.correctOptionIndex) {
+        if (selected === correctIdx) {
           correctAnswersCount++;
-          totalScore += q.marks;
+          totalScore += qMarks;
           sectionMap[subj].correct += 1;
-          sectionMap[subj].marks += q.marks;
+          sectionMap[subj].marks += qMarks;
         } else {
           incorrectAnswersCount++;
-          totalScore -= (q.negativeMarks || 0);
+          totalScore -= (Number(q.negativeMarks) || 0);
           sectionMap[subj].incorrect += 1;
         }
       }
     });
 
     const finalObtainedMarks = Math.max(0, +totalScore.toFixed(2));
-    const percentage = +((finalObtainedMarks / (totalPossibleMarks || 100)) * 100).toFixed(2);
+    const effectiveTotalMarks = totalPossibleMarks || (isFreeMock40 ? 40 : 100);
+    const percentage = +((finalObtainedMarks / effectiveTotalMarks) * 100).toFixed(2);
     
     // Calculate simulated State Rank
     const simulatedTotalCandidates = series.enrolledCount || 8500;
@@ -417,15 +420,15 @@ export const CbtExamView: React.FC = () => {
     try {
       const attempt = await submitTestAttempt({
         userId: currentUser?.id || 'usr_guest',
-        userName: currentUser?.name || 'परीक्षार्थी',
-        userDistrict: currentUser?.district || 'भोपाल',
-        seriesId: series.id,
-        seriesTitle: examLang === 'hi' ? series.titleHi : series.titleEn,
+        userName: currentUser?.name || 'परीक्षार्थी (Aspirant)',
+        userDistrict: currentUser?.district || 'भोपाल (Bhopal)',
+        seriesId: isFreeMock40 ? 'free_mock_40' : (series?.id || 'free_mock_40'),
+        seriesTitle: isFreeMock40 ? 'ऑल-मध्यप्रदेश फ्री मॉक टेस्ट (40 प्रश्न)' : (examLang === 'hi' ? series.titleHi : series.titleEn),
         startedAt: new Date(startTimeRef.current).toISOString(),
         completedAt: new Date().toISOString(),
         durationSeconds: elapsedSeconds,
         score: finalObtainedMarks,
-        totalMarks: totalPossibleMarks || 100,
+        totalMarks: effectiveTotalMarks,
         percentage,
         accuracy: (correctAnswersCount + incorrectAnswersCount) > 0 ? Math.round((correctAnswersCount / (correctAnswersCount + incorrectAnswersCount)) * 100) : 0,
         correctAnswers: correctAnswersCount,
@@ -440,7 +443,8 @@ export const CbtExamView: React.FC = () => {
       navigate('resultAnalytics', { attemptId: attempt.id });
     } catch (err) {
       console.error('Error submitting exam:', err);
-      showToast('Error saving score.');
+      showToast('Error saving score. Redirecting to result...');
+      navigate('resultAnalytics');
     } finally {
       setIsSubmitting(false);
     }

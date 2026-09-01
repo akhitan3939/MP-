@@ -81,8 +81,31 @@ if (!inMemoryAppState.platformSettings) {
     instagramUrl: 'https://instagram.com/mpparikshasetu_official',
     telegramUrl: 'https://t.me/mpparikshasetu_mp',
     youtubeUrl: 'https://youtube.com/@mpparikshasetu',
-    whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu'
+    whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu',
+    visitorHitsCount: 50,
+    lastUpdatedDateHi: '01 सितम्बर 2026',
+    lastUpdatedDateEn: '01 September 2026',
+    showHitCounter: true,
+    showLastUpdated: true
   };
+  saveAppStateToDisk(inMemoryAppState);
+} else {
+  // Ensure default counter starts at least 50
+  if (typeof inMemoryAppState.platformSettings.visitorHitsCount !== 'number' || inMemoryAppState.platformSettings.visitorHitsCount < 50) {
+    inMemoryAppState.platformSettings.visitorHitsCount = 50;
+  }
+  if (!inMemoryAppState.platformSettings.lastUpdatedDateHi) {
+    inMemoryAppState.platformSettings.lastUpdatedDateHi = '01 सितम्बर 2026';
+  }
+  if (!inMemoryAppState.platformSettings.lastUpdatedDateEn) {
+    inMemoryAppState.platformSettings.lastUpdatedDateEn = '01 September 2026';
+  }
+  if (inMemoryAppState.platformSettings.showHitCounter === undefined) {
+    inMemoryAppState.platformSettings.showHitCounter = true;
+  }
+  if (inMemoryAppState.platformSettings.showLastUpdated === undefined) {
+    inMemoryAppState.platformSettings.showLastUpdated = true;
+  }
   saveAppStateToDisk(inMemoryAppState);
 }
 
@@ -92,6 +115,70 @@ app.get('/api/app-data', (req: Request, res: Response) => {
     success: true,
     data: inMemoryAppState,
     timestamp: new Date().toISOString()
+  });
+});
+
+// Hit Counter & Last Updated Endpoints
+app.get('/api/hit-counter', (req: Request, res: Response) => {
+  const settings = inMemoryAppState.platformSettings || {};
+  const count = typeof settings.visitorHitsCount === 'number' && settings.visitorHitsCount >= 50
+    ? settings.visitorHitsCount
+    : 50;
+  res.json({
+    success: true,
+    count,
+    lastUpdatedDateHi: settings.lastUpdatedDateHi || '01 सितम्बर 2026',
+    lastUpdatedDateEn: settings.lastUpdatedDateEn || '01 September 2026',
+    showHitCounter: settings.showHitCounter !== false,
+    showLastUpdated: settings.showLastUpdated !== false
+  });
+});
+
+app.post('/api/hit-counter/increment', (req: Request, res: Response) => {
+  if (!inMemoryAppState.platformSettings) {
+    inMemoryAppState.platformSettings = {};
+  }
+  const current = typeof inMemoryAppState.platformSettings.visitorHitsCount === 'number' && inMemoryAppState.platformSettings.visitorHitsCount >= 50
+    ? inMemoryAppState.platformSettings.visitorHitsCount
+    : 50;
+  const next = current + 1;
+  inMemoryAppState.platformSettings.visitorHitsCount = next;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    count: next,
+    lastUpdatedDateHi: inMemoryAppState.platformSettings.lastUpdatedDateHi || '01 सितम्बर 2026',
+    lastUpdatedDateEn: inMemoryAppState.platformSettings.lastUpdatedDateEn || '01 September 2026'
+  });
+});
+
+app.post('/api/hit-counter/update', (req: Request, res: Response) => {
+  const { count, lastUpdatedDateHi, lastUpdatedDateEn, showHitCounter, showLastUpdated } = req.body;
+  if (!inMemoryAppState.platformSettings) {
+    inMemoryAppState.platformSettings = {};
+  }
+  if (count !== undefined) {
+    inMemoryAppState.platformSettings.visitorHitsCount = Math.max(50, Number(count) || 50);
+  }
+  if (lastUpdatedDateHi !== undefined) {
+    inMemoryAppState.platformSettings.lastUpdatedDateHi = String(lastUpdatedDateHi);
+  }
+  if (lastUpdatedDateEn !== undefined) {
+    inMemoryAppState.platformSettings.lastUpdatedDateEn = String(lastUpdatedDateEn);
+  }
+  if (showHitCounter !== undefined) {
+    inMemoryAppState.platformSettings.showHitCounter = Boolean(showHitCounter);
+  }
+  if (showLastUpdated !== undefined) {
+    inMemoryAppState.platformSettings.showLastUpdated = Boolean(showLastUpdated);
+  }
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: 'Hit counter and last update date updated successfully',
+    settings: inMemoryAppState.platformSettings
   });
 });
 
@@ -581,6 +668,88 @@ Provide response as JSON:
     res.json({ success: true, ...defaultExplanation });
   }
 });
+
+// 3.5 AI Question Generator for Question Bank Hub
+app.post('/api/ai/generate-question', async (req: Request, res: Response) => {
+  const { topic, subject, seriesName } = req.body;
+  const sTopic = topic || 'मध्यप्रदेश सामान्य ज्ञान';
+  const sSub = subject || 'म.प्र. सामान्य ज्ञान';
+  const sSeries = seriesName || 'MP पटवारी / व्यापम';
+
+  const defaultQuestion = {
+    questionHi: `मध्यप्रदेश की प्रतियोगी परीक्षाओं हेतु '${sTopic}' के संबंध में निम्नलिखित में से कौन सा कथन सही है?`,
+    questionEn: `Which of the following statements regarding '${sTopic}' is correct for MP Government Exams?`,
+    optionsHi: [
+      `यह ${sTopic} का प्रामाणिक व प्रमुख तथ्य है।`,
+      `यह विकल्प ऐतिहासिक रूप से गलत है।`,
+      `यह मध्य भारत के अन्य राज्यों से संबंधित है।`,
+      `उपर्युक्त में से कोई नहीं।`
+    ],
+    optionsEn: [
+      `This is the authentic and key fact about ${sTopic}.`,
+      `This option is historically inaccurate.`,
+      `This relates to other central Indian states.`,
+      `None of the above.`
+    ],
+    correctOption: 0,
+    explanationHi: `'${sTopic}' मध्यप्रदेश शासन के नवीनतम परीक्षा पैटर्न अनुसार अत्यंत महत्वपूर्ण विषय है। सही विकल्प A है।`,
+    explanationEn: `'${sTopic}' is a high-yield topic for Madhya Pradesh competitive exams. Correct option is A.`
+  };
+
+  try {
+    const ai = getGenAI();
+    if (!ai) {
+      return res.json({ success: true, question: defaultQuestion });
+    }
+
+    const prompt = `You are a senior exam paper setter for MPPSC and MP ESB/Vyapam (Patwari, RAEO, Group-2 Subgroup-4, Police Constable, SI).
+Generate 1 high-quality, authentic, examination-grade multiple choice question in Hindi and English on the specified topic.
+Topic: "${sTopic}"
+Subject: "${sSub}"
+Target Exam: "${sSeries}"
+
+Requirements:
+- questionHi: Crystal-clear Hindi question text matching Vyapam/MPPSC official style.
+- questionEn: English translation of the question.
+- optionsHi: Array of exactly 4 strings for options (A, B, C, D) in Hindi.
+- optionsEn: Array of exactly 4 strings for options (A, B, C, D) in English.
+- correctOption: Integer index (0 for A, 1 for B, 2 for C, 3 for D).
+- explanationHi: Clear, academic, in-depth explanation in Hindi with key memory tricks.
+- explanationEn: Clear explanation in English.
+
+Output as JSON format.`;
+
+    const { text } = await callGenAIWithFallback(ai, prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          questionHi: { type: Type.STRING },
+          questionEn: { type: Type.STRING },
+          optionsHi: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING } 
+          },
+          optionsEn: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING } 
+          },
+          correctOption: { type: Type.INTEGER },
+          explanationHi: { type: Type.STRING },
+          explanationEn: { type: Type.STRING },
+        },
+        required: ['questionHi', 'questionEn', 'optionsHi', 'optionsEn', 'correctOption', 'explanationHi', 'explanationEn']
+      }
+    });
+
+    const parsed = JSON.parse(text || '{}');
+    res.json({ success: true, question: parsed });
+  } catch (err) {
+    console.warn('[AI Question Gen fallback]:', err);
+    res.json({ success: true, question: defaultQuestion });
+  }
+});
+
 
 // 4. Payment Gateway Config & Order Creation
 app.get('/api/payment/config', (req: Request, res: Response) => {

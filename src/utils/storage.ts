@@ -24,7 +24,8 @@ import {
   INITIAL_ORDERS, 
   INITIAL_COUPONS, 
   INITIAL_ANNOUNCEMENTS, 
-  INITIAL_NOTES 
+  INITIAL_NOTES,
+  INITIAL_ATTEMPTS 
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
@@ -47,6 +48,7 @@ const STORAGE_KEYS = {
   PLATFORM_SETTINGS: 'mp_setu_settings_v2',
   MOCK_SETS: 'mp_setu_mock_sets_v2',
   NAV_MENUS: 'mp_setu_nav_menus_v2',
+  HIT_COUNTER: 'mp_setu_hit_counter_v1',
 };
 
 export const INITIAL_NAV_MENUS: NavigationMenuItem[] = [
@@ -346,7 +348,12 @@ export const INITIAL_WEBSITE_CONTENT: WebsiteContentConfig = {
   footerAddressEn: 'Bhopal',
   footerDisclaimerHi: 'यह एक स्वतंत्र प्रतियोगी परीक्षा तैयारी पोर्टल है और इसका किसी भी सरकारी विभाग या आयोग से सीधा संबंध नहीं है। समस्त प्रश्न व सामग्री शैक्षणिक उद्देश्य हेतु तैयार की गई है।',
   footerDisclaimerEn: 'This is an independent competitive examination test portal and is not directly affiliated with any government department or commission.',
-  footerCopyrightText: '© 2026 MP परीक्षा सेतु (MP Pariksha Setu). सर्वाधिकार सुरक्षित। (All Rights Reserved).'
+  footerCopyrightText: '© 2026 MP परीक्षा सेतु (MP Pariksha Setu). सर्वाधिकार सुरक्षित। (All Rights Reserved).',
+  visitorHitsCount: 50,
+  lastUpdatedDateHi: '01 सितम्बर 2026',
+  lastUpdatedDateEn: '01 September 2026',
+  showHitCounter: true,
+  showLastUpdated: true
 };
 
 export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
@@ -367,6 +374,11 @@ export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   telegramUrl: 'https://t.me/mpparikshasetu_mp',
   youtubeUrl: 'https://youtube.com/@mpparikshasetu',
   whatsappCommunityUrl: 'https://chat.whatsapp.com/mpparikshasetu',
+  visitorHitsCount: 50,
+  lastUpdatedDateHi: '01 सितम्बर 2026',
+  lastUpdatedDateEn: '01 September 2026',
+  showHitCounter: true,
+  showLastUpdated: true,
   websiteContent: INITIAL_WEBSITE_CONTENT,
   socialChannels: INITIAL_SOCIAL_CHANNELS
 };
@@ -498,9 +510,29 @@ function normalizePlatformSettings(s: any): PlatformSettings {
     });
   }
 
+  const visitorHitsCount = typeof s.visitorHitsCount === 'number' 
+    ? Math.max(50, s.visitorHitsCount)
+    : (typeof mergedWebsiteContent.visitorHitsCount === 'number' ? Math.max(50, mergedWebsiteContent.visitorHitsCount) : 50);
+
+  const lastUpdatedDateHi = s.lastUpdatedDateHi || mergedWebsiteContent.lastUpdatedDateHi || '01 सितम्बर 2026';
+  const lastUpdatedDateEn = s.lastUpdatedDateEn || mergedWebsiteContent.lastUpdatedDateEn || '01 September 2026';
+  const showHitCounter = s.showHitCounter !== undefined ? s.showHitCounter : (mergedWebsiteContent.showHitCounter !== undefined ? mergedWebsiteContent.showHitCounter : true);
+  const showLastUpdated = s.showLastUpdated !== undefined ? s.showLastUpdated : (mergedWebsiteContent.showLastUpdated !== undefined ? mergedWebsiteContent.showLastUpdated : true);
+
+  mergedWebsiteContent.visitorHitsCount = visitorHitsCount;
+  mergedWebsiteContent.lastUpdatedDateHi = lastUpdatedDateHi;
+  mergedWebsiteContent.lastUpdatedDateEn = lastUpdatedDateEn;
+  mergedWebsiteContent.showHitCounter = showHitCounter;
+  mergedWebsiteContent.showLastUpdated = showLastUpdated;
+
   return {
     ...INITIAL_PLATFORM_SETTINGS,
     ...s,
+    visitorHitsCount,
+    lastUpdatedDateHi,
+    lastUpdatedDateEn,
+    showHitCounter,
+    showLastUpdated,
     websiteContent: mergedWebsiteContent,
     socialChannels: mergedChannels
   };
@@ -550,7 +582,13 @@ export const StorageService = {
   },
   setQuestions: (questions: Question[]) => setStorage(STORAGE_KEYS.QUESTIONS, questions.map(normalizeQuestion)),
 
-  getAttempts: (): TestAttempt[] => getStorage(STORAGE_KEYS.ATTEMPTS, []),
+  getAttempts: (): TestAttempt[] => {
+    const raw = getStorage<TestAttempt[]>(STORAGE_KEYS.ATTEMPTS, INITIAL_ATTEMPTS);
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return INITIAL_ATTEMPTS;
+    }
+    return raw;
+  },
   setAttempts: (attempts: TestAttempt[]) => setStorage(STORAGE_KEYS.ATTEMPTS, attempts),
 
   getLeaderboard: (): LeaderboardEntry[] => {
@@ -636,4 +674,19 @@ export const StorageService = {
 
   getNavMenus: (): NavigationMenuItem[] => getStorage(STORAGE_KEYS.NAV_MENUS, INITIAL_NAV_MENUS),
   setNavMenus: (menus: NavigationMenuItem[]) => setStorage(STORAGE_KEYS.NAV_MENUS, menus),
+
+  getHitCounter: (): number => {
+    const val = getStorage<number>(STORAGE_KEYS.HIT_COUNTER, 50);
+    return typeof val === 'number' && val >= 50 ? val : 50;
+  },
+  setHitCounter: (count: number): void => {
+    const val = Math.max(50, Number(count) || 50);
+    setStorage(STORAGE_KEYS.HIT_COUNTER, val);
+  },
+  incrementHitCounter: (step = 1): number => {
+    const current = StorageService.getHitCounter();
+    const next = current + Math.max(1, step);
+    StorageService.setHitCounter(next);
+    return next;
+  }
 };

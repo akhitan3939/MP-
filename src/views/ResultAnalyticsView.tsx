@@ -25,6 +25,9 @@ import {
   Zap
 } from 'lucide-react';
 import { Question } from '../types';
+import { EXCLUSIVE_FREE_MOCK_QUESTIONS } from '../data/freeMockQuestions';
+import { getPatwariQuestionsForSet } from '../data/patwariSetsData';
+import { getAgriQuestionsForSet } from '../data/agriSetsData';
 
 export const ResultAnalyticsView: React.FC = () => {
   const { 
@@ -40,7 +43,9 @@ export const ResultAnalyticsView: React.FC = () => {
   } = useApp();
   
   const attemptId = viewParams?.attemptId;
-  const attempt = attempts.find(a => a.id === attemptId) || attempts[0];
+  const attempt = (attempts && attempts.length > 0)
+    ? (attempts.find(a => a.id === attemptId) || attempts[0])
+    : null;
 
   const [filterSubject, setFilterSubject] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'CORRECT' | 'INCORRECT' | 'UNATTEMPTED'>('ALL');
@@ -53,21 +58,44 @@ export const ResultAnalyticsView: React.FC = () => {
       <div className="max-w-4xl mx-auto py-16 px-4 text-center">
         <HelpCircle className="w-12 h-12 text-stone-400 mx-auto mb-3" />
         <h2 className="text-xl font-bold">कोई टेस्ट प्रयास नहीं मिला</h2>
-        <button onClick={() => navigate('dashboard')} className="mt-4 px-4 py-2 bg-amber-500 text-stone-950 font-bold rounded-xl text-xs">
-          डैशबोर्ड पर जाएँ
+        <p className="text-stone-500 text-sm mt-1">कृपया पहले एक मॉक टेस्ट दें ताकि आपका रिपोर्ट कार्ड यहाँ दिखे।</p>
+        <button onClick={() => navigate('freeMockTest')} className="mt-4 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold rounded-xl text-xs shadow-md transition">
+          40-प्रश्नों का फ्री मॉक टेस्ट दें
         </button>
       </div>
     );
   }
 
-  // Get relevant questions
-  const attemptQuestions = questions.filter(q => q.seriesId === attempt.seriesId || q.seriesId === 'ts_patwari_2026');
-  const questionsList = attemptQuestions.length > 0 ? attemptQuestions : questions.slice(0, 10);
+  // Detect whether this attempt is the 40-question Free Mock Test or other test series
+  const isFreeMockAttempt = 
+    attempt.seriesId === 'free_mock_40' || 
+    attempt.seriesId === 'free_exclusive_mock' ||
+    attempt.totalQuestions === 40 || 
+    attempt.totalMarks === 40 ||
+    (attempt.seriesTitle && (attempt.seriesTitle.includes('40 प्रश्न') || attempt.seriesTitle.toLowerCase().includes('free mock') || attempt.seriesTitle.includes('फ्री मॉक'))) ||
+    Object.keys(attempt.answers || {}).some(k => k.startsWith('free_q'));
+
+  let questionsList: Question[] = [];
+  if (isFreeMockAttempt) {
+    questionsList = EXCLUSIVE_FREE_MOCK_QUESTIONS;
+  } else if (attempt.seriesId === 'ts_agri_ext_2026') {
+    questionsList = getAgriQuestionsForSet(1);
+  } else if (attempt.seriesId === 'ts_patwari_2026') {
+    questionsList = getPatwariQuestionsForSet(1);
+  } else {
+    const attemptQuestions = questions.filter(q => q.seriesId === attempt.seriesId);
+    questionsList = attemptQuestions.length > 0 ? attemptQuestions : questions.slice(0, 40);
+  }
+
+  // Extract subjects for subject-filter
+  const availableSubjects = Array.from(
+    new Set(questionsList.map(q => q.subject || q.section || 'General Studies').filter(Boolean))
+  );
 
   // Filter questions for review
   const filteredQuestions = questionsList.filter(q => {
-    const userSelected = attempt.answers[q.id];
-    const correctOpt = q.correctOption !== undefined ? q.correctOption : (q.correctOptionIndex !== undefined ? q.correctOptionIndex : 0);
+    const userSelected = attempt.answers ? attempt.answers[q.id] : undefined;
+    const correctOpt = q.correctOptionIndex !== undefined ? q.correctOptionIndex : (q.correctOption !== undefined ? q.correctOption : 0);
     const isCorrect = userSelected === correctOpt;
     const isAttempted = userSelected !== undefined;
 
@@ -81,14 +109,24 @@ export const ResultAnalyticsView: React.FC = () => {
     return matchesSubject && matchesStatus;
   });
 
+  const getOptionText = (opt: any, isHindi: boolean = true) => {
+    if (!opt) return '';
+    if (typeof opt === 'string') return opt;
+    if (typeof opt === 'object') {
+      return isHindi ? (opt.textHi || opt.textEn || opt.text || '') : (opt.textEn || opt.textHi || opt.text || '');
+    }
+    return String(opt);
+  };
+
   // Request AI Explanation for a single question
   const handleExplainWithAi = async (q: Question) => {
     setSelectedQuestionForAi(q);
     setIsExplaining(true);
     setAiExplanationText('');
 
-    const optHi = q.optionsHi || q.options?.map((o: any) => typeof o === 'string' ? o : o.textHi || o.textEn || '') || [];
-    const correctOpt = q.correctOption !== undefined ? q.correctOption : (q.correctOptionIndex !== undefined ? q.correctOptionIndex : 0);
+    const optHi = (q.options || []).map((o: any) => getOptionText(o, true));
+    const correctOpt = q.correctOptionIndex !== undefined ? q.correctOptionIndex : (q.correctOption !== undefined ? q.correctOption : 0);
+    const studentChoiceIndex = attempt.answers ? attempt.answers[q.id] : undefined;
 
     try {
       const res = await fetch('/api/ai/explain-question', {
@@ -101,11 +139,11 @@ export const ResultAnalyticsView: React.FC = () => {
           options: optHi,
           correctOption: optHi[correctOpt] || `विकल्प ${correctOpt + 1}`,
           subject: q.subject || q.section || 'General Studies',
-          studentAnswer: attempt.answers[q.id] !== undefined ? optHi[attempt.answers[q.id]] : 'हल नहीं किया'
+          studentAnswer: studentChoiceIndex !== undefined ? optHi[studentChoiceIndex] : 'हल नहीं किया'
         })
       });
       const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         let text = data.explanationHi || data.explanation || q.explanationHi || '';
         if (data.mnemonicTrick) {
           text += `\n\n💡 याद रखने का शॉर्टकट / Mnemonic: ${data.mnemonicTrick}`;
@@ -115,10 +153,10 @@ export const ResultAnalyticsView: React.FC = () => {
         }
         setAiExplanationText(text);
       } else {
-        setAiExplanationText(q.explanationHi || 'इस प्रश्न की व्याख्या उपलब्ध है।');
+        setAiExplanationText(q.explanationHi || 'इस प्रश्न की विस्तृत व्याख्या ऊपर दी गई है।');
       }
     } catch {
-      setAiExplanationText(q.explanationHi || 'इस प्रश्न की व्याख्या उपलब्ध है।');
+      setAiExplanationText(q.explanationHi || 'इस प्रश्न की आधिकारिक व्याख्या उपलब्ध है।');
     } finally {
       setIsExplaining(false);
     }
@@ -469,12 +507,14 @@ export const ResultAnalyticsView: React.FC = () => {
         {/* Questions Detailed List */}
         <div className="space-y-6">
           {filteredQuestions.map((q, idx) => {
-            const userSelected = attempt.answers[q.id];
-            const correctOpt = q.correctOption !== undefined ? q.correctOption : (q.correctOptionIndex !== undefined ? q.correctOptionIndex : 0);
+            const userSelected = attempt.answers ? attempt.answers[q.id] : undefined;
+            const correctOpt = q.correctOptionIndex !== undefined ? q.correctOptionIndex : (q.correctOption !== undefined ? q.correctOption : 0);
             const isCorrect = userSelected === correctOpt;
             const isAttempted = userSelected !== undefined;
             const isBookmarked = bookmarkedQuestionIds.includes(q.id);
-            const opts = q.optionsHi || q.options?.map((o: any) => typeof o === 'string' ? o : o.textHi || o.textEn || '') || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
+            const opts = (q.options && q.options.length > 0)
+              ? q.options.map((o: any) => getOptionText(o, true))
+              : (q.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D']);
 
             return (
               <div 

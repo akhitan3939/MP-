@@ -1,4 +1,4 @@
-import { TestSeries, Question, LeaderboardEntry, OrderTransaction, Coupon, Announcement, OfflineNote, UserProfile } from '../types';
+import { TestSeries, Question, LeaderboardEntry, OrderTransaction, Coupon, Announcement, OfflineNote, UserProfile, TestAttempt } from '../types';
 import { PATWARI_2026_MASTER_QUESTIONS } from './patwariFullQuestionBank';
 import { PATWARI_2026_PART2_QUESTIONS } from './patwariFullQuestionBank2';
 import { PATWARI_2026_PART3_QUESTIONS } from './patwariFullQuestionBank3';
@@ -20,6 +20,81 @@ export const INITIAL_USERS: UserProfile[] = [
     xp: 25000,
     streak: 45,
     badges: ['👑 Admin Master', '🏛️ MP Setu Director', '📊 Analytics Lead'],
+  },
+  {
+    id: 'usr_student_1',
+    name: 'अमित कुमार (Amit Kumar)',
+    username: 'amit_kumar_mp',
+    email: 'amit.kumar@gmail.com',
+    phone: '9826011223',
+    role: 'student',
+    district: 'जबलपुर (Jabalpur)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP पटवारी / समूह-2 उपसमूह-4',
+    joinedAt: '2025-01-15T09:30:00.000Z',
+    xp: 4850,
+    streak: 14,
+    badges: ['🥈 Rank 2 (MP Topper)', '🔥 14-Day Streak', '🎯 40-Q Free Mock Master'],
+  },
+  {
+    id: 'usr_student_2',
+    name: 'प्रिया शर्मा (Priya Sharma)',
+    username: 'priya_sharma_indore',
+    email: 'priya.sharma99@gmail.com',
+    phone: '9752044556',
+    role: 'student',
+    district: 'इंदौर (Indore)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP पटवारी 2026',
+    joinedAt: '2025-01-10T14:20:00.000Z',
+    xp: 5920,
+    streak: 22,
+    badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
+  },
+  {
+    id: 'usr_student_3',
+    name: 'रोहित वर्मा (Rohit Verma)',
+    username: 'rohit_verma_gwl',
+    email: 'rohit.verma@yahoo.com',
+    phone: '9425077889',
+    role: 'student',
+    district: 'ग्वालियर (Gwalior)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP पुलिस आरक्षक & SI',
+    joinedAt: '2025-01-20T11:15:00.000Z',
+    xp: 3400,
+    streak: 8,
+    badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
+  },
+  {
+    id: 'usr_student_4',
+    name: 'अनिता पटेल (Anita Patel)',
+    username: 'anita_patel_ujjain',
+    email: 'anita.patel@gmail.com',
+    phone: '9827033445',
+    role: 'student',
+    district: 'उज्जैन (Ujjain)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MPPSC प्रारंभिक परीक्षा 2026',
+    joinedAt: '2025-01-25T16:45:00.000Z',
+    xp: 2950,
+    streak: 11,
+    badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
+  },
+  {
+    id: 'usr_student_5',
+    name: 'विकास यादव (Vikas Yadav)',
+    username: 'vikas_yadav_rewa',
+    email: 'vikas.yadav@gmail.com',
+    phone: '9179066778',
+    role: 'student',
+    district: 'रीवा (Rewa)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'कृषि विस्तार अधिकारी (RAEO)',
+    joinedAt: '2025-02-01T10:00:00.000Z',
+    xp: 2600,
+    streak: 6,
+    badges: ['🌱 Agri Warrior', '🎯 Free Mock Completed'],
   }
 ];
 
@@ -726,6 +801,277 @@ export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
   }
 ];
 
+export const INITIAL_ATTEMPTS: TestAttempt[] = [
+  {
+    id: 'att_free_priya_1',
+    userId: 'usr_student_2',
+    userName: 'प्रिया शर्मा (Priya Sharma)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'इंदौर (Indore)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T10:15:00.000Z',
+    completedAt: '2026-03-01T10:33:45.000Z',
+    durationSeconds: 1125, // 18m 45s
+    score: 38,
+    totalMarks: 40,
+    percentage: 95.0,
+    accuracy: 95.0,
+    rank: 1,
+    totalParticipants: 28450,
+    percentile: 99.9,
+    correctAnswers: 38,
+    incorrectAnswers: 2,
+    unattempted: 0,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-98124',
+    answers: {
+      free_q1: 0, free_q2: 1, free_q3: 1, free_q4: 1, free_q5: 1,
+      free_q6: 1, free_q7: 2, free_q8: 1, free_q9: 0, free_q10: 1,
+      free_q11: 1, free_q12: 1, free_q13: 2, free_q14: 1, free_q15: 1,
+      free_q16: 1, free_q17: 0, free_q18: 1, free_q19: 1, free_q20: 0,
+      free_q21: 1, free_q22: 1, free_q23: 1, free_q24: 1, free_q25: 1,
+      free_q26: 1, free_q27: 1, free_q28: 1, free_q29: 2, free_q30: 1,
+      free_q31: 1, free_q32: 2, free_q33: 1, free_q34: 1, free_q35: 0,
+      free_q36: 1, free_q37: 1, free_q38: 1, free_q39: 1, free_q40: 1
+    },
+    sectionScores: [
+      { sectionName: 'सामान्य ज्ञान एवं म.प्र. GK', subject: 'म.प्र. GK', totalQuestions: 8, attempted: 8, correct: 8, incorrect: 0, marksObtained: 8, maxMarks: 8, accuracy: 100 },
+      { sectionName: 'सामान्य हिन्दी', subject: 'सामान्य हिन्दी', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'सामान्य गणित व तार्किक अभिरुचि', subject: 'सामान्य गणित', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'मानसिक अभियोग्यता (रीजनिंग)', subject: 'रीजनिंग', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'कंप्यूटर विज्ञान एवं आईटी', subject: 'कंप्यूटर ज्ञान', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'सामान्य विज्ञान', subject: 'सामान्य विज्ञान', totalQuestions: 4, attempted: 4, correct: 4, incorrect: 0, marksObtained: 4, maxMarks: 4, accuracy: 100 },
+      { sectionName: 'सामान्य अंग्रेजी', subject: 'General English', totalQuestions: 4, attempted: 4, correct: 3, incorrect: 1, marksObtained: 3, maxMarks: 4, accuracy: 75 }
+    ],
+    aiReport: {
+      summaryHi: 'प्रिया शर्मा, आपने 40 में से 38 अंक (95.0%) प्राप्त कर ऑल-मध्यप्रदेश रैंक 1 हासिल की है। आपका प्रदर्शन राज्य स्तर पर असाधारण और मेरिट सूची में शीर्ष का है।',
+      summaryEn: 'Priya Sharma, you scored 38/40 (95.0%) securing All-MP Rank 1. Outstanding performance across MP GK, Hindi, and Computer.',
+      keyInsightsHi: [
+        'मध्यप्रदेश सामान्य ज्ञान एवं कला-संस्कृति खंड में 100% सटीकता',
+        'प्रति प्रश्न औसत समय मात्र 28.1 सेकंड रहा (अत्यंत तीव्र एवं सटीक)',
+        'हिन्दी व्याकरण एवं कंप्यूटर शॉर्टकट कुंजियों में मजबूत पकड़'
+      ],
+      keyInsightsEn: [
+        '100% accuracy in MP Special GK & History modules',
+        'Average time per question was 28.1 seconds',
+        'Strong conceptual clarity in Hindi Grammar and Computer IT'
+      ],
+      mnemonicTip: '💡 ट्रिक: "नर्मदा अमर से निकली, 1077 एमपी में बही (1312 कुल)" — म.प्र. नदी तंत्र का अचूक सूत्र।',
+      sevenDayPlan: [
+        { day: 1, subject: 'म.प्र. भूगोल', focusTopic: 'नर्मदा व चंबल अपवाह तंत्र एवं जलप्रपात' },
+        { day: 2, subject: 'पंचायती राज', focusTopic: '73वां संविधान संशोधन व 29 विषय' },
+        { day: 3, subject: 'सामान्य हिन्दी', focusTopic: 'संधि, समास, रस, अलंकार व शुद्ध वर्तनी' },
+        { day: 4, subject: 'सामान्य गणित', focusTopic: 'समय-दूरी, कार्य-समय व लाभ-हानि' },
+        { day: 5, subject: 'कंप्यूटर IT', focusTopic: 'MS Office 365, नेटवर्किंग व साइबर सुरक्षा' },
+        { day: 6, subject: 'PYQs रिवीजन', focusTopic: 'MP व्यापम पिछले 5 वर्षों के हल प्रश्न' },
+        { day: 7, subject: 'फुल मॉक टेस्ट', focusTopic: 'फुल लेंथ 200 प्रश्नों का समयबद्ध अभ्यास' }
+      ],
+      expectedCutoffScore: 31,
+      percentileRank: 99.9
+    }
+  },
+  {
+    id: 'att_free_amit_2',
+    userId: 'usr_student_1',
+    userName: 'अमित कुमार (Amit Kumar)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'जबलपुर (Jabalpur)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T11:00:00.000Z',
+    completedAt: '2026-03-01T11:21:10.000Z',
+    durationSeconds: 1270, // 21m 10s
+    score: 36,
+    totalMarks: 40,
+    percentage: 90.0,
+    accuracy: 92.3,
+    rank: 2,
+    totalParticipants: 28450,
+    percentile: 99.5,
+    correctAnswers: 36,
+    incorrectAnswers: 3,
+    unattempted: 1,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-87451',
+    answers: {
+      free_q1: 0, free_q2: 1, free_q3: 1, free_q4: 1, free_q5: 1,
+      free_q6: 1, free_q7: 2, free_q8: 1, free_q9: 0, free_q10: 1,
+      free_q11: 1, free_q12: 1, free_q13: 2, free_q14: 1, free_q15: 1,
+      free_q16: 1, free_q17: 0, free_q18: 0, free_q19: 1, free_q20: 0,
+      free_q21: 1, free_q22: 1, free_q23: 1, free_q24: 1, free_q25: 1,
+      free_q26: 1, free_q27: 1, free_q28: 1, free_q29: 2, free_q30: 1,
+      free_q31: 1, free_q32: 2, free_q33: 1, free_q34: 0, free_q35: 0,
+      free_q36: 1, free_q37: 1, free_q38: 0, free_q39: 1
+    },
+    sectionScores: [
+      { sectionName: 'सामान्य ज्ञान एवं म.प्र. GK', subject: 'म.प्र. GK', totalQuestions: 8, attempted: 8, correct: 8, incorrect: 0, marksObtained: 8, maxMarks: 8, accuracy: 100 },
+      { sectionName: 'सामान्य हिन्दी', subject: 'सामान्य हिन्दी', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'सामान्य गणित व तार्किक अभिरुचि', subject: 'सामान्य गणित', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'मानसिक अभियोग्यता (रीजनिंग)', subject: 'रीजनिंग', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'कंप्यूटर विज्ञान एवं आईटी', subject: 'कंप्यूटर ज्ञान', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'सामान्य विज्ञान', subject: 'सामान्य विज्ञान', totalQuestions: 4, attempted: 4, correct: 3, incorrect: 1, marksObtained: 3, maxMarks: 4, accuracy: 75 },
+      { sectionName: 'सामान्य अंग्रेजी', subject: 'General English', totalQuestions: 4, attempted: 3, correct: 2, incorrect: 1, marksObtained: 2, maxMarks: 4, accuracy: 67 }
+    ]
+  },
+  {
+    id: 'att_free_rohit_3',
+    userId: 'usr_student_3',
+    userName: 'रोहित वर्मा (Rohit Verma)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'ग्वालियर (Gwalior)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T12:30:00.000Z',
+    completedAt: '2026-03-01T12:53:30.000Z',
+    durationSeconds: 1410, // 23m 30s
+    score: 34,
+    totalMarks: 40,
+    percentage: 85.0,
+    accuracy: 89.5,
+    rank: 4,
+    totalParticipants: 28450,
+    percentile: 98.2,
+    correctAnswers: 34,
+    incorrectAnswers: 4,
+    unattempted: 2,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-65239',
+    answers: {
+      free_q1: 0, free_q2: 1, free_q3: 1, free_q4: 1, free_q5: 1,
+      free_q6: 1, free_q7: 2, free_q8: 1, free_q9: 0, free_q10: 1,
+      free_q11: 1, free_q12: 1, free_q13: 2, free_q14: 1, free_q15: 1,
+      free_q16: 1, free_q17: 0, free_q18: 1, free_q19: 1, free_q20: 0,
+      free_q21: 1, free_q22: 1, free_q23: 1, free_q24: 1, free_q25: 1,
+      free_q26: 1, free_q27: 1, free_q28: 1, free_q29: 2, free_q30: 1,
+      free_q31: 1, free_q32: 2, free_q33: 1, free_q34: 1
+    },
+    sectionScores: [
+      { sectionName: 'सामान्य ज्ञान एवं म.प्र. GK', subject: 'म.प्र. GK', totalQuestions: 8, attempted: 8, correct: 7, incorrect: 1, marksObtained: 7, maxMarks: 8, accuracy: 88 },
+      { sectionName: 'सामान्य हिन्दी', subject: 'सामान्य हिन्दी', totalQuestions: 6, attempted: 6, correct: 6, incorrect: 0, marksObtained: 6, maxMarks: 6, accuracy: 100 },
+      { sectionName: 'सामान्य गणित', subject: 'सामान्य गणित', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'रीजनिंग', subject: 'रीजनिंग', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'कंप्यूटर ज्ञान', subject: 'कंप्यूटर ज्ञान', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'सामान्य विज्ञान', subject: 'सामान्य विज्ञान', totalQuestions: 4, attempted: 4, correct: 3, incorrect: 0, marksObtained: 3, maxMarks: 4, accuracy: 100 },
+      { sectionName: 'General English', subject: 'General English', totalQuestions: 4, attempted: 2, correct: 2, incorrect: 0, marksObtained: 2, maxMarks: 4, accuracy: 100 }
+    ]
+  },
+  {
+    id: 'att_free_anita_4',
+    userId: 'usr_student_4',
+    userName: 'अनिता पटेल (Anita Patel)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'उज्जैन (Ujjain)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T14:00:00.000Z',
+    completedAt: '2026-03-01T14:24:50.000Z',
+    durationSeconds: 1490, // 24m 50s
+    score: 32,
+    totalMarks: 40,
+    percentage: 80.0,
+    accuracy: 84.2,
+    rank: 7,
+    totalParticipants: 28450,
+    percentile: 96.8,
+    correctAnswers: 32,
+    incorrectAnswers: 6,
+    unattempted: 2,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-51208',
+    answers: {
+      free_q1: 0, free_q2: 1, free_q3: 1, free_q4: 1, free_q5: 1,
+      free_q6: 1, free_q7: 2, free_q8: 1, free_q9: 0, free_q10: 1,
+      free_q11: 1, free_q12: 1, free_q13: 2, free_q14: 1, free_q15: 1,
+      free_q16: 1, free_q17: 0, free_q18: 1, free_q19: 1, free_q20: 0,
+      free_q21: 1, free_q22: 1, free_q23: 1, free_q24: 1, free_q25: 1,
+      free_q26: 1, free_q27: 1, free_q28: 1, free_q29: 2, free_q30: 1,
+      free_q31: 1, free_q32: 2
+    },
+    sectionScores: [
+      { sectionName: 'सामान्य ज्ञान एवं म.प्र. GK', subject: 'म.प्र. GK', totalQuestions: 8, attempted: 8, correct: 7, incorrect: 1, marksObtained: 7, maxMarks: 8, accuracy: 88 },
+      { sectionName: 'सामान्य हिन्दी', subject: 'सामान्य हिन्दी', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'सामान्य गणित', subject: 'सामान्य गणित', totalQuestions: 6, attempted: 6, correct: 4, incorrect: 2, marksObtained: 4, maxMarks: 6, accuracy: 67 },
+      { sectionName: 'रीजनिंग', subject: 'रीजनिंग', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'कंप्यूटर ज्ञान', subject: 'कंप्यूटर ज्ञान', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'सामान्य विज्ञान', subject: 'सामान्य विज्ञान', totalQuestions: 4, attempted: 4, correct: 3, incorrect: 1, marksObtained: 3, maxMarks: 4, accuracy: 75 },
+      { sectionName: 'General English', subject: 'General English', totalQuestions: 4, attempted: 2, correct: 2, incorrect: 0, marksObtained: 2, maxMarks: 4, accuracy: 100 }
+    ]
+  },
+  {
+    id: 'att_free_vikas_5',
+    userId: 'usr_student_5',
+    userName: 'विकास यादव (Vikas Yadav)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'रीवा (Rewa)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T15:10:00.000Z',
+    completedAt: '2026-03-01T15:35:15.000Z',
+    durationSeconds: 1515, // 25m 15s
+    score: 30,
+    totalMarks: 40,
+    percentage: 75.0,
+    accuracy: 81.1,
+    rank: 12,
+    totalParticipants: 28450,
+    percentile: 94.5,
+    correctAnswers: 30,
+    incorrectAnswers: 7,
+    unattempted: 3,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-44910',
+    answers: {
+      free_q1: 0, free_q2: 1, free_q3: 1, free_q4: 1, free_q5: 1,
+      free_q6: 1, free_q7: 2, free_q8: 1, free_q9: 0, free_q10: 1,
+      free_q11: 1, free_q12: 1, free_q13: 2, free_q14: 1, free_q15: 1,
+      free_q16: 1, free_q17: 0, free_q18: 1, free_q19: 1, free_q20: 0,
+      free_q21: 1, free_q22: 1, free_q23: 1, free_q24: 1, free_q25: 1,
+      free_q26: 1, free_q27: 1, free_q28: 1, free_q29: 2, free_q30: 1
+    },
+    sectionScores: [
+      { sectionName: 'सामान्य ज्ञान एवं म.प्र. GK', subject: 'म.प्र. GK', totalQuestions: 8, attempted: 8, correct: 6, incorrect: 2, marksObtained: 6, maxMarks: 8, accuracy: 75 },
+      { sectionName: 'सामान्य हिन्दी', subject: 'सामान्य हिन्दी', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'सामान्य गणित', subject: 'सामान्य गणित', totalQuestions: 6, attempted: 6, correct: 4, incorrect: 2, marksObtained: 4, maxMarks: 6, accuracy: 67 },
+      { sectionName: 'रीजनिंग', subject: 'रीजनिंग', totalQuestions: 6, attempted: 6, correct: 5, incorrect: 1, marksObtained: 5, maxMarks: 6, accuracy: 83 },
+      { sectionName: 'कंप्यूटर ज्ञान', subject: 'कंप्यूटर ज्ञान', totalQuestions: 6, attempted: 5, correct: 4, incorrect: 1, marksObtained: 4, maxMarks: 6, accuracy: 80 },
+      { sectionName: 'सामान्य विज्ञान', subject: 'सामान्य विज्ञान', totalQuestions: 4, attempted: 4, correct: 4, incorrect: 0, marksObtained: 4, maxMarks: 4, accuracy: 100 },
+      { sectionName: 'General English', subject: 'General English', totalQuestions: 4, attempted: 2, correct: 2, incorrect: 0, marksObtained: 2, maxMarks: 4, accuracy: 100 }
+    ]
+  },
+  {
+    id: 'att_patwari_priya_1',
+    userId: 'usr_student_2',
+    userName: 'प्रिया शर्मा (Priya Sharma)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'इंदौर (Indore)',
+    seriesId: 'ts_patwari_2026',
+    seriesTitle: 'MP पटवारी चयन परीक्षा 2026',
+    startedAt: '2026-02-24T09:00:00.000Z',
+    completedAt: '2026-02-24T10:04:12.000Z',
+    durationSeconds: 3852,
+    score: 98,
+    totalMarks: 100,
+    percentage: 98.0,
+    accuracy: 98.0,
+    rank: 1,
+    totalParticipants: 35000,
+    percentile: 99.9,
+    correctAnswers: 98,
+    incorrectAnswers: 2,
+    unattempted: 0,
+    totalQuestions: 100,
+    certificateId: 'CERT-MPSETU-2026-10291',
+    answers: {},
+    sectionScores: [
+      { sectionName: 'सामान्य ज्ञान', subject: 'सामान्य ज्ञान', totalQuestions: 25, attempted: 25, correct: 25, incorrect: 0, marksObtained: 25, maxMarks: 25, accuracy: 100 },
+      { sectionName: 'सामान्य गणित', subject: 'सामान्य गणित', totalQuestions: 25, attempted: 25, correct: 24, incorrect: 1, marksObtained: 24, maxMarks: 25, accuracy: 96 },
+      { sectionName: 'सामान्य हिन्दी', subject: 'सामान्य हिन्दी', totalQuestions: 25, attempted: 25, correct: 25, incorrect: 0, marksObtained: 25, maxMarks: 25, accuracy: 100 },
+      { sectionName: 'पंचायती राज व कंप्यूटर', subject: 'पंचायती राज', totalQuestions: 25, attempted: 25, correct: 24, incorrect: 1, marksObtained: 24, maxMarks: 25, accuracy: 96 }
+    ]
+  }
+];
+
 export const INITIAL_ORDERS: OrderTransaction[] = [];
 
 export const INITIAL_COUPONS: Coupon[] = [
@@ -977,3 +1323,6 @@ export const MP_DISTRICTS = [
   'मैहर (Maihar)',
   'पांढुर्णा (Pandhurna)'
 ];
+
+
+

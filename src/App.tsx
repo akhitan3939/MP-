@@ -54,7 +54,7 @@ const MainAppContent: React.FC = () => {
         {activeView === 'resultAnalytics' && <ResultAnalyticsView />}
         {activeView === 'leaderboard' && <LeaderboardView />}
         {activeView === 'notes' && <CatalogView />}
-        {activeView === 'dashboard' && <StudentDashboardView />}
+        {(activeView === 'dashboard' || activeView === 'studentDashboard') && <StudentDashboardView />}
         {activeView === 'admin' && <AdminDashboardView />}
       </main>
 

@@ -13,7 +13,11 @@ import {
   Youtube,
   Send,
   MessageCircle,
-  Share2
+  Share2,
+  Eye,
+  Calendar,
+  Sparkles,
+  Activity
 } from 'lucide-react';
 import { DynamicNavIcon } from '../utils/navIcons';
 
@@ -39,10 +43,75 @@ export const Footer: React.FC = () => {
 
   const copyrightText = wc?.footerCopyrightText || '© 2026 MP परीक्षा सेतु (MP Pariksha Setu) • मध्यप्रदेश शासन भर्ती परीक्षा तैयारी मंच। सर्वाधिकार सुरक्षित।';
 
+  // Hit Counter & Last Updated calculations (starts at 50 minimum)
+  const rawHits = typeof platformSettings?.visitorHitsCount === 'number' && platformSettings.visitorHitsCount >= 50
+    ? platformSettings.visitorHitsCount
+    : (typeof wc?.visitorHitsCount === 'number' && wc.visitorHitsCount >= 50 ? wc.visitorHitsCount : 50);
+
+  const formattedHitDigits = String(rawHits).padStart(6, '0').split('');
+
+  const lastUpdatedDateText = lang === 'hi'
+    ? (platformSettings?.lastUpdatedDateHi || wc?.lastUpdatedDateHi || '01 सितम्बर 2026')
+    : (platformSettings?.lastUpdatedDateEn || wc?.lastUpdatedDateEn || '01 September 2026');
+
+  const showHitCounter = platformSettings?.showHitCounter !== false && wc?.showHitCounter !== false;
+  const showLastUpdated = platformSettings?.showLastUpdated !== false && wc?.showLastUpdated !== false;
+
   return (
     <footer className="bg-[#5E1F16] text-[#FFFBF2] border-t-4 border-[#D4A017] text-xs mt-auto">
       {/* Cultural Border Ribbon */}
       <div className="h-1 bg-[#D4A017]"></div>
+
+      {/* Official Hit Counter & Last Updated Metadata Ribbon */}
+      {(showHitCounter || showLastUpdated) && (
+        <div className="bg-[#48160E] border-b border-[#963E2F]/80 py-3.5 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
+            
+            {/* Hit Counter Block */}
+            {showHitCounter && (
+              <div className="flex items-center gap-3 bg-[#330F0A] border border-[#D4A017]/40 px-3.5 py-1.5 rounded-2xl shadow-inner">
+                <div className="flex items-center gap-1.5 text-[#D4A017] font-black text-[11px] uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm"></span>
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{lang === 'hi' ? 'कुल विज़िटर्स (वेबसाइट हिट्स)' : 'Total Visitors (Hits)'}:</span>
+                </div>
+                
+                {/* Digit Reels */}
+                <div className="flex items-center gap-1">
+                  {formattedHitDigits.map((digit, idx) => (
+                    <span 
+                      key={idx}
+                      className="inline-flex items-center justify-center w-5 sm:w-6 h-6 sm:h-7 bg-gradient-to-b from-[#220906] to-[#120403] text-[#D4A017] font-mono font-black text-xs sm:text-sm rounded border border-[#D4A017]/60 shadow-sm"
+                    >
+                      {digit}
+                    </span>
+                  ))}
+                </div>
+
+                <span className="text-[10px] text-[#EAD8B1] font-mono font-bold hidden sm:inline">
+                  (50+ Verified)
+                </span>
+              </div>
+            )}
+
+            {/* Middle Trust Badge */}
+            <div className="hidden lg:flex items-center gap-2 text-[#EAD8B1] text-[11px] font-bold">
+              <ShieldCheck className="w-4 h-4 text-[#D4A017]" />
+              <span>SSL 256-Bit Encrypted • NIC CBT 2026 Standards</span>
+            </div>
+
+            {/* Last Updated Date Block */}
+            {showLastUpdated && (
+              <div className="flex items-center gap-2 bg-[#330F0A] border border-[#D4A017]/40 px-3.5 py-1.5 rounded-2xl text-[11px] font-bold text-[#FFFBF2] shadow-inner">
+                <Calendar className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
+                <span className="text-[#EAD8B1]">{lang === 'hi' ? 'पोर्टल अंतिम अद्यतन:' : 'Last Updated:'}</span>
+                <span className="text-[#D4A017] font-black tracking-wide font-mono">{lastUpdatedDateText}</span>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
