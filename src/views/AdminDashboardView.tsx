@@ -60,7 +60,8 @@ import {
   Share2,
   Gift,
   Calendar,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react';
 import { 
   TestSeries, 
@@ -126,6 +127,8 @@ export const AdminDashboardView: React.FC = () => {
     saveTestSeries, 
     deleteTestSeries, 
     toggleTestSeriesActive,
+    toggleMockSetActive,
+    updateSeriesSetsConfig,
     saveQuestion, 
     deleteQuestion, 
     saveAnnouncement, 
@@ -140,11 +143,14 @@ export const AdminDashboardView: React.FC = () => {
     deleteNote,
     refundOrder, 
     toggleUserAccess, 
+    grantAllSeriesToUser,
+    revokeAllSeriesFromUser,
     toggleUserRole,
     resetStudentPassword,
     grantStudentXp,
     broadcastPushNotification, 
     enrolledSeriesIds, 
+    enrolledMap,
     lang, 
     showToast,
     navigate
@@ -153,6 +159,10 @@ export const AdminDashboardView: React.FC = () => {
   // Active Admin Navigation Tab (All buttons on LEFT side)
   const [activeTab, setActiveTab] = useState<AdminModuleTab>('OVERVIEW');
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
+
+  // Mock Sets Management Tab State
+  const [selectedMockSeriesId, setSelectedMockSeriesId] = useState<string>('ts_patwari_2026');
+  const [customTotalTestsInput, setCustomTotalTestsInput] = useState<number | ''>('');
 
   // Search States
   const [searchOrders, setSearchOrders] = useState('');
@@ -252,6 +262,11 @@ export const AdminDashboardView: React.FC = () => {
 
   const [passwordModalUser, setPasswordModalUser] = useState<UserProfile | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState('123456');
+
+  // Free Access Grant Modal State
+  const [grantModalUser, setGrantModalUser] = useState<UserProfile | null>(null);
+  const [grantReasonTag, setGrantReasonTag] = useState<string>('🎁 छात्रवृत्ति (Free Scholarship)');
+  const [studentFilterType, setStudentFilterType] = useState<'all' | 'granted' | 'standard'>('all');
 
   // Bonus XP Modal
   const [xpModalUser, setXpModalUser] = useState<UserProfile | null>(null);
@@ -2334,14 +2349,14 @@ export const AdminDashboardView: React.FC = () => {
               {/* Master Registered Users Detailed Table Section */}
               <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
                 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-stone-100 dark:border-stone-800">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-stone-100 dark:border-stone-800">
                   <div>
                     <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
                       <Users className="w-5 h-5 text-blue-600" />
-                      <span>पंजीकृत छात्र मास्टर डेटा तालिका (Live Registered Students Table)</span>
+                      <span>पंजीकृत छात्र मास्टर डेटा व मुफ़्त एक्सेस तालिका (Registered Students & Access)</span>
                     </h3>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      वेबसाइट पर रजिस्टर होने वाले सभी छात्रों की संपूर्ण जानकारी यहाँ लाइव अपडेट होती है।
+                      यहाँ आप किसी भी छात्र को विशिष्ट टेस्ट सीरीज़ बिल्कुल मुफ़्त (₹0 Free Access) में असाइन कर सकते हैं, जबकि अन्य छात्रों के लिए वे सशुल्क रहेंगी।
                     </p>
                   </div>
 
@@ -2360,11 +2375,17 @@ export const AdminDashboardView: React.FC = () => {
                     
                     <button
                       onClick={() => {
-                        const filtered = users.filter(u => !searchStudents || 
-                          u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                          u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                          u.phone.includes(searchStudents)
-                        );
+                        const filtered = users.filter(u => {
+                          const matchesSearch = !searchStudents || 
+                            u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                            u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                            u.email.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                            u.phone.includes(searchStudents);
+                          const userGranted = enrolledMap[u.id] || [];
+                          if (studentFilterType === 'granted') return matchesSearch && (u.role === 'admin' || userGranted.length > 0);
+                          if (studentFilterType === 'standard') return matchesSearch && u.role !== 'admin' && userGranted.length === 0;
+                          return matchesSearch;
+                        });
                         const data = filtered.map(u => ({
                           'छात्र ID': u.id,
                           'नाम': u.name,
@@ -2373,11 +2394,12 @@ export const AdminDashboardView: React.FC = () => {
                           'गृह जिला': u.district,
                           'लक्ष्य परीक्षा': u.targetExam,
                           'रोल': u.role,
+                          'मुफ़्त पैकेज': u.role === 'admin' ? 'ALL_ADMIN' : (enrolledMap[u.id] || []).join(', ') || 'None',
                           'XP अंक': u.xp || 0,
                           'Streak': u.streak || 0,
                           'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleString('hi-IN')
                         }));
-                        exportToXls(data, `MP_Pariksha_Setu_Filtered_Students_${new Date().toISOString().split('T')[0]}`);
+                        exportToXls(data, `MP_Pariksha_Setu_Students_${new Date().toISOString().split('T')[0]}`);
                         showToast('📊 तालिका डेटा Excel (.xls) में एक्सपोर्ट हो गया।');
                       }}
                       className="px-3 py-1.5 bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] border border-[#D4A017] rounded-xl text-xs font-black flex items-center gap-1.5 transition"
@@ -2386,6 +2408,45 @@ export const AdminDashboardView: React.FC = () => {
                       <span>तालिका XLS</span>
                     </button>
                   </div>
+                </div>
+
+                {/* Filter Tabs Bar */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+                  <span className="text-xs font-bold text-stone-500 mr-1">फ़िल्टर:</span>
+                  <button
+                    onClick={() => setStudentFilterType('all')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      studentFilterType === 'all'
+                        ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                    }`}
+                  >
+                    <span>📋 सभी छात्र ({users.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setStudentFilterType('granted')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      studentFilterType === 'granted'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800'
+                    }`}
+                  >
+                    <Gift className="w-3.5 h-3.5" />
+                    <span>🎁 मुफ़्त एक्सेस सक्रिय ({users.filter(u => u.role === 'admin' || (enrolledMap[u.id] && enrolledMap[u.id].length > 0)).length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setStudentFilterType('standard')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      studentFilterType === 'standard'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>🔒 केवल सामान्य / सशुल्क ({users.filter(u => u.role !== 'admin' && (!enrolledMap[u.id] || enrolledMap[u.id].length === 0)).length})</span>
+                  </button>
                 </div>
 
                 {/* Table View of Users */}
@@ -2406,6 +2467,7 @@ export const AdminDashboardView: React.FC = () => {
                           <th className="py-3 px-4">संपर्क (मोबाइल व ईमेल)</th>
                           <th className="py-3 px-4">गृह जिला व परीक्षा</th>
                           <th className="py-3 px-4">रोल (Role)</th>
+                          <th className="py-3 px-4">🎁 मुफ़्त / अनलॉक पैकेज</th>
                           <th className="py-3 px-4">प्रगति (XP & Streak)</th>
                           <th className="py-3 px-4">पंजीकरण दिनांक</th>
                           <th className="py-3 px-4 text-center">कार्रवाई</th>
@@ -2413,14 +2475,23 @@ export const AdminDashboardView: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
                         {users
-                          .filter(u => !searchStudents || 
-                            u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                            u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                            u.email.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                            u.phone.includes(searchStudents)
-                          )
+                          .filter(u => {
+                            const matchesSearch = !searchStudents || 
+                              u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                              u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                              u.email.toLowerCase().includes(searchStudents.toLowerCase()) ||
+                              u.phone.includes(searchStudents);
+                            
+                            const userGranted = enrolledMap[u.id] || [];
+                            if (studentFilterType === 'granted') return matchesSearch && (u.role === 'admin' || userGranted.length > 0);
+                            if (studentFilterType === 'standard') return matchesSearch && u.role !== 'admin' && userGranted.length === 0;
+                            return matchesSearch;
+                          })
                           .map(user => {
                             const isAdmin = user.role === 'admin';
+                            const grantedList = enrolledMap[user.id] || [];
+                            const isVipAll = grantedList.includes('all_series_vip');
+
                             return (
                               <tr key={user.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
                                 <td className="py-3.5 px-4">
@@ -2462,6 +2533,47 @@ export const AdminDashboardView: React.FC = () => {
                                   </span>
                                 </td>
 
+                                {/* Free Granted Test Series Column */}
+                                <td className="py-3.5 px-4">
+                                  {isAdmin ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 text-[10px] font-black">
+                                      <Sparkles className="w-3 h-3 text-amber-600" />
+                                      <span>संपूर्ण पोर्टल ऑल-एक्सेस (Admin)</span>
+                                    </span>
+                                  ) : isVipAll ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 text-[10px] font-black">
+                                      <Gift className="w-3 h-3 text-emerald-600" />
+                                      <span>🌟 VIP ऑल-एक्सेस (सभी टेस्ट फ्री)</span>
+                                    </span>
+                                  ) : grantedList.length > 0 ? (
+                                    <div className="space-y-1 max-w-[200px]">
+                                      <div className="flex flex-wrap gap-1">
+                                        {grantedList.map(sid => {
+                                          const seriesObj = testSeries.find(s => s.id === sid);
+                                          const label = seriesObj ? (lang === 'hi' ? seriesObj.titleHi : seriesObj.titleEn) : sid;
+                                          return (
+                                            <span 
+                                              key={sid} 
+                                              title={label}
+                                              className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold truncate max-w-[190px]"
+                                            >
+                                              🟢 {label}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                      <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                                        {grantedList.length} टेस्ट सीरीज़ मुफ़्त अनलॉक
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-stone-400 font-medium italic flex items-center gap-1">
+                                      <Lock className="w-3 h-3 text-stone-300" />
+                                      <span>कोई मुफ़्त पैकेज नहीं</span>
+                                    </span>
+                                  )}
+                                </td>
+
                                 <td className="py-3.5 px-4 font-mono">
                                   <div className="font-black text-amber-600">{user.xp || 0} XP</div>
                                   <div className="text-[10px] text-stone-400">🔥 {user.streak || 0} दिन स्ट्रीक</div>
@@ -2473,6 +2585,27 @@ export const AdminDashboardView: React.FC = () => {
 
                                 <td className="py-3.5 px-4 text-center">
                                   <div className="flex items-center justify-center gap-1.5">
+                                    {/* Grant Free Access Button */}
+                                    <button
+                                      onClick={() => setGrantModalUser(user)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-[10px] font-black flex items-center gap-1 shadow-sm transition hover:scale-105"
+                                      title="इस छात्र को मुफ़्त टेस्ट सीरीज़ असाइन करें"
+                                    >
+                                      <Gift className="w-3.5 h-3.5" />
+                                      <span>मुफ़्त एक्सेस</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        setXpModalUser(user);
+                                        setBonusXpVal(500);
+                                      }}
+                                      className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                                      title="+XP बोनस अंक दें"
+                                    >
+                                      <Award className="w-3.5 h-3.5" />
+                                    </button>
+
                                     <button
                                       onClick={() => {
                                         setPasswordModalUser(user);
@@ -2483,6 +2616,7 @@ export const AdminDashboardView: React.FC = () => {
                                     >
                                       <Key className="w-3.5 h-3.5" />
                                     </button>
+
                                     <button
                                       onClick={() => toggleUserRole(user.id)}
                                       className="px-2 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-[10px] font-bold"
@@ -2938,6 +3072,33 @@ export const AdminDashboardView: React.FC = () => {
                             </button>
                           </div>
 
+                          {/* Live Mock Sets Count Badge */}
+                          <div className="p-2.5 bg-stone-50 dark:bg-stone-800/80 rounded-xl border border-stone-200 dark:border-stone-700 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-stone-500 block">मॉक सेट्स स्थिति (Live Mock Sets)</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="font-bold text-stone-900 dark:text-white">कुल: {series.totalTests || 20}</span>
+                                <span className="text-emerald-600 font-bold text-[11px] bg-emerald-100 dark:bg-emerald-950/80 px-1.5 py-0.2 rounded">
+                                  🟢 {(series.totalTests || 20) - ((series.disabledSetNumbers || []).filter(n => n <= (series.totalTests || 20)).length)} सक्रिय
+                                </span>
+                                {((series.disabledSetNumbers || []).length > 0) && (
+                                  <span className="text-rose-600 font-bold text-[11px] bg-rose-100 dark:bg-rose-950/80 px-1.5 py-0.2 rounded">
+                                    🔴 {(series.disabledSetNumbers || []).filter(n => n <= (series.totalTests || 20)).length} निष्क्रिय
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedMockSeriesId(series.id);
+                                setActiveTab('MOCK_SETS');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-[11px] transition shrink-0 cursor-pointer"
+                            >
+                              सेट्स प्रबंधित करें →
+                            </button>
+                          </div>
+
                           <div className="flex items-center justify-between text-stone-500 font-medium pt-1">
                             <span>डेमो टेस्ट:</span>
                             <span className="font-bold text-emerald-600">
@@ -2962,14 +3123,14 @@ export const AdminDashboardView: React.FC = () => {
                       <div className="p-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
                         <button
                           onClick={() => setEditingSeries({ ...series })}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold cursor-pointer"
                         >
                           <Edit className="w-3.5 h-3.5 text-[#7A2A1E] dark:text-[#D4A017]" />
-                          <span>संपादित करें / थंबनेल</span>
+                          <span>संपादित करें / विवरण</span>
                         </button>
                         <button
                           onClick={() => deleteTestSeries(series.id)}
-                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100"
+                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 cursor-pointer"
                           title="हटाएँ"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -2983,78 +3144,283 @@ export const AdminDashboardView: React.FC = () => {
           )}
 
           {/* ========================================================= */}
-          {/* TAB 4: 20 MOCK SETS MANAGEMENT */}
+          {/* TAB 4: 20 MOCK SETS MANAGEMENT (Active / Inactive Controller) */}
           {/* ========================================================= */}
-          {activeTab === 'MOCK_SETS' && (
-            <div className="space-y-6">
-              <div className="p-5 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-800 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-black text-sm">
-                    <Target className="w-5 h-5 text-emerald-600" />
-                    <span>म.प्र. पटवारी 2026 — 20 फुल मॉक सेट्स नियंत्रक (20 Mock Sets Engine)</span>
-                  </div>
-                  <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
-                    प्रत्येक सेट में 200 प्रश्न (8 विषय) व 180 मिनट का वास्तविक CBT सिमुलेटर शामिल है। सेट #1 पूर्णतः मुफ़्त डेमो है, और सेट #2 से #20 नामांकित छात्रों हेतु सुरक्षित हैं।
-                  </p>
+          {activeTab === 'MOCK_SETS' && (() => {
+            const currentMockSeries = testSeries.find(s => s.id === selectedMockSeriesId) || testSeries[0];
+            const disabledSets: number[] = Array.isArray(currentMockSeries?.disabledSetNumbers) ? currentMockSeries.disabledSetNumbers : [];
+            const totalAttachedSets = currentMockSeries?.totalTests || 20;
+            const activeSetsCount = Math.max(0, totalAttachedSets - disabledSets.filter(n => n <= totalAttachedSets).length);
+            const disabledSetsCount = disabledSets.filter(n => n <= totalAttachedSets).length;
+
+            return (
+              <div className="space-y-6">
+                {/* Series Switching Navigation Pills */}
+                <div className="flex flex-wrap items-center gap-2 p-2 bg-stone-100 dark:bg-stone-850 rounded-2xl border border-stone-200 dark:border-stone-700">
+                  <span className="text-xs font-bold text-stone-500 px-2 flex items-center gap-1">
+                    <Target className="w-4 h-4 text-amber-500" />
+                    <span>टेस्ट सीरीज़ चुनें:</span>
+                  </span>
+                  {testSeries.map(s => {
+                    const isSelected = (currentMockSeries?.id === s.id);
+                    const sDisabled = Array.isArray(s.disabledSetNumbers) ? s.disabledSetNumbers : [];
+                    const sActiveCount = (s.totalTests || 20) - sDisabled.filter(n => n <= (s.totalTests || 20)).length;
+
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setSelectedMockSeriesId(s.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-500/40'
+                            : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
+                        }`}
+                      >
+                        <span>{s.titleHi || s.titleEn}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
+                          isSelected ? 'bg-stone-950 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        }`}>
+                          {sActiveCount} / {s.totalTests || 20} Active
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <button
-                  onClick={() => navigate('cbtExam', { seriesId: 'ts_patwari_2026', setNumber: 1 })}
-                  className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black shrink-0"
-                >
-                  छात्र सेट चयन स्क्रीन देखें →
-                </button>
-              </div>
 
-              {/* 20 Sets Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
-                {Array.from({ length: 20 }, (_, idx) => {
-                  const setNum = idx + 1;
-                  const isDemo = setNum === 1;
-
-                  return (
-                    <div 
-                      key={setNum}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between ${
-                        isDemo 
-                          ? 'bg-amber-50/80 dark:bg-amber-950/30 border-[#D4A017] shadow-sm' 
-                          : 'bg-white dark:bg-stone-900 border-[#EAD8B1] dark:border-stone-800 shadow-xs'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-mono font-black px-2 py-0.5 rounded ${
-                            isDemo ? 'bg-[#D4A017] text-black' : 'bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300'
-                          }`}>
-                            SET #{setNum}
-                          </span>
-                          {isDemo ? (
-                            <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400">🎁 DEMO</span>
-                          ) : (
-                            <Lock className="w-3.5 h-3.5 text-stone-400" />
-                          )}
-                        </div>
-
-                        <div className="font-black text-sm mt-2 text-[#2D2424] dark:text-white">
-                          मॉक टेस्ट #{setNum}
-                        </div>
-                        <div className="text-[11px] text-stone-500 mt-0.5">200 प्रश्न • 200 अंक</div>
-                        <div className="text-[10px] text-stone-400 font-mono mt-0.5">समय: 180 मिनट</div>
+                {/* Series Live Control Center Banner */}
+                <div className="p-6 bg-gradient-to-r from-stone-900 to-stone-800 text-white rounded-3xl border-2 border-amber-500/60 shadow-xl space-y-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-black text-xs border border-amber-500/40 mb-2">
+                        <Zap className="w-3.5 h-3.5 fill-amber-400" />
+                        <span>लाइव मॉक सेट्स नियंत्रक (Live Active/Inactive Sets Engine)</span>
                       </div>
+                      <h2 className="font-display font-black text-xl sm:text-2xl text-white">
+                        {currentMockSeries?.titleHi} — सेट्स प्रबंधन
+                      </h2>
+                      <p className="text-xs text-stone-300 mt-1 max-w-2xl">
+                        यहाँ से आप किसी भी मॉक टेस्ट सेट को <span className="text-emerald-400 font-bold">सक्रिय (Active)</span> अथवा <span className="text-rose-400 font-bold">निष्क्रिय (Inactive)</span> कर सकते हैं। जो सेट निष्क्रिय होगा वह नए व पुराने छात्रों को टेस्ट लिस्ट में बिल्कुल नहीं दिखेगा।
+                      </p>
+                    </div>
 
-                      <div className="mt-4 pt-2.5 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => navigate('testDetail', { id: currentMockSeries?.id })}
+                        className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black shadow transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>छात्र व्यू देखें (Student View)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Realtime Stats & Sets Count Configurator */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 border-t border-stone-700/80">
+                    <div className="p-3.5 bg-stone-800/90 rounded-2xl border border-stone-700">
+                      <span className="text-stone-400 block text-[10px] uppercase font-bold">कुल संलग्न सेट्स (Total Tests Attached)</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="font-mono font-black text-2xl text-white">{totalAttachedSets}</span>
+                        <span className="text-xs text-stone-400">सेट्स</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-emerald-950/60 rounded-2xl border border-emerald-800/80">
+                      <span className="text-emerald-300 block text-[10px] uppercase font-bold">सक्रिय सेट्स (Visible to Students)</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="font-mono font-black text-2xl text-emerald-400">{activeSetsCount}</span>
+                        <span className="text-xs text-emerald-300">छात्रों को दिख रहे हैं</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-rose-950/60 rounded-2xl border border-rose-800/80">
+                      <span className="text-rose-300 block text-[10px] uppercase font-bold">निष्क्रिय सेट्स (Hidden from Students)</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="font-mono font-black text-2xl text-rose-400">{disabledSetsCount}</span>
+                        <span className="text-xs text-rose-300">छिपे हुए हैं</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Total Sets Count Update Box */}
+                    <div className="p-3.5 bg-stone-800/90 rounded-2xl border border-stone-700 flex flex-col justify-between">
+                      <span className="text-stone-400 block text-[10px] uppercase font-bold">कुल सेट्स संख्या बदलें (Change Total Sets)</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder={String(totalAttachedSets)}
+                          value={customTotalTestsInput}
+                          onChange={(e) => setCustomTotalTestsInput(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-20 px-2.5 py-1.5 bg-stone-900 border border-stone-600 rounded-lg text-white font-mono text-sm font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
                         <button
-                          onClick={() => navigate('cbtExam', { seriesId: 'ts_patwari_2026', setNumber: setNum })}
-                          className="flex-1 py-1.5 rounded-lg bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] text-[10px] font-black text-center"
+                          onClick={async () => {
+                            if (customTotalTestsInput && Number(customTotalTestsInput) > 0) {
+                              const newTotal = Number(customTotalTestsInput);
+                              updateSeriesSetsConfig(currentMockSeries.id, { totalTests: newTotal, disabledSetNumbers: disabledSets });
+                              setCustomTotalTestsInput('');
+                            } else {
+                              showToast('कृपया मान्य सेट्स संख्या दर्ज करें');
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition cursor-pointer"
                         >
-                          टेस्ट लॉन्च करें
+                          सहेजें
                         </button>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+
+                  {/* Bulk Quick Actions */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <span className="text-xs font-bold text-stone-300 mr-1">त्वरित क्रियाएँ (Bulk Actions):</span>
+                    
+                    <button
+                      onClick={() => {
+                        updateSeriesSetsConfig(currentMockSeries.id, { totalTests: totalAttachedSets, disabledSetNumbers: [] });
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>सभी {totalAttachedSets} सेट्स सक्रिय करें (Activate All)</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        // Deactivate all except set 1
+                        const allExceptOne = Array.from({ length: totalAttachedSets - 1 }, (_, i) => i + 2);
+                        updateSeriesSetsConfig(currentMockSeries.id, { totalTests: totalAttachedSets, disabledSetNumbers: allExceptOne });
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>केवल सेट #1 सक्रिय रखें (Keep Set #1 Only)</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        // Activate 1-10, deactivate 11+
+                        const from11 = Array.from({ length: Math.max(0, totalAttachedSets - 10) }, (_, i) => i + 11);
+                        updateSeriesSetsConfig(currentMockSeries.id, { totalTests: totalAttachedSets, disabledSetNumbers: from11 });
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-stone-700 hover:bg-stone-600 text-stone-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>सेट 1–10 सक्रिय करें (Activate 1-10)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Individual Mock Sets Matrix */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-display font-black text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                      <Target className="w-5 h-5 text-amber-500" />
+                      <span>प्रत्येक सेट का अलग-अलग नियंत्रण (Individual Sets Toggle 1 to {totalAttachedSets}):</span>
+                    </h3>
+                    <span className="text-xs text-stone-500 font-mono">
+                      सक्रिय: {activeSetsCount} / {totalAttachedSets}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {Array.from({ length: totalAttachedSets }, (_, idx) => {
+                      const setNum = idx + 1;
+                      const isSetDisabled = disabledSets.includes(setNum);
+                      const isDemo = setNum === 1;
+
+                      return (
+                        <div 
+                          key={setNum}
+                          className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between shadow-xs ${
+                            isSetDisabled
+                              ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-300 dark:border-rose-900/60 opacity-90'
+                              : isDemo
+                              ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-400 dark:border-amber-700/60'
+                              : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 hover:border-amber-500/50'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-mono font-black px-2 py-0.5 rounded-lg ${
+                                isSetDisabled
+                                  ? 'bg-rose-600 text-white'
+                                  : isDemo
+                                  ? 'bg-amber-500 text-stone-950'
+                                  : 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-950'
+                              }`}>
+                                SET #{setNum}
+                              </span>
+
+                              {isSetDisabled ? (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 flex items-center gap-1">
+                                  🔴 निष्क्रिय
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                                  🟢 सक्रिय
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="font-black text-sm text-stone-900 dark:text-white line-clamp-1">
+                              मॉक टेस्ट सेट #{setNum} {isDemo ? '(फ्री डेमो)' : ''}
+                            </div>
+                            
+                            <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center justify-between">
+                              <span>200 प्रश्न • 200 अंक</span>
+                              <span className="font-mono text-[10px]">180 मिनट</span>
+                            </div>
+
+                            <div className={`p-2 rounded-xl text-[11px] font-bold text-center ${
+                              isSetDisabled
+                                ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300'
+                                : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
+                            }`}>
+                              {isSetDisabled 
+                                ? '⛔ छात्रों के लिए छिपा हुआ है' 
+                                : '✅ छात्र टेस्ट दे सकते हैं'}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2">
+                            {/* Toggle Button */}
+                            <button
+                              onClick={() => toggleMockSetActive(currentMockSeries.id, setNum)}
+                              className={`w-full py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer ${
+                                isSetDisabled
+                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                  : 'bg-rose-600 hover:bg-rose-500 text-white'
+                              }`}
+                            >
+                              {isSetDisabled ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>सक्रिय करें (Make Active)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-3.5 h-3.5" />
+                                  <span>निष्क्रिय करें (Deactivate)</span>
+                                </>
+                              )}
+                            </button>
+
+                            {/* Preview as Admin */}
+                            <button
+                              onClick={() => navigate('cbtExam', { id: currentMockSeries.id, setId: setNum })}
+                              className="w-full py-1.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-[11px] font-bold text-center transition cursor-pointer"
+                            >
+                              👁️ टेस्ट का पूर्वावलोकन (Preview)
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ========================================================= */}
           {/* TAB 5: QUESTION BANK CMS & MOCK ENGINE */}
@@ -6279,6 +6645,219 @@ export const AdminDashboardView: React.FC = () => {
                 +XP छात्र को जोड़ें
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 5.5: FREE ACCESS / SCHOLARSHIP GRANT MODAL */}
+      {/* ========================================================= */}
+      {grantModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-emerald-500/50 rounded-3xl max-w-3xl w-full p-6 sm:p-7 space-y-5 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-black shadow-sm">
+                  <Gift className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-base sm:text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                    <span>निःशुल्क एक्सेस प्रबंधन (Free Grant Management)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[11px] font-mono font-bold">
+                      {grantModalUser.role === 'admin' ? 'Admin Role' : 'Student'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    इस छात्र को कौन-सी टेस्ट सीरीज़ फ्री में देनी है, उसका चयन करें। यह सुविधा केवल इस छात्र के लिए फ्री रहेगी, बाकी सभी के लिए सशुल्क (Paid) रहेगी।
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setGrantModalUser(null)} 
+                className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Student Profile Overview Card */}
+            <div className="bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <div className="text-stone-400 text-[10px] uppercase font-bold">छात्र का नाम</div>
+                <div className="font-black text-stone-900 dark:text-white">{grantModalUser.name}</div>
+              </div>
+              <div>
+                <div className="text-stone-400 text-[10px] uppercase font-bold">मोबाइल नंबर</div>
+                <div className="font-mono font-bold text-stone-700 dark:text-stone-300">{grantModalUser.phone}</div>
+              </div>
+              <div>
+                <div className="text-stone-400 text-[10px] uppercase font-bold">गृह जिला / लक्ष्य</div>
+                <div className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{grantModalUser.district || 'MP'} • {grantModalUser.targetExam || 'All MP Exams'}</div>
+              </div>
+              <div>
+                <div className="text-stone-400 text-[10px] uppercase font-bold">वर्तमान मुफ़्त पैकेज</div>
+                <div className="font-black text-emerald-600 dark:text-emerald-400">
+                  {grantModalUser.role === 'admin' 
+                    ? '🌟 पूर्ण पोर्टल (Admin)' 
+                    : (enrolledMap[grantModalUser.id] || []).includes('all_series_vip')
+                      ? '🌟 VIP All-Access'
+                      : `${(enrolledMap[grantModalUser.id] || []).length} टेस्ट सीरीज़ सक्रिय`}
+                </div>
+              </div>
+            </div>
+
+            {/* Grant Reason & Quick Bulk Actions */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-black uppercase text-stone-500 dark:text-stone-400 mb-1">
+                    मुफ़्त देने का कारण / टैग (Scholarship / Grant Reason):
+                  </label>
+                  <select
+                    value={grantReasonTag}
+                    onChange={(e) => setGrantReasonTag(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-xs font-bold text-stone-800 dark:text-white focus:outline-none"
+                  >
+                    <option value="🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)">🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)</option>
+                    <option value="⭐ एडमिन स्पेशल ग्रांट (Admin Special Access)">⭐ एडमिन स्पेशल ग्रांट (Admin Special Access)</option>
+                    <option value="🏆 टॉप रैंकर पुरस्कार (Top Ranker Award)">🏆 टॉप रैंकर पुरस्कार (Top Ranker Award)</option>
+                    <option value="🤝 आर्थिक सहायता (Financial Aid Support)">🤝 आर्थिक सहायता (Financial Aid Support)</option>
+                    <option value="📝 गुणवत्ता परीक्षक (Quality Reviewer / Tester)">📝 गुणवत्ता परीक्षक (Quality Reviewer / Tester)</option>
+                    <option value="🎟️ प्रोमोशनल फ्री पास (Promotional Free Pass)">🎟️ प्रोमोशनल फ्री पास (Promotional Free Pass)</option>
+                  </select>
+                </div>
+
+                {/* Bulk Actions Buttons */}
+                <div className="flex items-center gap-2 sm:self-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      grantAllSeriesToUser(grantModalUser.id, grantReasonTag);
+                    }}
+                    className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition hover:scale-105"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>सभी टेस्ट सीरीज़ फ्री दें (VIP All-Pass)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      revokeAllSeriesFromUser(grantModalUser.id);
+                    }}
+                    className="px-3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-600 dark:text-stone-300 font-bold text-xs flex items-center gap-1 transition"
+                    title="इस छात्र के सभी मुफ़्त पैकेज रीसेट करें"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>सभी हटाएं</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Test Series List Items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-black text-stone-700 dark:text-stone-300">
+                <span>उपलब्ध टेस्ट सीरीज़ सूची ({testSeries.length}):</span>
+                <span className="text-[11px] text-stone-400 font-normal">क्लिक करके तुरंत मुफ़्त एक्सेस सक्रिय या निष्क्रिय करें</span>
+              </div>
+
+              <div className="max-h-[340px] overflow-y-auto space-y-2.5 pr-1.5">
+                {testSeries.map(series => {
+                  const userEnrollments = enrolledMap[grantModalUser.id] || [];
+                  const isUserEnrolled = userEnrollments.includes(series.id) || userEnrollments.includes('all_series_vip') || grantModalUser.role === 'admin';
+                  const title = lang === 'hi' ? series.titleHi : series.titleEn;
+                  const price = series.price || 299;
+
+                  return (
+                    <div 
+                      key={series.id}
+                      className={`p-3.5 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isUserEnrolled
+                          ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700/60 shadow-xs'
+                          : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700'
+                      }`}
+                    >
+                      <div className="flex items-start sm:items-center gap-3">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${
+                          isUserEnrolled 
+                            ? 'bg-emerald-600 text-white' 
+                            : 'bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300'
+                        }`}>
+                          {isUserEnrolled ? '✓' : '🔒'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-black text-xs text-stone-900 dark:text-white">
+                              {title}
+                            </span>
+                            <span className="px-2 py-0.2 rounded-md bg-stone-100 dark:bg-stone-700 text-[10px] font-bold text-stone-600 dark:text-stone-300">
+                              {series.category}
+                            </span>
+                            <span className="px-2 py-0.2 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-mono font-bold">
+                              ₹{price} (सामान्य मूल्य)
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 flex items-center gap-2">
+                            <span>कुल टेस्ट: {series.totalTests || 10} सेट्स</span>
+                            <span>•</span>
+                            <span className="font-mono text-[10px]">ID: {series.id}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        {isUserEnrolled ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span>मुफ़्त सक्रिय (Active Free)</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleUserAccess(grantModalUser.id, series.id)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition flex items-center gap-1"
+                              title="इस छात्र से इस टेस्ट सीरीज़ का फ्री एक्सेस वापस लें"
+                            >
+                              <Lock className="w-3 h-3" />
+                              <span>हटाएं</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleUserAccess(grantModalUser.id, series.id, { reason: grantReasonTag })}
+                            className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-sm hover:scale-105"
+                          >
+                            <Gift className="w-3.5 h-3.5" />
+                            <span>मुफ़्त में दें (₹0 Free Grant)</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between">
+              <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                💡 <span className="font-bold">नोट:</span> यह बदलाव तुरंत सुरक्षित हो जाता है और छात्र अपने खाते से इस टेस्ट सीरीज़ को तुरंत बिना किसी भुगतान के हल कर सकेगा।
+              </div>
+              <button
+                type="button"
+                onClick={() => setGrantModalUser(null)}
+                className="px-5 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs hover:bg-[#5E1F16] transition"
+              >
+                पूर्ण / बंद करें (Done)
+              </button>
+            </div>
+
           </div>
         </div>
       )}

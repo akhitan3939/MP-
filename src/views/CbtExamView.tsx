@@ -118,11 +118,42 @@ export const CbtExamView: React.FC = () => {
   const series: TestSeries = foundSeries || testSeries[0];
   const initialSetNumber = viewParams?.setId ? Number(viewParams.setId) : 1;
 
+  const disabledNumbers: number[] = Array.isArray(series.disabledSetNumbers) ? series.disabledSetNumbers : [];
+  const maxSetsCount = typeof series.activeSetsCount === 'number' ? series.activeSetsCount : (series.totalTests || 20);
+
+  const rawAvailableSets = series.id === 'ts_agri_ext_2026'
+    ? ALL_20_AGRI_SETS
+    : series.id === 'ts_patwari_2026'
+    ? ALL_20_PATWARI_SETS
+    : [];
+
+  const availableSetsList = rawAvailableSets.filter(s => {
+    if (currentUser?.role === 'admin') return true;
+    return !disabledNumbers.includes(s.setNumber) && s.setNumber <= (series.totalTests || 20);
+  });
+
+  // Calculate safe initial set number
+  const safeInitialSetNumber = (() => {
+    if (currentUser?.role === 'admin') return initialSetNumber;
+    if (disabledNumbers.includes(initialSetNumber) || initialSetNumber > (series.totalTests || 20)) {
+      return availableSetsList[0]?.setNumber || 1;
+    }
+    return initialSetNumber;
+  })();
+
   // Pre-Exam vs Running Exam state
   const [isExamStarted, setIsExamStarted] = useState<boolean>(false);
-  const [chosenSetNumber, setChosenSetNumber] = useState<number>(initialSetNumber);
+  const [chosenSetNumber, setChosenSetNumber] = useState<number>(safeInitialSetNumber);
   const [agreedTerms, setAgreedTerms] = useState<boolean>(false);
   const [preExamFilter, setPreExamFilter] = useState<'all' | 'free' | 'full'>('all');
+
+  // Guard against navigating to disabled set
+  useEffect(() => {
+    if (!isFreeMock40 && currentUser?.role !== 'admin' && disabledNumbers.includes(chosenSetNumber)) {
+      const firstValid = availableSetsList[0]?.setNumber || 1;
+      setChosenSetNumber(firstValid);
+    }
+  }, [disabledNumbers, chosenSetNumber, currentUser, isFreeMock40, availableSetsList]);
   
   // Filter questions for this series and chosen set
   const examQuestions = isFreeMock40
@@ -462,11 +493,7 @@ export const CbtExamView: React.FC = () => {
   if (!isExamStarted) {
     const isEnrolledInSeries = isEnrolled(series.id);
     const isChosenSetFree = isFreeMock40 || isEnrolledInSeries;
-    const setsList = series.id === 'ts_agri_ext_2026'
-      ? ALL_20_AGRI_SETS
-      : series.id === 'ts_patwari_2026'
-      ? ALL_20_PATWARI_SETS
-      : [];
+    const setsList = availableSetsList;
 
     const filteredSets = setsList.filter(s => {
       if (preExamFilter === 'free') return s.setNumber <= 10;
@@ -668,6 +695,7 @@ export const CbtExamView: React.FC = () => {
                 {filteredSets.map(s => {
                   const isSelected = chosenSetNumber === s.setNumber;
                   const isUnlocked = isEnrolled(series.id);
+                  const isSetDisabled = disabledNumbers.includes(s.setNumber);
 
                   return (
                     <button
@@ -676,14 +704,24 @@ export const CbtExamView: React.FC = () => {
                       className={`relative p-2.5 rounded-2xl border-2 text-center transition-all flex flex-col items-center justify-between gap-1 cursor-pointer ${
                         isSelected 
                           ? 'border-amber-500 bg-amber-500/15 dark:bg-amber-950/50 shadow-md scale-105 ring-2 ring-amber-500/40'
+                          : isSetDisabled
+                          ? 'border-rose-300 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20'
                           : 'border-stone-200 dark:border-stone-800 hover:border-amber-400/60 bg-stone-50 dark:bg-stone-850/50'
                       }`}
                     >
-                      <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-md ${isSelected ? 'bg-amber-500 text-stone-950 font-black' : 'bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300'}`}>
+                      <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-md ${
+                        isSelected 
+                          ? 'bg-amber-500 text-stone-950 font-black' 
+                          : isSetDisabled
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300'
+                      }`}>
                         SET #{s.setNumber}
                       </span>
                       <span className="text-[10px] font-bold text-stone-600 dark:text-stone-400">200 Qs</span>
-                      {!isUnlocked ? (
+                      {isSetDisabled ? (
+                        <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400">🔴 निष्क्रिय</span>
+                      ) : !isUnlocked ? (
                         <span className="text-[9px] font-bold text-stone-400 flex items-center gap-0.5">🔒 लॉक</span>
                       ) : (
                         <span className="text-[9px] font-bold text-emerald-500">🟢 उपलब्ध</span>

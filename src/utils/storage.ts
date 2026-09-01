@@ -441,8 +441,18 @@ function normalizeQuestion(q: any): Question {
 }
 
 function normalizeTestSeries(s: any): TestSeries {
+  const disabledSetNumbers = Array.isArray(s.disabledSetNumbers) ? s.disabledSetNumbers : [];
+  let totalTests = typeof s.totalTests === 'number' ? s.totalTests : 20;
+  if (s.id === 'ts_patwari_2026' && totalTests === 45) {
+    totalTests = 20;
+  }
+  const activeSetsCount = typeof s.activeSetsCount === 'number' ? s.activeSetsCount : totalTests;
+
   return {
     ...s,
+    totalTests,
+    disabledSetNumbers,
+    activeSetsCount,
     featuresHi: Array.isArray(s.featuresHi) && s.featuresHi.length > 0
       ? s.featuresHi
       : [

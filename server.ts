@@ -26,7 +26,229 @@ interface ServerAppState {
   navMenuItems?: any[];
   notes?: any[];
   questions?: any[];
+  users?: any[];
+  attempts?: any[];
+  orders?: any[];
+  enrolledMap?: Record<string, string[]>;
+  leaderboard?: any[];
 }
+
+const INITIAL_DEFAULT_USERS = [
+  {
+    id: 'usr_admin',
+    name: 'प्रशासक (Akhilesh Korsne)',
+    username: 'akhitan_3939',
+    email: 'akhitan3939@mppariksha.in',
+    phone: '9893012345',
+    password: 'Tanmayee*1234',
+    role: 'admin',
+    district: 'भोपाल (Bhopal)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'All MP Exams Management',
+    joinedAt: '2025-01-01T10:00:00.000Z',
+    xp: 25000,
+    streak: 45,
+    badges: ['👑 Admin Master', '🏛️ MP Setu Director', '📊 Analytics Lead'],
+  },
+  {
+    id: 'usr_student_1',
+    name: 'अमित कुमार (Amit Kumar)',
+    username: 'amit_kumar_mp',
+    email: 'amit.kumar@gmail.com',
+    phone: '9826011223',
+    role: 'student',
+    district: 'जबलपुर (Jabalpur)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP पटवारी / समूह-2 उपसमूह-4',
+    joinedAt: '2025-01-15T09:30:00.000Z',
+    xp: 4850,
+    streak: 14,
+    badges: ['🥈 Rank 2 (MP Topper)', '🔥 14-Day Streak', '🎯 40-Q Free Mock Master'],
+  },
+  {
+    id: 'usr_student_2',
+    name: 'प्रिया शर्मा (Priya Sharma)',
+    username: 'priya_sharma_indore',
+    email: 'priya.sharma99@gmail.com',
+    phone: '9752044556',
+    role: 'student',
+    district: 'इंदौर (Indore)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP पटवारी 2026',
+    joinedAt: '2025-01-10T14:20:00.000Z',
+    xp: 5920,
+    streak: 22,
+    badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
+  },
+  {
+    id: 'usr_student_3',
+    name: 'रोहित वर्मा (Rohit Verma)',
+    username: 'rohit_verma_gwl',
+    email: 'rohit.verma@yahoo.com',
+    phone: '9425077889',
+    role: 'student',
+    district: 'ग्वालियर (Gwalior)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP पुलिस आरक्षक & SI',
+    joinedAt: '2025-01-20T11:15:00.000Z',
+    xp: 3400,
+    streak: 8,
+    badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
+  },
+  {
+    id: 'usr_student_4',
+    name: 'अनिता पटेल (Anita Patel)',
+    username: 'anita_patel_ujjain',
+    email: 'anita.patel@gmail.com',
+    phone: '9827033445',
+    role: 'student',
+    district: 'उज्जैन (Ujjain)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MPPSC प्रारंभिक परीक्षा 2026',
+    joinedAt: '2025-01-25T16:45:00.000Z',
+    xp: 2950,
+    streak: 11,
+    badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
+  },
+  {
+    id: 'usr_student_5',
+    name: 'विकास यादव (Vikas Yadav)',
+    username: 'vikas_yadav_rewa',
+    email: 'vikas.yadav@gmail.com',
+    phone: '9179066778',
+    role: 'student',
+    district: 'रीवा (Rewa)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'कृषि विस्तार अधिकारी (RAEO)',
+    joinedAt: '2025-02-01T10:00:00.000Z',
+    xp: 2600,
+    streak: 6,
+    badges: ['🌱 Agri Warrior', '🎯 Free Mock Completed'],
+  }
+];
+
+const INITIAL_DEFAULT_ATTEMPTS = [
+  {
+    id: 'att_free_priya_1',
+    userId: 'usr_student_2',
+    userName: 'प्रिया शर्मा (Priya Sharma)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'इंदौर (Indore)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T10:00:00.000Z',
+    completedAt: '2026-03-01T10:22:15.000Z',
+    durationSeconds: 1335,
+    score: 38,
+    totalMarks: 40,
+    percentage: 95.0,
+    accuracy: 97.4,
+    rank: 1,
+    totalParticipants: 28450,
+    percentile: 99.9,
+    correctAnswers: 38,
+    incorrectAnswers: 1,
+    unattempted: 1,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-88192'
+  },
+  {
+    id: 'att_free_amit_2',
+    userId: 'usr_student_1',
+    userName: 'अमित कुमार (Amit Kumar)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'जबलपुर (Jabalpur)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T11:15:00.000Z',
+    completedAt: '2026-03-01T11:38:40.000Z',
+    durationSeconds: 1420,
+    score: 36,
+    totalMarks: 40,
+    percentage: 90.0,
+    accuracy: 92.3,
+    rank: 2,
+    totalParticipants: 28450,
+    percentile: 99.6,
+    correctAnswers: 36,
+    incorrectAnswers: 3,
+    unattempted: 1,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-72419'
+  },
+  {
+    id: 'att_free_rohit_3',
+    userId: 'usr_student_3',
+    userName: 'रोहित वर्मा (Rohit Verma)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'ग्वालियर (Gwalior)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T12:30:00.000Z',
+    completedAt: '2026-03-01T12:54:10.000Z',
+    durationSeconds: 1450,
+    score: 34,
+    totalMarks: 40,
+    percentage: 85.0,
+    accuracy: 89.5,
+    rank: 4,
+    totalParticipants: 28450,
+    percentile: 98.4,
+    correctAnswers: 34,
+    incorrectAnswers: 4,
+    unattempted: 2,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-63102'
+  },
+  {
+    id: 'att_free_anita_4',
+    userId: 'usr_student_4',
+    userName: 'अनिता पटेल (Anita Patel)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'उज्जैन (Ujjain)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T14:00:00.000Z',
+    completedAt: '2026-03-01T14:24:50.000Z',
+    durationSeconds: 1490,
+    score: 32,
+    totalMarks: 40,
+    percentage: 80.0,
+    accuracy: 84.2,
+    rank: 7,
+    totalParticipants: 28450,
+    percentile: 96.8,
+    correctAnswers: 32,
+    incorrectAnswers: 6,
+    unattempted: 2,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-51208'
+  },
+  {
+    id: 'att_free_vikas_5',
+    userId: 'usr_student_5',
+    userName: 'विकास यादव (Vikas Yadav)',
+    userState: 'मध्यप्रदेश (MP)',
+    userDistrict: 'रीवा (Rewa)',
+    seriesId: 'free_mock_40',
+    seriesTitle: '🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)',
+    startedAt: '2026-03-01T15:10:00.000Z',
+    completedAt: '2026-03-01T15:35:15.000Z',
+    durationSeconds: 1515,
+    score: 30,
+    totalMarks: 40,
+    percentage: 75.0,
+    accuracy: 81.1,
+    rank: 12,
+    totalParticipants: 28450,
+    percentile: 94.5,
+    correctAnswers: 30,
+    incorrectAnswers: 7,
+    unattempted: 3,
+    totalQuestions: 40,
+    certificateId: 'CERT-MPSETU-2026-44910'
+  }
+];
 
 function ensureDataDirExists() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -43,7 +265,8 @@ function loadAppStateFromDisk(): ServerAppState {
   if (fs.existsSync(STATE_FILE_PATH)) {
     try {
       const content = fs.readFileSync(STATE_FILE_PATH, 'utf-8');
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+      return parsed;
     } catch (err) {
       console.warn('Error reading app_state.json from disk:', err);
     }
@@ -62,6 +285,39 @@ function saveAppStateToDisk(state: ServerAppState) {
 
 let inMemoryAppState: ServerAppState = loadAppStateFromDisk();
 
+// Initialize and preserve users seed
+if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 0) {
+  inMemoryAppState.users = INITIAL_DEFAULT_USERS;
+} else {
+  // Ensure default admin is always present and updated
+  const adminIndex = inMemoryAppState.users.findIndex(u => u.role === 'admin' || u.id === 'usr_admin');
+  if (adminIndex >= 0) {
+    inMemoryAppState.users[adminIndex] = {
+      ...inMemoryAppState.users[adminIndex],
+      name: 'प्रशासक (Akhilesh Korsne)',
+      username: 'akhitan_3939',
+      password: 'Tanmayee*1234',
+      email: 'akhitan3939@mppariksha.in',
+      role: 'admin'
+    };
+  } else {
+    inMemoryAppState.users.unshift(INITIAL_DEFAULT_USERS[0]);
+  }
+}
+
+// Initialize and preserve attempts seed
+if (!Array.isArray(inMemoryAppState.attempts) || inMemoryAppState.attempts.length === 0) {
+  inMemoryAppState.attempts = INITIAL_DEFAULT_ATTEMPTS;
+}
+
+// Initialize orders and enrolledMap
+if (!Array.isArray(inMemoryAppState.orders)) {
+  inMemoryAppState.orders = [];
+}
+if (!inMemoryAppState.enrolledMap || typeof inMemoryAppState.enrolledMap !== 'object') {
+  inMemoryAppState.enrolledMap = {};
+}
+
 // Initialize default platform settings if not present
 if (!inMemoryAppState.platformSettings) {
   inMemoryAppState.platformSettings = {
@@ -71,8 +327,8 @@ if (!inMemoryAppState.platformSettings) {
     helplineWhatsapp: '919893012345',
     supportEmail: 'mpparikshasetu.support@gmail.com',
     logoUrl: '/logo.svg',
-    topTickerTextHi: '🔥 MP पटवारी 2026 के सभी 20 सेट्स लाइव! सेट #1 मुफ़्त डेमो अभी दें • कोड \'SETU50\' पर ₹50 फ्लैट छूट',
-    topTickerTextEn: '🔥 MP Patwari 2026 All 20 Sets Live! Attempt Set #1 Free Demo • Use coupon \'SETU50\' for ₹50 Off',
+    topTickerTextHi: "🔥 MP पटवारी 2026 के सभी 20 सेट्स लाइव! सेट #1 मुफ़्त डेमो अभी दें • कोड 'SETU50' पर ₹50 फ्लैट छूट",
+    topTickerTextEn: "🔥 MP Patwari 2026 All 20 Sets Live! Attempt Set #1 Free Demo • Use coupon 'SETU50' for ₹50 Off",
     topTickerEnabled: true,
     paymentGatewayMode: 'LIVE',
     enableAiEvaluation: true,
@@ -88,7 +344,6 @@ if (!inMemoryAppState.platformSettings) {
     showHitCounter: true,
     showLastUpdated: true
   };
-  saveAppStateToDisk(inMemoryAppState);
 } else {
   // Ensure default counter starts at least 50
   if (typeof inMemoryAppState.platformSettings.visitorHitsCount !== 'number' || inMemoryAppState.platformSettings.visitorHitsCount < 50) {
@@ -106,8 +361,10 @@ if (!inMemoryAppState.platformSettings) {
   if (inMemoryAppState.platformSettings.showLastUpdated === undefined) {
     inMemoryAppState.platformSettings.showLastUpdated = true;
   }
-  saveAppStateToDisk(inMemoryAppState);
 }
+
+// Persist fully initialized state to disk
+saveAppStateToDisk(inMemoryAppState);
 
 // 0. Global App Data Fetch & Synchronization Endpoint
 app.get('/api/app-data', (req: Request, res: Response) => {
@@ -201,6 +458,265 @@ app.post('/api/app-data/sync', (req: Request, res: Response) => {
   });
 });
 
+// ==========================================
+// USER REGISTRATION & MANAGEMENT ENDPOINTS
+// ==========================================
+app.get('/api/users', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    users: inMemoryAppState.users || [],
+    totalCount: (inMemoryAppState.users || []).length
+  });
+});
+
+app.post('/api/users/register', (req: Request, res: Response) => {
+  const newUser = req.body;
+  if (!newUser || !newUser.name) {
+    return res.status(400).json({ success: false, message: 'Student profile details are required' });
+  }
+
+  let users = inMemoryAppState.users || [];
+  
+  // Check duplicate phone or email
+  const existingByPhone = newUser.phone ? users.find(u => u.phone === newUser.phone) : null;
+  const existingByEmail = newUser.email ? users.find(u => u.email?.toLowerCase() === newUser.email?.toLowerCase()) : null;
+  const existingByUsername = newUser.username ? users.find(u => u.username?.toLowerCase() === newUser.username?.toLowerCase()) : null;
+
+  if (existingByPhone || existingByEmail || existingByUsername) {
+    // Update existing or return conflict
+    const target = existingByPhone || existingByEmail || existingByUsername;
+    return res.json({
+      success: true,
+      isExisting: true,
+      user: target,
+      message: 'User already registered'
+    });
+  }
+
+  const userWithDefaults = {
+    id: newUser.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    name: newUser.name,
+    username: newUser.username || `user_${Date.now()}`,
+    email: newUser.email || '',
+    phone: newUser.phone || '',
+    password: newUser.password || 'Student@123',
+    role: newUser.role || 'student',
+    district: newUser.district || 'भोपाल (Bhopal)',
+    state: newUser.state || 'मध्यप्रदेश (MP)',
+    targetExam: newUser.targetExam || 'MP पटवारी 2026',
+    joinedAt: newUser.joinedAt || new Date().toISOString(),
+    xp: typeof newUser.xp === 'number' ? newUser.xp : 100,
+    streak: typeof newUser.streak === 'number' ? newUser.streak : 1,
+    badges: Array.isArray(newUser.badges) ? newUser.badges : ['🌱 New Aspirant']
+  };
+
+  users = [userWithDefaults, ...users];
+  inMemoryAppState.users = users;
+  saveAppStateToDisk(inMemoryAppState);
+
+  console.log(`[MP Setu] User Registered & Persisted to Disk: ${userWithDefaults.name} (${userWithDefaults.phone})`);
+
+  res.json({
+    success: true,
+    user: userWithDefaults,
+    totalUsers: users.length,
+    message: 'User registered and persisted successfully'
+  });
+});
+
+app.post('/api/users/sync', (req: Request, res: Response) => {
+  const { users } = req.body;
+  if (!Array.isArray(users)) {
+    return res.status(400).json({ success: false, message: 'Invalid users array' });
+  }
+
+  const existingUsers = inMemoryAppState.users || [];
+  const userMap = new Map<string, any>();
+
+  // Load existing
+  existingUsers.forEach(u => {
+    if (u && u.id) userMap.set(u.id, u);
+  });
+
+  // Merge incoming
+  users.forEach(u => {
+    if (u && u.id) {
+      userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u });
+    }
+  });
+
+  inMemoryAppState.users = Array.from(userMap.values());
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    users: inMemoryAppState.users,
+    totalCount: inMemoryAppState.users.length,
+    message: 'Users synchronized and saved to disk'
+  });
+});
+
+app.post('/api/users/update', (req: Request, res: Response) => {
+  const updatedUser = req.body;
+  if (!updatedUser || !updatedUser.id) {
+    return res.status(400).json({ success: false, message: 'User ID required' });
+  }
+
+  let users = inMemoryAppState.users || [];
+  const idx = users.findIndex(u => u.id === updatedUser.id);
+  if (idx >= 0) {
+    users[idx] = { ...users[idx], ...updatedUser };
+  } else {
+    users.push(updatedUser);
+  }
+
+  inMemoryAppState.users = users;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    user: updatedUser,
+    message: 'User profile updated and saved to disk'
+  });
+});
+
+app.delete('/api/users/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  let users = inMemoryAppState.users || [];
+  users = users.filter(u => u.id !== id);
+  inMemoryAppState.users = users;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: `User ${id} removed successfully`,
+    totalUsers: users.length
+  });
+});
+
+// ==========================================
+// TEST ATTEMPTS ENDPOINTS
+// ==========================================
+app.get('/api/attempts', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    attempts: inMemoryAppState.attempts || [],
+    totalCount: (inMemoryAppState.attempts || []).length
+  });
+});
+
+app.post('/api/attempts', (req: Request, res: Response) => {
+  const newAttempt = req.body;
+  if (!newAttempt || !newAttempt.seriesId) {
+    return res.status(400).json({ success: false, message: 'Valid test attempt data required' });
+  }
+
+  let attempts = inMemoryAppState.attempts || [];
+  const attemptWithDefaults = {
+    ...newAttempt,
+    id: newAttempt.id || `att_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    completedAt: newAttempt.completedAt || new Date().toISOString()
+  };
+
+  // Check if attempt with same id exists
+  const existingIdx = attempts.findIndex(a => a.id === attemptWithDefaults.id);
+  if (existingIdx >= 0) {
+    attempts[existingIdx] = attemptWithDefaults;
+  } else {
+    attempts = [attemptWithDefaults, ...attempts];
+  }
+
+  inMemoryAppState.attempts = attempts;
+
+  // Award XP to user if registered
+  if (attemptWithDefaults.userId && Array.isArray(inMemoryAppState.users)) {
+    const uIdx = inMemoryAppState.users.findIndex(u => u.id === attemptWithDefaults.userId);
+    if (uIdx >= 0) {
+      const earnedXp = Math.round((attemptWithDefaults.score || 10) * 10);
+      inMemoryAppState.users[uIdx] = {
+        ...inMemoryAppState.users[uIdx],
+        xp: (inMemoryAppState.users[uIdx].xp || 0) + earnedXp,
+        streak: (inMemoryAppState.users[uIdx].streak || 1) + 1
+      };
+    }
+  }
+
+  saveAppStateToDisk(inMemoryAppState);
+
+  console.log(`[MP Setu] Test Attempt Persisted to Disk: ${attemptWithDefaults.userName} - ${attemptWithDefaults.seriesTitle} (Score: ${attemptWithDefaults.score})`);
+
+  res.json({
+    success: true,
+    attempt: attemptWithDefaults,
+    totalAttempts: attempts.length,
+    message: 'Test attempt recorded and saved to disk'
+  });
+});
+
+// ==========================================
+// ORDERS & ENROLLMENT ENDPOINTS
+// ==========================================
+app.get('/api/orders', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    orders: inMemoryAppState.orders || []
+  });
+});
+
+app.post('/api/orders/record', (req: Request, res: Response) => {
+  const newOrder = req.body;
+  if (!newOrder) {
+    return res.status(400).json({ success: false, message: 'Order data required' });
+  }
+
+  let orders = inMemoryAppState.orders || [];
+  orders = [newOrder, ...orders];
+  inMemoryAppState.orders = orders;
+
+  // If order provides userId and seriesId, update enrolledMap automatically
+  if (newOrder.userId && newOrder.seriesId) {
+    if (!inMemoryAppState.enrolledMap) inMemoryAppState.enrolledMap = {};
+    const current = inMemoryAppState.enrolledMap[newOrder.userId] || [];
+    if (!current.includes(newOrder.seriesId)) {
+      inMemoryAppState.enrolledMap[newOrder.userId] = [...current, newOrder.seriesId];
+    }
+  }
+
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    order: newOrder,
+    message: 'Order transaction recorded and saved to disk'
+  });
+});
+
+app.get('/api/enrolled-map', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    enrolledMap: inMemoryAppState.enrolledMap || {}
+  });
+});
+
+app.post('/api/enrolled-map/sync', (req: Request, res: Response) => {
+  const { enrolledMap } = req.body;
+  if (!enrolledMap || typeof enrolledMap !== 'object') {
+    return res.status(400).json({ success: false, message: 'Invalid enrolled map' });
+  }
+
+  inMemoryAppState.enrolledMap = {
+    ...(inMemoryAppState.enrolledMap || {}),
+    ...enrolledMap
+  };
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    enrolledMap: inMemoryAppState.enrolledMap,
+    message: 'Enrollment mapping saved to disk'
+  });
+});
+
 // Platform Settings Endpoint
 app.get('/api/settings', (req: Request, res: Response) => {
   res.json({
@@ -279,6 +795,122 @@ app.post('/api/test-series/toggle-active', (req: Request, res: Response) => {
     seriesId,
     isActive: updatedStatus,
     message: `Test series ${seriesId} is now ${updatedStatus ? 'ACTIVE' : 'INACTIVE'}`
+  });
+});
+
+// Toggle individual mock set (Active / Inactive) for any test series
+app.post('/api/test-series/toggle-set', (req: Request, res: Response) => {
+  const { seriesId, setNumber, isActive } = req.body;
+  if (!seriesId || setNumber === undefined) {
+    return res.status(400).json({ success: false, message: 'seriesId and setNumber are required' });
+  }
+
+  const num = Number(setNumber);
+  let list = inMemoryAppState.testSeries || [];
+  let targetSeries = list.find(s => s.id === seriesId);
+
+  if (!targetSeries) {
+    // create default minimal entry if not yet saved
+    targetSeries = {
+      id: seriesId,
+      totalTests: 20,
+      disabledSetNumbers: [],
+      activeSetsCount: 20,
+      isActive: true
+    };
+    list = [targetSeries, ...list];
+  }
+
+  let disabled: number[] = Array.isArray(targetSeries.disabledSetNumbers) ? [...targetSeries.disabledSetNumbers] : [];
+  let willBeActive: boolean;
+
+  if (isActive !== undefined) {
+    willBeActive = Boolean(isActive);
+  } else {
+    willBeActive = disabled.includes(num); // if it was disabled, make it active
+  }
+
+  if (willBeActive) {
+    disabled = disabled.filter(n => n !== num);
+  } else {
+    if (!disabled.includes(num)) {
+      disabled.push(num);
+    }
+  }
+
+  const totalPossible = targetSeries.id === 'ts_patwari_2026' || targetSeries.id === 'ts_agri_ext_2026' ? 20 : (targetSeries.totalTests || 20);
+  const activeCount = Math.max(0, totalPossible - disabled.length);
+
+  list = list.map(s => {
+    if (s.id === seriesId) {
+      return {
+        ...s,
+        totalTests: totalPossible,
+        disabledSetNumbers: disabled,
+        activeSetsCount: activeCount
+      };
+    }
+    return s;
+  });
+
+  inMemoryAppState.testSeries = list;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    seriesId,
+    setNumber: num,
+    isSetActive: willBeActive,
+    disabledSetNumbers: disabled,
+    activeSetsCount: activeCount,
+    totalTests: totalPossible,
+    message: `Set #${num} is now ${willBeActive ? 'ACTIVE (visible to students)' : 'INACTIVE (hidden from students)'}`
+  });
+});
+
+// Update full mock sets configuration (e.g. total count, disabled list)
+app.post('/api/test-series/save-sets-config', (req: Request, res: Response) => {
+  const { seriesId, totalTests, disabledSetNumbers, activeSetsCount } = req.body;
+  if (!seriesId) {
+    return res.status(400).json({ success: false, message: 'seriesId is required' });
+  }
+
+  let list = inMemoryAppState.testSeries || [];
+  let found = false;
+
+  list = list.map(s => {
+    if (s.id === seriesId) {
+      found = true;
+      const cleanDisabled = Array.isArray(disabledSetNumbers) ? disabledSetNumbers : (s.disabledSetNumbers || []);
+      const cleanTotal = typeof totalTests === 'number' ? totalTests : (s.totalTests || 20);
+      const cleanActive = typeof activeSetsCount === 'number' ? activeSetsCount : Math.max(0, cleanTotal - cleanDisabled.length);
+      return {
+        ...s,
+        totalTests: cleanTotal,
+        disabledSetNumbers: cleanDisabled,
+        activeSetsCount: cleanActive
+      };
+    }
+    return s;
+  });
+
+  if (!found) {
+    list.push({
+      id: seriesId,
+      totalTests: totalTests || 20,
+      disabledSetNumbers: disabledSetNumbers || [],
+      activeSetsCount: activeSetsCount || 20,
+      isActive: true
+    });
+  }
+
+  inMemoryAppState.testSeries = list;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    seriesId,
+    message: 'Sets configuration updated globally'
   });
 });
 

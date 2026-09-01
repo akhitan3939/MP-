@@ -644,6 +644,7 @@ export interface PatwariMockSetInfo {
   status: 'available' | 'locked';
   isFreeDemo: boolean;
   sectionsCount: number;
+  isActive?: boolean;
 }
 
 export const ALL_20_PATWARI_SETS: PatwariMockSetInfo[] = Array.from({ length: 20 }, (_, i) => {
@@ -658,5 +659,14 @@ export const ALL_20_PATWARI_SETS: PatwariMockSetInfo[] = Array.from({ length: 20
     status: 'available',
     isFreeDemo: false,
     sectionsCount: 8,
+    isActive: true,
   };
 });
+
+export function getActivePatwariSets(disabledSetNumbers: number[] = [], maxSetsCount: number = 20): PatwariMockSetInfo[] {
+  const disabledSet = new Set(disabledSetNumbers);
+  const cap = Math.min(20, Math.max(1, maxSetsCount || 20));
+  return ALL_20_PATWARI_SETS
+    .slice(0, cap)
+    .filter(s => !disabledSet.has(s.setNumber));
+}

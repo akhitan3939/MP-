@@ -56,16 +56,33 @@ export const TestDetailView: React.FC = () => {
   const isAgri = series.id === 'ts_agri_ext_2026';
   const has20Sets = isPatwari || isAgri;
 
+  const disabledNumbers: number[] = Array.isArray(series.disabledSetNumbers) ? series.disabledSetNumbers : [];
+  const maxSetsCount = typeof series.activeSetsCount === 'number' ? series.activeSetsCount : (series.totalTests || 20);
+
   const [filterMode, setFilterMode] = useState<'all' | 'free' | 'full'>('all');
-  const [selectedSetNumber, setSelectedSetNumber] = useState<number>(1);
 
-  const activeSetsList = isAgri ? ALL_20_AGRI_SETS : ALL_20_PATWARI_SETS;
+  const rawSetsList = isAgri ? ALL_20_AGRI_SETS : ALL_20_PATWARI_SETS;
 
-  const setsToDisplay = activeSetsList.filter(set => {
+  // Active sets list: For students/visitors strictly exclude disabled sets. Admin sees all with indicator.
+  const visibleSetsList = rawSetsList.filter(set => {
+    if (currentUser?.role === 'admin') return true;
+    const isSetDisabled = disabledNumbers.includes(set.setNumber);
+    const isWithinAttachedCount = set.setNumber <= (series.totalTests || 20);
+    return !isSetDisabled && isWithinAttachedCount;
+  });
+
+  const [selectedSetNumber, setSelectedSetNumber] = useState<number>(() => {
+    const firstActive = visibleSetsList.find(s => !disabledNumbers.includes(s.setNumber));
+    return firstActive ? firstActive.setNumber : (visibleSetsList[0]?.setNumber || 1);
+  });
+
+  const setsToDisplay = visibleSetsList.filter(set => {
     if (filterMode === 'free') return set.setNumber <= 10;
     if (filterMode === 'full') return set.setNumber > 10;
     return true;
   });
+
+  const activeCountOnly = rawSetsList.filter(s => !disabledNumbers.includes(s.setNumber) && s.setNumber <= (series.totalTests || 20)).length;
 
   const handleLaunchSelectedSet = (setNum?: number) => {
     const targetNum = setNum || selectedSetNumber;
@@ -116,7 +133,9 @@ export const TestDetailView: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-stone-100 dark:border-stone-800 text-xs">
               <div className="p-3 bg-stone-50 dark:bg-stone-800/60 rounded-xl">
                 <span className="text-stone-400 block text-[10px] uppercase font-bold">कुल टेस्ट / Tests</span>
-                <span className="font-bold text-stone-900 dark:text-white text-sm sm:text-base">{series.totalTests} Full Mocks</span>
+                <span className="font-bold text-stone-900 dark:text-white text-sm sm:text-base">
+                  {currentUser?.role === 'admin' ? `${activeCountOnly} / ${series.totalTests || 20} Active Mocks` : `${activeCountOnly} Full Mocks`}
+                </span>
               </div>
               <div className="p-3 bg-stone-50 dark:bg-stone-800/60 rounded-xl">
                 <span className="text-stone-400 block text-[10px] uppercase font-bold">समय / Duration</span>
@@ -158,18 +177,21 @@ export const TestDetailView: React.FC = () => {
             {has20Sets && (
               <div className="text-left bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-3 rounded-xl space-y-1.5">
                 <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-300">
-                  🎯 {lang === 'hi' ? 'कौन सा सेट देना चाहते हैं? (1 से 20):' : 'Select Mock Set to Attempt (1 to 20):'}
+                  🎯 {lang === 'hi' ? `सक्रिय सेट चुनें (${activeCountOnly} उपलब्ध):` : `Select Active Mock Set (${activeCountOnly} available):`}
                 </label>
                 <select
                   value={selectedSetNumber}
                   onChange={(e) => setSelectedSetNumber(Number(e.target.value))}
                   className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 text-stone-900 dark:text-white text-xs font-bold rounded-lg p-2 focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer"
                 >
-                  {activeSetsList.map(s => (
-                    <option key={s.setNumber} value={s.setNumber}>
-                      सेट #{s.setNumber}: {s.titleHi} {!enrolled ? '🔒 (पेमेंट के बाद अनलॉक)' : '🟢 (अनलॉक)'}
-                    </option>
-                  ))}
+                  {visibleSetsList.map(s => {
+                    const isSetDisabled = disabledNumbers.includes(s.setNumber);
+                    return (
+                      <option key={s.setNumber} value={s.setNumber}>
+                        सेट #{s.setNumber}: {s.titleHi} {isSetDisabled ? '🔴 (एडमिन: निष्क्रिय)' : (!enrolled ? '🔒 (पेमेंट के बाद अनलॉक)' : '🟢 (अनलॉक)')}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
@@ -270,74 +292,99 @@ export const TestDetailView: React.FC = () => {
           </div>
 
           {/* 20 Sets Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            {setsToDisplay.map((mockSet) => {
-              const canAccess = enrolled;
+          {setsToDisplay.length === 0 ? (
+            <div className="p-8 text-center bg-stone-50 dark:bg-stone-850/50 rounded-2xl border border-dashed border-stone-300 dark:border-stone-700 space-y-2">
+              <span className="text-2xl">📭</span>
+              <h4 className="font-bold text-sm text-stone-700 dark:text-stone-300">
+                {lang === 'hi' ? 'वर्तमान में इस श्रेणी में कोई सक्रिय टेस्ट सेट उपलब्ध नहीं है।' : 'No active test sets currently available in this filter.'}
+              </h4>
+              <p className="text-xs text-stone-500">
+                {lang === 'hi' ? 'कृपया अन्य श्रेणी चुनें अथवा बाद में पुनः प्रयास करें।' : 'Please check back later or switch filter.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {setsToDisplay.map((mockSet) => {
+                const canAccess = enrolled;
+                const isSetDisabled = disabledNumbers.includes(mockSet.setNumber);
 
-              return (
-                <div
-                  key={mockSet.setNumber}
-                  className="relative rounded-2xl border-2 p-4 flex flex-col justify-between transition-all hover:shadow-md bg-stone-50 dark:bg-stone-850/70 border-stone-200 dark:border-stone-800 hover:border-amber-500/50"
-                >
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-stone-900 text-white dark:bg-white dark:text-stone-950">
-                        SET #{mockSet.setNumber}
-                      </span>
-                      {enrolled ? (
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white">
-                          ✓ अनलॉक
+                return (
+                  <div
+                    key={mockSet.setNumber}
+                    className={`relative rounded-2xl border-2 p-4 flex flex-col justify-between transition-all hover:shadow-md ${
+                      isSetDisabled 
+                        ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60 opacity-90' 
+                        : 'bg-stone-50 dark:bg-stone-850/70 border-stone-200 dark:border-stone-800 hover:border-amber-500/50'
+                    }`}
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-stone-900 text-white dark:bg-white dark:text-stone-950">
+                          SET #{mockSet.setNumber}
                         </span>
+                        {isSetDisabled ? (
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-600 text-white flex items-center gap-1">
+                            🔴 एडमिन: निष्क्रिय
+                          </span>
+                        ) : enrolled ? (
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                            ✓ अनलॉक
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" /> 200 Qs मॉक
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="font-display font-bold text-sm text-stone-900 dark:text-white leading-snug line-clamp-1">
+                        {lang === 'hi' ? mockSet.titleHi : mockSet.titleEn}
+                      </h4>
+
+                      <div className="grid grid-cols-3 gap-1 text-[11px] text-stone-600 dark:text-stone-300 bg-white/70 dark:bg-stone-900/60 p-2 rounded-xl border border-stone-200/60 dark:border-stone-800 text-center">
+                        <div>
+                          <span className="block text-[9px] text-stone-400 font-bold uppercase">प्रश्न</span>
+                          <span className="font-bold">{mockSet.totalQuestions}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] text-stone-400 font-bold uppercase">अंक</span>
+                          <span className="font-bold">{mockSet.totalMarks}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] text-stone-400 font-bold uppercase">समय</span>
+                          <span className="font-bold">{mockSet.durationMinutes}m</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 mt-3 border-t border-stone-200/80 dark:border-stone-800">
+                      {isSetDisabled ? (
+                        <div className="py-2 px-3 bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-[11px] font-bold rounded-xl text-center">
+                          ⚠️ यह सेट वर्तमान में निष्क्रिय है
+                        </div>
+                      ) : canAccess ? (
+                        <button
+                          onClick={() => navigate('cbtExam', { id: series.id, setId: mockSet.setNumber })}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-white" />
+                          <span>{lang === 'hi' ? `सेट #${mockSet.setNumber} शुरू करें` : `Start Set #${mockSet.setNumber}`}</span>
+                        </button>
                       ) : (
-                        <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5" /> 200 Qs मॉक
-                        </span>
+                        <button
+                          onClick={() => openRazorpayModal(series)}
+                          className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>{lang === 'hi' ? '20 सेट्स अनलॉक करें (₹' + series.price + ')' : 'Unlock Mock Set'}</span>
+                        </button>
                       )}
                     </div>
-
-                    <h4 className="font-display font-bold text-sm text-stone-900 dark:text-white leading-snug line-clamp-1">
-                      {lang === 'hi' ? mockSet.titleHi : mockSet.titleEn}
-                    </h4>
-
-                    <div className="grid grid-cols-3 gap-1 text-[11px] text-stone-600 dark:text-stone-300 bg-white/70 dark:bg-stone-900/60 p-2 rounded-xl border border-stone-200/60 dark:border-stone-800 text-center">
-                      <div>
-                        <span className="block text-[9px] text-stone-400 font-bold uppercase">प्रश्न</span>
-                        <span className="font-bold">{mockSet.totalQuestions}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[9px] text-stone-400 font-bold uppercase">अंक</span>
-                        <span className="font-bold">{mockSet.totalMarks}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[9px] text-stone-400 font-bold uppercase">समय</span>
-                        <span className="font-bold">{mockSet.durationMinutes}m</span>
-                      </div>
-                    </div>
                   </div>
-
-                  <div className="pt-3 mt-3 border-t border-stone-200/80 dark:border-stone-800">
-                    {canAccess ? (
-                      <button
-                        onClick={() => navigate('cbtExam', { id: series.id, setId: mockSet.setNumber })}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Play className="w-3.5 h-3.5 fill-white" />
-                        <span>{lang === 'hi' ? `सेट #${mockSet.setNumber} शुरू करें` : `Start Set #${mockSet.setNumber}`}</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => openRazorpayModal(series)}
-                        className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        <span>{lang === 'hi' ? '20 सेट्स अनलॉक करें (₹' + series.price + ')' : 'Unlock Mock Set'}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

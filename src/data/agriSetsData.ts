@@ -1414,6 +1414,7 @@ export interface AgriMockSetInfo {
   status: 'available' | 'locked';
   isFreeDemo: boolean;
   sectionsCount: number;
+  isActive?: boolean;
 }
 
 export const ALL_20_AGRI_SETS: AgriMockSetInfo[] = Array.from({ length: 20 }, (_, i) => {
@@ -1428,8 +1429,17 @@ export const ALL_20_AGRI_SETS: AgriMockSetInfo[] = Array.from({ length: 20 }, (_
     status: 'available',
     isFreeDemo: false,
     sectionsCount: 17,
+    isActive: true,
   };
 });
+
+export function getActiveAgriSets(disabledSetNumbers: number[] = [], maxSetsCount: number = 20): AgriMockSetInfo[] {
+  const disabledSet = new Set(disabledSetNumbers);
+  const cap = Math.min(20, Math.max(1, maxSetsCount || 20));
+  return ALL_20_AGRI_SETS
+    .slice(0, cap)
+    .filter(s => !disabledSet.has(s.setNumber));
+}
 
 // Section configuration matching exact official pattern:
 // Part 1: General Subjects (100 Qs) -> 15 + 14 + 14 + 14 + 14 + 15 + 14 = 100

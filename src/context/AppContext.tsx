@@ -41,6 +41,7 @@ interface AppContextType {
   bottomNavItems: NavigationMenuItem[];
   footerNavItems: NavigationMenuItem[];
   enrolledSeriesIds: string[];
+  enrolledMap: Record<string, string[]>;
   bookmarkedQuestionIds: string[];
   theme: ThemeMode;
   lang: Language;
@@ -115,6 +116,8 @@ interface AppContextType {
   saveTestSeries: (series: TestSeries) => void;
   deleteTestSeries: (seriesId: string) => void;
   toggleTestSeriesActive: (seriesId: string) => void;
+  toggleMockSetActive: (seriesId: string, setNumber: number) => void;
+  updateSeriesSetsConfig: (seriesId: string, config: { totalTests?: number; disabledSetNumbers?: number[]; activeSetsCount?: number }) => void;
   saveQuestion: (question: Question) => void;
   deleteQuestion: (questionId: string) => void;
   saveAnnouncement: (announcement: Announcement) => void;
@@ -133,11 +136,14 @@ interface AppContextType {
   reorderNavMenuItem: (id: string, direction: 'up' | 'down') => void;
   resetNavMenusToDefault: () => void;
   refundOrder: (orderId: string) => void;
-  toggleUserAccess: (userId: string, seriesId: string) => void;
+  toggleUserAccess: (userId: string, seriesId: string, options?: { reason?: string }) => void;
+  grantAllSeriesToUser: (userId: string, reason?: string) => void;
+  revokeAllSeriesFromUser: (userId: string) => void;
   toggleUserRole: (userId: string) => void;
   resetStudentPassword: (userId: string, newPass: string) => void;
   grantStudentXp: (userId: string, xp: number) => void;
   broadcastPushNotification: (title: string, message: string) => void;
+  refreshCloudData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -255,7 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const handleOnline = () => {
       setIsOnline(true);
       setCloudSyncStatus('syncing');
-      setTimeout(() => setCloudSyncStatus('synced'), 800);
+      refreshCloudData().finally(() => setCloudSyncStatus('synced'));
       showToast(lang === 'hi' ? '✅ आप पुनः ऑनलाइन हैं। क्लाउड डेटा सिंक हो गया।' : '✅ Back online. Cloud data synchronized.');
     };
     const handleOffline = () => {
@@ -283,42 +289,129 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.setTheme(theme);
   }, [theme]);
 
-  // Load server-persisted state on initial startup
-  useEffect(() => {
-    fetch('/api/app-data')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.success && data.data) {
-          const s = data.data;
-          if (Array.isArray(s.testSeries) && s.testSeries.length > 0) {
-            setTestSeries(s.testSeries);
-            StorageService.setTestSeries(s.testSeries);
-          }
-          if (s.platformSettings && typeof s.platformSettings === 'object' && Object.keys(s.platformSettings).length > 0) {
-            setPlatformSettings(prev => ({ ...prev, ...s.platformSettings }));
-            StorageService.setPlatformSettings({ ...platformSettings, ...s.platformSettings });
-          }
-          if (Array.isArray(s.siteBanners) && s.siteBanners.length > 0) {
-            setSiteBanners(s.siteBanners);
-            StorageService.setSiteBanners(s.siteBanners);
-          }
-          if (Array.isArray(s.announcements) && s.announcements.length > 0) {
-            setAnnouncements(s.announcements);
-            StorageService.setAnnouncements(s.announcements);
-          }
-          if (Array.isArray(s.coupons) && s.coupons.length > 0) {
-            setCoupons(s.coupons);
-            StorageService.setCoupons(s.coupons);
-          }
-          if (Array.isArray(s.navMenuItems) && s.navMenuItems.length > 0) {
-            setNavMenuItems(s.navMenuItems);
-            StorageService.setNavMenus(s.navMenuItems);
-          }
+  // Comprehensive Cloud Data Refresh & State Merging
+  const refreshCloudData = async (): Promise<void> => {
+    try {
+      setCloudSyncStatus('syncing');
+      const res = await fetch('/api/app-data');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.success && data.data) {
+        const s = data.data;
+
+        // 1. Merge Users (Server + Local Storage)
+        if (Array.isArray(s.users) && s.users.length > 0) {
+          setUsers(prev => {
+            const userMap = new Map<string, UserProfile>();
+            // Load local users first
+            (prev || []).forEach(u => { if (u && u.id) userMap.set(u.id, u); });
+            // Merge server users on top
+            s.users.forEach((u: UserProfile) => { if (u && u.id) userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u }); });
+            const mergedUsers = Array.from(userMap.values());
+            StorageService.setUsers(mergedUsers);
+            return mergedUsers;
+          });
         }
-      })
-      .catch(e => {
-        console.log('App running in offline/local storage mode:', e);
-      });
+
+        // 2. Merge Test Attempts
+        if (Array.isArray(s.attempts) && s.attempts.length > 0) {
+          setAttempts(prev => {
+            const attemptMap = new Map<string, TestAttempt>();
+            (prev || []).forEach(a => { if (a && a.id) attemptMap.set(a.id, a); });
+            s.attempts.forEach((a: TestAttempt) => { if (a && a.id) attemptMap.set(a.id, { ...(attemptMap.get(a.id) || {}), ...a }); });
+            const mergedAttempts = Array.from(attemptMap.values()).sort((a, b) => {
+              const timeA = new Date(a.completedAt || a.startedAt || 0).getTime();
+              const timeB = new Date(b.completedAt || b.startedAt || 0).getTime();
+              return timeB - timeA;
+            });
+            StorageService.setAttempts(mergedAttempts);
+            return mergedAttempts;
+          });
+        }
+
+        // 3. Merge Orders / Grants
+        if (Array.isArray(s.orders)) {
+          setOrders(prev => {
+            const orderMap = new Map<string, OrderTransaction>();
+            (prev || []).forEach(o => { if (o && o.id) orderMap.set(o.id, o); });
+            s.orders.forEach((o: OrderTransaction) => { if (o && o.id) orderMap.set(o.id, { ...(orderMap.get(o.id) || {}), ...o }); });
+            const mergedOrders = Array.from(orderMap.values()).sort((a, b) => {
+              const timeA = new Date(a.createdAt || 0).getTime();
+              const timeB = new Date(b.createdAt || 0).getTime();
+              return timeB - timeA;
+            });
+            StorageService.setOrders(mergedOrders);
+            return mergedOrders;
+          });
+        }
+
+        // 4. Merge Enrolled Map
+        if (s.enrolledMap && typeof s.enrolledMap === 'object') {
+          setEnrolledMap(prev => {
+            const merged: Record<string, string[]> = { ...prev };
+            Object.keys(s.enrolledMap).forEach(uid => {
+              const serverList = Array.isArray(s.enrolledMap[uid]) ? s.enrolledMap[uid] : [];
+              const localList = merged[uid] || [];
+              merged[uid] = Array.from(new Set([...localList, ...serverList]));
+            });
+            StorageService.setEnrolledMap(merged);
+            return merged;
+          });
+        }
+
+        // 5. Test Series
+        if (Array.isArray(s.testSeries) && s.testSeries.length > 0) {
+          setTestSeries(s.testSeries);
+          StorageService.setTestSeries(s.testSeries);
+        }
+
+        // 6. Platform Settings
+        if (s.platformSettings && typeof s.platformSettings === 'object' && Object.keys(s.platformSettings).length > 0) {
+          setPlatformSettings(prev => {
+            const updated = { ...prev, ...s.platformSettings };
+            StorageService.setPlatformSettings(updated);
+            return updated;
+          });
+        }
+
+        // 7. Site Banners, Announcements, Coupons, Menus
+        if (Array.isArray(s.siteBanners) && s.siteBanners.length > 0) {
+          setSiteBanners(s.siteBanners);
+          StorageService.setSiteBanners(s.siteBanners);
+        }
+        if (Array.isArray(s.announcements) && s.announcements.length > 0) {
+          setAnnouncements(s.announcements);
+          StorageService.setAnnouncements(s.announcements);
+        }
+        if (Array.isArray(s.coupons) && s.coupons.length > 0) {
+          setCoupons(s.coupons);
+          StorageService.setCoupons(s.coupons);
+        }
+        if (Array.isArray(s.navMenuItems) && s.navMenuItems.length > 0) {
+          setNavMenuItems(s.navMenuItems);
+          StorageService.setNavMenus(s.navMenuItems);
+        }
+        if (Array.isArray(s.notes) && s.notes.length > 0) {
+          setNotes(s.notes);
+          StorageService.setNotes(s.notes);
+        }
+      }
+    } catch (err) {
+      console.log('App running in offline/local storage fallback:', err);
+    } finally {
+      setCloudSyncStatus('synced');
+    }
+  };
+
+  // Load server-persisted state on initial startup & periodically
+  useEffect(() => {
+    // Initial fetch
+    refreshCloudData();
+
+    // Periodic live sync every 15 seconds so admin/students see live registrations & attempts
+    const interval = setInterval(() => {
+      refreshCloudData();
+    }, 15000);
 
     // Auto-track hit counter (starts at 50 minimum)
     try {
@@ -368,6 +461,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {
       // safe fallback
     }
+
+    return () => clearInterval(interval);
   }, []);
 
   // Save changes to storage
@@ -570,6 +665,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
     setCurrentUserId(newUser.id);
     StorageService.setCurrentUserId(newUser.id);
+
+    // Immediate server sync to persist registration directly to disk
+    fetch('/api/users/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newUser)
+    }).catch(err => console.warn('Registration server sync error:', err));
     
     const successMsg = lang === 'hi' 
       ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा और ₹500 वेलकम बोनस XP मिला।` 
@@ -604,6 +706,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     newUsers[userIndex] = updatedUser;
     setUsers(newUsers);
     StorageService.setUsers(newUsers);
+
+    // Sync updated user to server
+    fetch('/api/users/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedUser)
+    }).catch(err => console.warn('Reset password server sync error:', err));
 
     const msg = lang === 'hi'
       ? `✅ पासवर्ड सफलतापूर्वक बदल दिया गया है! अब आप नए पासवर्ड से लॉगिन कर सकते हैं।`
@@ -766,11 +875,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setOrders(prev => [newOrder, ...prev]);
 
     // Enroll user in series
+    let updatedEnrolledMap: Record<string, string[]> = {};
     setEnrolledMap(prev => {
       const userList = prev[user.id] || [];
       if (!userList.includes(series.id)) {
-        return { ...prev, [user.id]: [...userList, series.id] };
+        updatedEnrolledMap = { ...prev, [user.id]: [...userList, series.id] };
+        return updatedEnrolledMap;
       }
+      updatedEnrolledMap = prev;
       return prev;
     });
 
@@ -779,6 +891,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Award XP
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: u.xp + 300 } : u));
+
+    // Immediate server sync for order and enrollment
+    fetch('/api/orders/record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder)
+    }).catch(err => console.warn('Order sync error:', err));
+
+    fetch('/api/enrolled-map/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedEnrolledMap)
+    }).catch(err => console.warn('EnrolledMap sync error:', err));
 
     closeRazorpayModal();
     showToast(lang === 'hi' ? `🎉 बधाई! ${series.titleHi} सफलतापूर्वक अनलॉक हो गई।` : `🎉 Congrats! ${series.titleEn} unlocked successfully.`);
@@ -937,6 +1062,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       StorageService.setAttempts(updated);
       return updated;
     });
+
+    // Immediate server sync for test attempts to disk
+    fetch('/api/attempts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newAttempt)
+    }).catch(err => console.warn('Attempt server sync error:', err));
 
     // Update Leaderboard if top score
     const newLeaderboardEntry: LeaderboardEntry = {
@@ -1157,6 +1289,77 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? (newStatus ? '🟢 परीक्षा सक्रिय कर दी गई है (होमपेज पर दृश्यमान)' : '🔴 परीक्षा निष्क्रिय कर दी गई है (होमपेज से छिपी हुई)') 
         : (newStatus ? '🟢 Exam marked ACTIVE (Visible on Homepage)' : '🔴 Exam marked INACTIVE (Hidden from Homepage)')
     );
+  };
+
+  const toggleMockSetActive = (seriesId: string, setNumber: number) => {
+    let willBeActive = true;
+    let updatedDisabled: number[] = [];
+    setTestSeries(prev => {
+      const updated = prev.map(s => {
+        if (s.id === seriesId) {
+          const currentDisabled = Array.isArray(s.disabledSetNumbers) ? [...s.disabledSetNumbers] : [];
+          if (currentDisabled.includes(setNumber)) {
+            updatedDisabled = currentDisabled.filter(n => n !== setNumber);
+            willBeActive = true;
+          } else {
+            updatedDisabled = [...currentDisabled, setNumber];
+            willBeActive = false;
+          }
+          const totalPossible = s.id === 'ts_patwari_2026' || s.id === 'ts_agri_ext_2026' ? 20 : (s.totalTests || 20);
+          const activeCount = Math.max(0, totalPossible - updatedDisabled.length);
+          return {
+            ...s,
+            totalTests: totalPossible,
+            disabledSetNumbers: updatedDisabled,
+            activeSetsCount: activeCount
+          };
+        }
+        return s;
+      });
+      StorageService.setTestSeries(updated);
+      return updated;
+    });
+
+    fetch('/api/test-series/toggle-set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seriesId, setNumber, isActive: willBeActive })
+    }).catch(e => console.warn('Server sync error for toggle set:', e));
+
+    showToast(
+      lang === 'hi'
+        ? (willBeActive ? `🟢 सेट #${setNumber} सक्रिय किया गया (छात्रों को दिखेगा)` : `🔴 सेट #${setNumber} निष्क्रिय किया गया (छात्रों से छिपा हुआ)`)
+        : (willBeActive ? `🟢 Set #${setNumber} ACTIVE (Visible to students)` : `🔴 Set #${setNumber} INACTIVE (Hidden from students)`)
+    );
+  };
+
+  const updateSeriesSetsConfig = (seriesId: string, config: { totalTests?: number; disabledSetNumbers?: number[]; activeSetsCount?: number }) => {
+    setTestSeries(prev => {
+      const updated = prev.map(s => {
+        if (s.id === seriesId) {
+          const totalTests = typeof config.totalTests === 'number' ? config.totalTests : s.totalTests;
+          const disabledSetNumbers = Array.isArray(config.disabledSetNumbers) ? config.disabledSetNumbers : (s.disabledSetNumbers || []);
+          const activeSetsCount = typeof config.activeSetsCount === 'number' ? config.activeSetsCount : Math.max(0, (totalTests || 20) - disabledSetNumbers.length);
+          return {
+            ...s,
+            totalTests,
+            disabledSetNumbers,
+            activeSetsCount
+          };
+        }
+        return s;
+      });
+      StorageService.setTestSeries(updated);
+      return updated;
+    });
+
+    fetch('/api/test-series/save-sets-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seriesId, ...config })
+    }).catch(e => console.warn('Server sync error for save sets config:', e));
+
+    showToast(lang === 'hi' ? 'सेट्स विन्यास अपडेट किया गया' : 'Sets configuration updated');
   };
 
   const saveQuestion = (question: Question) => {
@@ -1398,34 +1601,213 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(lang === 'hi' ? 'रिफंड प्रोसेस किया गया' : 'Refund processed successfully');
   };
 
-  const toggleUserAccess = (userId: string, seriesId: string) => {
+  const toggleUserAccess = (userId: string, seriesId: string, options?: { reason?: string }) => {
+    const targetUser = users.find(u => u.id === userId);
+    const targetSeries = testSeries.find(s => s.id === seriesId);
+    const studentName = targetUser?.name || 'छात्र';
+    const seriesTitle = targetSeries ? (lang === 'hi' ? targetSeries.titleHi : targetSeries.titleEn) : 'टेस्ट सीरीज़';
+
+    let updatedEnrolledMap: Record<string, string[]> = {};
+    let willBeEnrolled = false;
     setEnrolledMap(prev => {
       const list = prev[userId] || [];
       const has = list.includes(seriesId);
-      const updated = has ? list.filter(id => id !== seriesId) : [...list, seriesId];
-      return { ...prev, [userId]: updated };
+      if (has) {
+        willBeEnrolled = false;
+        updatedEnrolledMap = { ...prev, [userId]: list.filter(id => id !== seriesId) };
+      } else {
+        willBeEnrolled = true;
+        updatedEnrolledMap = { ...prev, [userId]: [...list, seriesId] };
+      }
+      return updatedEnrolledMap;
     });
-    showToast(lang === 'hi' ? 'छात्र की सब्सक्रिप्शन स्थिति बदली गई' : 'User enrollment toggled');
+
+    fetch('/api/enrolled-map/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedEnrolledMap)
+    }).catch(err => console.warn('Enrolled sync error:', err));
+
+    if (willBeEnrolled) {
+      // Create ₹0 Admin Free Grant Transaction for records & audit
+      if (targetUser && targetSeries) {
+        const grantOrder: OrderTransaction = {
+          id: `txn_grant_${Date.now()}`,
+          orderId: `order_FREE_${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          razorpayPaymentId: 'FREE_ADMIN_SCHOLARSHIP_GRANT',
+          userId: targetUser.id,
+          userName: targetUser.name,
+          userEmail: targetUser.email,
+          userPhone: targetUser.phone,
+          seriesId: targetSeries.id,
+          seriesTitle: lang === 'hi' ? targetSeries.titleHi : targetSeries.titleEn,
+          amount: targetSeries.price || 0,
+          discount: targetSeries.price || 0,
+          gstAmount: 0,
+          finalAmount: 0,
+          paymentMethod: 'UPI',
+          status: 'SUCCESS',
+          couponCode: options?.reason || 'ADMIN_FREE_GRANT',
+          createdAt: new Date().toISOString(),
+          invoiceNumber: `INV-GRANT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
+        };
+        setOrders(prev => [grantOrder, ...prev.filter(o => !(o.userId === userId && o.seriesId === seriesId && o.finalAmount === 0))]);
+        fetch('/api/orders/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(grantOrder)
+        }).catch(err => console.warn('Grant order sync error:', err));
+      }
+      showToast(
+        lang === 'hi' 
+          ? `🎁 ${studentName} को '${seriesTitle}' मुफ़्त (₹0 Free Access) में प्रदान कर दी गई!` 
+          : `🎁 '${seriesTitle}' granted FREE to ${studentName}!`
+      );
+    } else {
+      showToast(
+        lang === 'hi' 
+          ? `🔒 ${studentName} से '${seriesTitle}' का मुफ़्त एक्सेस वापस लिया गया।` 
+          : `🔒 Revoked free access of '${seriesTitle}' from ${studentName}.`
+      );
+    }
+  };
+
+  const grantAllSeriesToUser = (userId: string, reason?: string) => {
+    const targetUser = users.find(u => u.id === userId);
+    const studentName = targetUser?.name || 'छात्र';
+    const allActiveSeriesIds = testSeries.filter(s => s.isActive !== false).map(s => s.id);
+
+    let updatedEnrolledMap: Record<string, string[]> = {};
+    setEnrolledMap(prev => {
+      const existing = prev[userId] || [];
+      const combined = Array.from(new Set([...existing, ...allActiveSeriesIds]));
+      updatedEnrolledMap = { ...prev, [userId]: combined };
+      return updatedEnrolledMap;
+    });
+
+    fetch('/api/enrolled-map/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedEnrolledMap)
+    }).catch(err => console.warn('Enrolled sync error:', err));
+
+    // Create VIP Free Grant record
+    if (targetUser) {
+      const vipOrder: OrderTransaction = {
+        id: `txn_grant_vip_${Date.now()}`,
+        orderId: `order_VIP_${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        razorpayPaymentId: 'VIP_ALL_ACCESS_GRANT',
+        userId: targetUser.id,
+        userName: targetUser.name,
+        userEmail: targetUser.email,
+        userPhone: targetUser.phone,
+        seriesId: 'all_series_vip',
+        seriesTitle: lang === 'hi' ? 'सभी टेस्ट सीरीज़ (VIP ऑल-एक्सेस पास)' : 'All Test Series (VIP All-Access Pass)',
+        amount: 0,
+        discount: 0,
+        gstAmount: 0,
+        finalAmount: 0,
+        paymentMethod: 'UPI',
+        status: 'SUCCESS',
+        couponCode: reason || 'VIP_SCHOLARSHIP_ALL_PASS',
+        createdAt: new Date().toISOString(),
+        invoiceNumber: `INV-VIP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
+      };
+      setOrders(prev => [vipOrder, ...prev]);
+      fetch('/api/orders/record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vipOrder)
+      }).catch(err => console.warn('VIP order sync error:', err));
+    }
+
+    showToast(
+      lang === 'hi' 
+        ? `🌟 बधाई! ${studentName} को पोर्टल की सभी टेस्ट सीरीज़ का VIP ऑल-एक्सेस मुफ़्त में मिल गया!` 
+        : `🌟 VIP All-Access granted FREE to ${studentName}!`
+    );
+  };
+
+  const revokeAllSeriesFromUser = (userId: string) => {
+    const targetUser = users.find(u => u.id === userId);
+    const studentName = targetUser?.name || 'छात्र';
+
+    let updatedEnrolledMap: Record<string, string[]> = {};
+    setEnrolledMap(prev => {
+      const copy = { ...prev };
+      delete copy[userId];
+      updatedEnrolledMap = copy;
+      return copy;
+    });
+
+    fetch('/api/enrolled-map/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedEnrolledMap)
+    }).catch(err => console.warn('Enrolled sync error:', err));
+
+    showToast(
+      lang === 'hi' 
+        ? `🔒 ${studentName} के सभी टेस्ट सीरीज़ एक्सेस रीसेट (हटाए) कर दिए गए।` 
+        : `🔒 All granted series revoked for ${studentName}.`
+    );
   };
 
   const toggleUserRole = (userId: string) => {
+    let targetUpdated: UserProfile | undefined;
     setUsers(prev => prev.map(u => {
       if (u.id === userId) {
         const nextRole = u.role === 'admin' ? 'student' : 'admin';
-        return { ...u, role: nextRole };
+        targetUpdated = { ...u, role: nextRole };
+        return targetUpdated;
       }
       return u;
     }));
+    if (targetUpdated) {
+      fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetUpdated)
+      }).catch(err => console.warn('User update sync error:', err));
+    }
     showToast(lang === 'hi' ? 'उपयोगकर्ता रोल अपडेट किया गया' : 'User role updated');
   };
 
   const resetStudentPassword = (userId: string, newPass: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: newPass } : u));
+    let targetUpdated: UserProfile | undefined;
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        targetUpdated = { ...u, password: newPass };
+        return targetUpdated;
+      }
+      return u;
+    }));
+    if (targetUpdated) {
+      fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetUpdated)
+      }).catch(err => console.warn('User pass update sync error:', err));
+    }
     showToast(lang === 'hi' ? 'पासवर्ड सफलतापूर्वक रीसेट हुआ' : 'Password reset successfully');
   };
 
   const grantStudentXp = (userId: string, xpToAdd: number) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, xp: (u.xp || 0) + xpToAdd } : u));
+    let targetUpdated: UserProfile | undefined;
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        targetUpdated = { ...u, xp: (u.xp || 0) + xpToAdd };
+        return targetUpdated;
+      }
+      return u;
+    }));
+    if (targetUpdated) {
+      fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetUpdated)
+      }).catch(err => console.warn('User xp update sync error:', err));
+    }
     showToast(lang === 'hi' ? `+${xpToAdd} XP छात्र को प्रदान किए गए` : `+${xpToAdd} XP granted to student`);
   };
 
@@ -1454,6 +1836,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         bottomNavItems,
         footerNavItems,
         enrolledSeriesIds,
+        enrolledMap,
         bookmarkedQuestionIds: bookmarkedIds,
         theme,
         lang,
@@ -1521,6 +1904,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         saveTestSeries,
         deleteTestSeries,
         toggleTestSeriesActive,
+        toggleMockSetActive,
+        updateSeriesSetsConfig,
         saveQuestion,
         deleteQuestion,
         saveAnnouncement,
@@ -1540,10 +1925,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         resetNavMenusToDefault,
         refundOrder,
         toggleUserAccess,
+        grantAllSeriesToUser,
+        revokeAllSeriesFromUser,
         toggleUserRole,
         resetStudentPassword,
         grantStudentXp,
-        broadcastPushNotification
+        broadcastPushNotification,
+        refreshCloudData
       }}
     >
       {children}

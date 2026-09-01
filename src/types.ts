@@ -92,6 +92,8 @@ export interface TestSeries {
   syllabus: TestSeriesSyllabusSection[];
   pdfNotesCount: number;
   isActive?: boolean;
+  disabledSetNumbers?: number[];
+  activeSetsCount?: number;
   thumbnailUrl?: string;
   bannerUrl?: string;
   badgeTagHi?: string;
