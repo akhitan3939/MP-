@@ -1218,6 +1218,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return updated;
     });
 
+    fetch('/api/users/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    }).catch(err => console.warn('User update sync warning:', err));
+
     const successMsg = lang === 'hi' ? '✅ यूज़र विवरण सफलतापूर्वक सहेज लिया गया।' : '✅ User profile updated successfully.';
     showToast(successMsg);
     return { success: true, message: successMsg };
@@ -1241,6 +1247,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       StorageService.setUsers(updated);
       return updated;
     });
+
+    fetch(`/api/users/${userId}`, {
+      method: 'DELETE'
+    }).catch(err => console.warn('User delete sync warning:', err));
 
     const successMsg = lang === 'hi' ? `🗑️ यूज़र '${target.name}' सफलतापूर्वक हटा दिया गया।` : `🗑️ User '${target.name}' deleted successfully.`;
     showToast(successMsg);
@@ -1825,7 +1835,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       joinedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       isDummyUser: userData.isDummyUser === true,
-      userType: (userData.isDummyUser === true ? 'dummy' : 'authentic') as 'dummy' | 'authentic'
+      userType: (userData.isDummyUser === true ? 'dummy' : 'authentic') as 'dummy' | 'authentic',
+      customTag: userData.customTag || reason || undefined,
+      grantReason: reason || userData.grantReason || undefined,
+      tagColor: userData.tagColor || 'amber'
     };
 
     // 1. Save user to state & storage

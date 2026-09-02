@@ -20,6 +20,9 @@ export interface UserProfile {
   xp: number;
   streak: number;
   badges: string[];
+  customTag?: string;
+  tagColor?: string;
+  grantReason?: string;
   isDummyUser?: boolean;
   userType?: 'authentic' | 'dummy';
 }

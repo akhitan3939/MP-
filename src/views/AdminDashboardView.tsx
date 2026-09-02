@@ -68,7 +68,9 @@ import {
   UserCheck,
   UserX,
   UserPlus,
-  Filter
+  Filter,
+  Percent,
+  Tag
 } from 'lucide-react';
 import { 
   TestSeries, 
@@ -76,6 +78,7 @@ import {
   Announcement, 
   Coupon, 
   UserProfile, 
+  UserRole,
   SiteBanner, 
   PlatformSettings, 
   OfflineNote, 
@@ -156,6 +159,8 @@ export const AdminDashboardView: React.FC = () => {
     addUserWithSeries,
     grantAllSeriesToUser,
     revokeAllSeriesFromUser,
+    saveUser,
+    deleteUser,
     toggleUserRole,
     toggleUserDummyStatus,
     resetStudentPassword,
@@ -274,6 +279,59 @@ export const AdminDashboardView: React.FC = () => {
 
   const [passwordModalUser, setPasswordModalUser] = useState<UserProfile | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState('123456');
+
+  // User Tag & Role Assignment Modal State
+  const [tagModalUser, setTagModalUser] = useState<UserProfile | null>(null);
+  const [userCustomTagInput, setUserCustomTagInput] = useState('');
+  const [userTagColor, setUserTagColor] = useState('amber');
+  const [userRoleSelect, setUserRoleSelect] = useState<UserRole>('student');
+  const [userDummySelect, setUserDummySelect] = useState<boolean>(false);
+
+  // Delete User Confirmation Modal State
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserProfile | null>(null);
+
+  const PRESET_USER_TAGS = [
+    { label: '⭐ VIP छात्र (VIP Student)', color: 'amber', desc: 'विशेष प्राथमिकता प्राप्त छात्र' },
+    { label: '🏆 टॉपर / रैंक होल्डर (Top Ranker)', color: 'emerald', desc: 'शीर्ष प्रदर्शन करने वाला छात्र' },
+    { label: '🎁 स्कॉलरशिप होल्डर (Scholarship)', color: 'indigo', desc: 'मुफ़्त छात्रवृत्ति प्राप्त' },
+    { label: '👑 प्रशासक (Admin User)', color: 'rose', desc: 'पोर्टल एडमिनिस्ट्रेटर' },
+    { label: '🔥 स्टार स्टूडेंट (Star Student)', color: 'amber', desc: 'निरंतर सक्रिय अभ्यासी' },
+    { label: '🤝 आर्थिक सहायता (Financial Aid)', color: 'sky', desc: 'फाइनेंशियल एड सपोर्ट' },
+    { label: '🧪 टेस्टिंग डमी खाता (Test Account)', color: 'stone', desc: 'परीक्षण एवं डेमो खाता' },
+    { label: '📝 क्वालिटी परीक्षक (Quality Reviewer)', color: 'teal', desc: 'कंटेंट रिव्यूअर' },
+    { label: '🎟️ प्रोमोशनल पास (Promotional Pass)', color: 'violet', desc: 'प्रचार अभियान ग्रांट' },
+    { label: '🎯 पटवारी एस्पिरेंट (Patwari 2026)', color: 'emerald', desc: 'पटवारी विशेष बैच' },
+    { label: '📜 MPPSC एस्पिरेंट (MPPSC 2026)', color: 'indigo', desc: 'MPPSC विशेष बैच' },
+    { label: '🎓 सामान्य छात्र (Standard Student)', color: 'stone', desc: 'नियमित पंजीकृत छात्र' },
+  ];
+
+  const handleOpenTagModal = (user: UserProfile) => {
+    setTagModalUser(user);
+    setUserCustomTagInput(user.customTag || user.grantReason || '');
+    setUserTagColor(user.tagColor || 'amber');
+    setUserRoleSelect(user.role || 'student');
+    setUserDummySelect(user.isDummyUser === true);
+  };
+
+  const handleSaveUserTagAndRole = () => {
+    if (!tagModalUser) return;
+    const updatedUser: UserProfile = {
+      ...tagModalUser,
+      customTag: userCustomTagInput.trim() || undefined,
+      tagColor: userTagColor,
+      role: userRoleSelect,
+      isDummyUser: userDummySelect,
+      userType: userDummySelect ? 'dummy' : 'authentic'
+    };
+    saveUser(updatedUser);
+    setTagModalUser(null);
+  };
+
+  const handleDeleteUserConfirmed = () => {
+    if (!deleteConfirmUser) return;
+    deleteUser(deleteConfirmUser.id);
+    setDeleteConfirmUser(null);
+  };
 
   // Free Access Grant Modal State (Checkbox-based & Single-click)
   const [grantModalUser, setGrantModalUser] = useState<UserProfile | null>(null);
@@ -586,19 +644,30 @@ export const AdminDashboardView: React.FC = () => {
   // Handler: Save Coupon
   const handleSaveCoupon = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCoupon?.code || !editingCoupon?.discountValue) return;
+    if (!editingCoupon?.code?.trim()) {
+      showToast('⚠️ कृपया कूपन कोड दर्ज करें');
+      return;
+    }
+    if (editingCoupon.discountValue === undefined || editingCoupon.discountValue === null || Number(editingCoupon.discountValue) <= 0) {
+      showToast('⚠️ कृपया वैध डिस्काउंट मान दर्ज करें');
+      return;
+    }
 
+    const code = editingCoupon.code.toUpperCase().trim();
     const newC: Coupon = {
-      code: (editingCoupon.code || '').toUpperCase().trim(),
+      code,
       discountType: editingCoupon.discountType || 'flat',
       discountValue: Number(editingCoupon.discountValue),
-      minAmount: Number(editingCoupon.minAmount || 199),
+      minAmount: Number(editingCoupon.minAmount ?? 0),
       validTill: editingCoupon.validTill || '2026-12-31',
-      isActive: editingCoupon.isActive ?? true
+      descriptionHi: editingCoupon.descriptionHi?.trim() || '',
+      descriptionEn: editingCoupon.descriptionEn?.trim() || '',
+      isActive: editingCoupon.isActive !== false
     };
 
     saveCoupon(newC);
     setEditingCoupon(null);
+    showToast(`🎉 कूपन कोड '${code}' सफलतापूर्वक सहेजा गया!`);
   };
 
   // Handler: Save Note / PDF
@@ -4215,149 +4284,305 @@ export const AdminDashboardView: React.FC = () => {
           {/* ========================================================= */}
           {activeTab === 'STUDENTS' && (
             <div className="space-y-6">
-              {/* Search Bar & Export Buttons */}
-              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-                <div className="relative flex-1 w-full">
-                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
-                  <input 
-                    type="text"
-                    placeholder="छात्र का नाम, जिला, मोबाइल नंबर या ईमेल खोजें..."
-                    value={searchStudents}
-                    onChange={(e) => setSearchStudents(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
-                  />
+              {/* Top Stats Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-2xl shadow-xs">
+                  <div className="text-[10px] uppercase font-black text-stone-500">कुल पंजीकृत यूज़र्स</div>
+                  <div className="text-xl font-black text-[#7A2A1E] dark:text-[#D4A017] mt-0.5">{users.length}</div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <button
-                    onClick={() => handleExportUsers('xls')}
-                    className="flex-1 sm:flex-none px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
-                    title="Excel में डाउनलोड करें"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
-                    <span>Excel (XLS)</span>
-                  </button>
-                  <button
-                    onClick={() => handleExportUsers('csv')}
-                    className="flex-1 sm:flex-none px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
-                    title="CSV में डाउनलोड करें"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>CSV</span>
-                  </button>
-                  <button
-                    onClick={() => handleExportUsers('pdf')}
-                    className="flex-1 sm:flex-none px-3 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
-                    title="PDF रिपोर्ट प्रिंट / डाउनलोड करें"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>PDF / Print</span>
-                  </button>
+                <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-emerald-200 dark:border-emerald-950 rounded-2xl shadow-xs">
+                  <div className="text-[10px] uppercase font-black text-emerald-600 dark:text-emerald-400">वास्तविक छात्र (Real)</div>
+                  <div className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+                    {users.filter(u => !u.isDummyUser && u.role !== 'admin').length}
+                  </div>
+                </div>
+                <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-amber-200 dark:border-amber-950 rounded-2xl shadow-xs">
+                  <div className="text-[10px] uppercase font-black text-amber-600 dark:text-amber-400">विशेष टैग वाले छात्र</div>
+                  <div className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5">
+                    {users.filter(u => Boolean(u.customTag || u.grantReason)).length}
+                  </div>
+                </div>
+                <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-indigo-200 dark:border-indigo-950 rounded-2xl shadow-xs">
+                  <div className="text-[10px] uppercase font-black text-indigo-600 dark:text-indigo-400">प्रशासक (Admins)</div>
+                  <div className="text-xl font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                    {users.filter(u => u.role === 'admin').length}
+                  </div>
+                </div>
+                <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-stone-200 dark:border-stone-800 rounded-2xl shadow-xs">
+                  <div className="text-[10px] uppercase font-black text-stone-500">डमी / टेस्ट खाते</div>
+                  <div className="text-xl font-black text-stone-700 dark:text-stone-300 mt-0.5">
+                    {users.filter(u => u.isDummyUser).length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Bar, Filter Chips & Action Buttons */}
+              <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm space-y-3">
+                <div className="flex flex-col lg:flex-row gap-3 items-center justify-between">
+                  {/* Search Input */}
+                  <div className="relative flex-1 w-full">
+                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
+                    <input 
+                      type="text"
+                      placeholder="छात्र का नाम, टैग, जिला, मोबाइल नंबर या ईमेल खोजें..."
+                      value={searchStudents}
+                      onChange={(e) => setSearchStudents(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  {/* Add User + Export Buttons */}
+                  <div className="flex items-center flex-wrap gap-2 w-full lg:w-auto shrink-0">
+                    <button
+                      onClick={handleOpenAddUserModal}
+                      className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>+ नया छात्र जोड़ें</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportUsers('xls')}
+                      className="px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                      title="Excel में डाउनलोड करें"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      <span>Excel</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportUsers('csv')}
+                      className="px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                      title="CSV में डाउनलोड करें"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>CSV</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportUsers('pdf')}
+                      className="px-3 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow cursor-pointer transition"
+                      title="PDF रिपोर्ट प्रिंट / डाउनलोड करें"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pt-1 text-xs">
+                  <span className="text-[11px] font-black text-stone-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                    <Filter className="w-3 h-3" /> फ़िल्टर:
+                  </span>
+                  {[
+                    { id: 'all', label: `सभी (${users.length})` },
+                    { id: 'valid', label: `✅ वास्तविक छात्र (${users.filter(u => !u.isDummyUser).length})` },
+                    { id: 'tagged', label: `🏷️ टैग प्राप्त (${users.filter(u => Boolean(u.customTag || u.grantReason)).length})` },
+                    { id: 'admin', label: `👑 व्यवस्थापक / Admin (${users.filter(u => u.role === 'admin').length})` },
+                    { id: 'dummy', label: `🧪 डमी / टेस्ट खाते (${users.filter(u => u.isDummyUser).length})` }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setStudentFilterType(tab.id as any)}
+                      className={`px-3 py-1 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+                        studentFilterType === tab.id
+                          ? 'bg-[#7A2A1E] text-[#D4A017] shadow-sm'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Students Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {users
-                  .filter(u => !searchStudents || 
-                    u.name.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                    u.district.toLowerCase().includes(searchStudents.toLowerCase()) ||
-                    (u.state && u.state.toLowerCase().includes(searchStudents.toLowerCase())) ||
-                    u.email.toLowerCase().includes(searchStudents.toLowerCase())
-                  )
+                  .filter(u => {
+                    // Filter Type
+                    if (studentFilterType === 'valid' && u.isDummyUser) return false;
+                    if (studentFilterType === 'dummy' && !u.isDummyUser) return false;
+                    if (studentFilterType === 'admin' && u.role !== 'admin') return false;
+                    if (studentFilterType === 'tagged' && !u.customTag && !u.grantReason) return false;
+
+                    // Search
+                    if (!searchStudents) return true;
+                    const query = searchStudents.toLowerCase();
+                    return (
+                      u.name.toLowerCase().includes(query) ||
+                      u.district.toLowerCase().includes(query) ||
+                      (u.state && u.state.toLowerCase().includes(query)) ||
+                      u.email.toLowerCase().includes(query) ||
+                      u.phone.includes(query) ||
+                      (u.customTag && u.customTag.toLowerCase().includes(query)) ||
+                      (u.grantReason && u.grantReason.toLowerCase().includes(query))
+                    );
+                  })
                   .map(user => {
                     const isAdmin = user.role === 'admin';
-                    const enrolledCount = (enrolledSeriesIds || []).length;
+                    const isDummy = user.isDummyUser === true;
+                    const userEnrolled = enrolledMap[user.id] || [];
+                    const displayTag = user.customTag || user.grantReason;
 
                     return (
                       <div 
                         key={user.id}
-                        className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col justify-between space-y-4"
+                        className={`p-5 bg-white dark:bg-stone-900 border-2 rounded-3xl shadow-sm flex flex-col justify-between space-y-4 transition ${
+                          isAdmin 
+                            ? 'border-indigo-300 dark:border-indigo-900 bg-indigo-50/10' 
+                            : isDummy
+                            ? 'border-amber-300 dark:border-amber-900/60 bg-amber-50/10'
+                            : 'border-[#EAD8B1] dark:border-stone-800'
+                        }`}
                       >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
+                        <div className="space-y-3">
+                          {/* Header: Avatar, Name, Badges */}
+                          <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-2xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black text-sm shadow">
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shadow shrink-0 ${
+                                isAdmin
+                                  ? 'bg-indigo-700 text-white'
+                                  : isDummy
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-[#7A2A1E] text-[#D4A017]'
+                              }`}>
                                 {user.name.charAt(0)}
                               </div>
                               <div>
-                                <h4 className="font-black text-sm text-[#2D2424] dark:text-white flex items-center gap-1.5">
+                                <h4 className="font-black text-sm text-[#2D2424] dark:text-white flex items-center flex-wrap gap-1.5">
                                   <span>{user.name}</span>
                                   {isAdmin && (
-                                    <span className="px-2 py-0.5 rounded bg-[#D4A017] text-black text-[10px] font-black font-mono">
-                                      ADMIN
+                                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-black font-mono">
+                                      👑 ADMIN
+                                    </span>
+                                  )}
+                                  {isDummy && (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-black font-mono">
+                                      🧪 DUMMY
                                     </span>
                                   )}
                                 </h4>
-                                <div className="text-[11px] text-stone-500">{user.email} • {user.phone}</div>
+                                <div className="text-[11px] text-stone-500 font-mono mt-0.5">
+                                  {user.phone ? `+91 ${user.phone}` : 'No phone'} • {user.email || 'No email'}
+                                </div>
                               </div>
                             </div>
 
+                            {/* Tag Assign Button */}
                             <button
-                              onClick={() => toggleUserRole(user.id)}
-                              className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${
-                                isAdmin 
-                                  ? 'bg-rose-50 text-rose-700 border-rose-300' 
-                                  : 'bg-indigo-50 text-indigo-700 border-indigo-300'
-                              }`}
+                              onClick={() => handleOpenTagModal(user)}
+                              className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-amber-950 text-stone-700 dark:text-stone-300 hover:text-amber-800 dark:hover:text-amber-300 border border-stone-200 dark:border-stone-700 transition flex items-center gap-1 cursor-pointer shrink-0"
+                              title="यूज़र को टैग एवं रोल असाइन करें"
                             >
-                              {isAdmin ? 'रोल: छात्र करें' : 'रोल: एडमिन बनाएँ'}
+                              <Tag className="w-3 h-3 text-amber-600" />
+                              <span>टैग बदलें</span>
                             </button>
                           </div>
 
-                          <div className="p-3 bg-stone-50 dark:bg-stone-800 rounded-2xl text-xs space-y-1">
+                          {/* Tag Display Banner if Tag Exists */}
+                          {displayTag && (
+                            <div className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-bold flex items-center justify-between gap-2">
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span>🏷️</span>
+                                <span className="font-black truncate">{displayTag}</span>
+                              </span>
+                              <span className="text-[10px] font-mono opacity-70 shrink-0">असाइन किया गया टैग</span>
+                            </div>
+                          )}
+
+                          {/* User Details Grid */}
+                          <div className="p-3 bg-stone-50 dark:bg-stone-800/80 rounded-2xl text-xs space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-stone-500">राज्य व जिला (State & District):</span>
+                              <span className="text-stone-500">राज्य व जिला:</span>
                               <span className="font-bold text-stone-900 dark:text-stone-100">
                                 {user.district}{user.state ? ` (${user.state})` : ''}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-stone-500">लक्ष्य परीक्षा:</span>
-                              <span className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{user.targetExam}</span>
+                              <span className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{user.targetExam || 'MP पटवारी 2026'}</span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-stone-500">XP व स्ट्रीक:</span>
                               <span className="font-mono font-bold text-amber-600">{user.xp || 0} XP • 🔥 {user.streak || 0} Days</span>
                             </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-stone-500">अनलॉक टेस्ट सीरीज़:</span>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                                {userEnrolled.length} सीरीज़ सक्रिय
+                              </span>
+                            </div>
                           </div>
                         </div>
 
                         {/* Student Actions Bar */}
-                        <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
+                        <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center flex-wrap gap-2">
+                          {/* Grant / Revoke Series */}
                           <button
-                            onClick={() => toggleUserAccess(user.id, 'ts_patwari_2026')}
-                            className="flex-1 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black flex items-center justify-center gap-1.5"
+                            onClick={() => handleOpenGrantModal(user)}
+                            className="flex-1 min-w-[120px] py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition"
+                            title="टेस्ट सीरीज़ एक्सेस असाइन या लॉक करें"
                           >
                             <Unlock className="w-3.5 h-3.5" />
-                            <span>पटवारी 2026 अनलॉक / लॉक</span>
+                            <span>कोर्स एक्सेस ({userEnrolled.length})</span>
                           </button>
 
+                          {/* Tag & Role Modal Trigger */}
+                          <button
+                            onClick={() => handleOpenTagModal(user)}
+                            className="py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 border border-amber-200 dark:border-amber-800 cursor-pointer transition"
+                            title="टैग एवं रोल सेट करें"
+                          >
+                            <Tag className="w-3.5 h-3.5 text-amber-600" />
+                            <span>टैग/रोल</span>
+                          </button>
+
+                          {/* Password Reset */}
                           <button
                             onClick={() => {
                               setPasswordModalUser(user);
                               setNewPasswordVal('123456');
                             }}
-                            className="py-2 px-3 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold"
-                            title="पासवर्ड रीसेट"
+                            className="py-2 px-3 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold cursor-pointer transition"
+                            title="पासवर्ड रीसेट करें"
                           >
                             <Key className="w-3.5 h-3.5 text-stone-600 dark:text-stone-300" />
                           </button>
 
+                          {/* Bonus XP */}
                           <button
                             onClick={() => {
                               setXpModalUser(user);
                               setBonusXpVal(500);
                             }}
-                            className="py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-xs font-bold"
-                            title="बोनस XP दें"
+                            className="py-2 px-3 rounded-xl bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 hover:bg-amber-200 text-xs font-bold cursor-pointer transition"
+                            title="बोनस XP प्रदान करें"
                           >
-                            <Award className="w-3.5 h-3.5" />
+                            <Award className="w-3.5 h-3.5 text-amber-600" />
+                          </button>
+
+                          {/* Delete User Button */}
+                          <button
+                            onClick={() => setDeleteConfirmUser(user)}
+                            className="py-2 px-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 hover:text-white text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            title="यूज़र को पोर्टल से डिलीट करें"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">हटाएं</span>
                           </button>
                         </div>
                       </div>
                     );
                   })}
               </div>
+
+              {/* Empty state */}
+              {users.length === 0 && (
+                <div className="text-center py-12 p-6 bg-white dark:bg-stone-900 border-2 border-stone-200 dark:border-stone-800 rounded-3xl space-y-3">
+                  <div className="text-4xl">👥</div>
+                  <h4 className="font-black text-stone-700 dark:text-stone-300">कोई छात्र नहीं मिला</h4>
+                  <p className="text-xs text-stone-500">ऊपर '+ नया छात्र जोड़ें' बटन से नया छात्र पंजीकृत करें।</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -4506,52 +4731,146 @@ export const AdminDashboardView: React.FC = () => {
           {/* ========================================================= */}
           {activeTab === 'COUPONS' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {coupons.map(coupon => (
-                  <div 
-                    key={coupon.code}
-                    className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col justify-between space-y-4"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-black text-base px-3 py-1 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                          {coupon.code}
-                        </span>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
-                          coupon.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'
-                        }`}>
-                          {coupon.isActive ? 'सक्रिय' : 'बंद'}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 space-y-1 text-xs">
-                        <div className="font-bold text-sm text-[#2D2424] dark:text-white">
-                          {coupon.discountType === 'percentage' ? `${coupon.discountValue}% छूट` : `₹${coupon.discountValue} फ्लैट छूट`}
-                        </div>
-                        <div className="text-stone-500">न्यूनतम ऑर्डर: ₹{coupon.minAmount}</div>
-                        <div className="text-stone-400 font-mono text-[11px]">वैधता: {coupon.validTill}</div>
-                      </div>
+              {/* Header with stats and Add Button */}
+              <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-black shadow-xs">
+                      <Percent className="w-5 h-5" />
                     </div>
-
-                    <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-                      <button
-                        onClick={() => setEditingCoupon({ ...coupon })}
-                        className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        <span>संपादित करें</span>
-                      </button>
-                      <button
-                        onClick={() => deleteCoupon(coupon.code)}
-                        className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                        title="हटाएँ"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div>
+                      <h3 className="font-display font-black text-lg text-[#2D2424] dark:text-white flex items-center gap-2">
+                        <span>डिस्काउंट कूपन एवं प्रोमो कोड प्रबंधन</span>
+                        <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 text-xs font-mono font-bold">
+                          {coupons.length} Coupons
+                        </span>
+                      </h3>
+                      <p className="text-xs text-stone-500 dark:text-stone-400">
+                        छात्रों को टेस्ट सीरीज़ खरीद पर विशेष छूट देने हेतु कूपन कोड जोड़ें या संपादित करें।
+                      </p>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingCoupon({
+                    code: '',
+                    discountType: 'percentage',
+                    discountValue: 20,
+                    minAmount: 199,
+                    descriptionHi: 'विशेष छूट कूपन कोड',
+                    descriptionEn: 'Special Discount Coupon',
+                    validTill: '2026-12-31',
+                    isActive: true
+                  })}
+                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-600 hover:to-indigo-700 text-white font-black text-xs flex items-center gap-2 shadow-md transition hover:scale-105 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ नया कूपन कोड बनाएँ (Add Coupon)</span>
+                </button>
               </div>
+
+              {/* Coupon Grid */}
+              {coupons.length === 0 ? (
+                <div className="p-12 text-center bg-white dark:bg-stone-900 rounded-3xl border-2 border-dashed border-stone-200 dark:border-stone-800 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 mx-auto flex items-center justify-center">
+                    <Percent className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold text-stone-700 dark:text-stone-300">कोई कूपन कोड उपलब्ध नहीं है</h4>
+                  <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                    छात्रों को आकर्षित करने के लिए नया डिस्काउंट कूपन कोड (उदा: PATWARI50, MP2026) बनाएँ।
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCoupon({
+                      code: '',
+                      discountType: 'percentage',
+                      discountValue: 20,
+                      minAmount: 199,
+                      descriptionHi: 'विशेष छूट कूपन कोड',
+                      descriptionEn: 'Special Discount Coupon',
+                      validTill: '2026-12-31',
+                      isActive: true
+                    })}
+                    className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs inline-flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>पहला कूपन जोड़ें</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {coupons.map(coupon => (
+                    <div 
+                      key={coupon.code}
+                      className={`p-5 bg-white dark:bg-stone-900 border-2 rounded-3xl shadow-sm flex flex-col justify-between space-y-4 transition ${
+                        coupon.isActive 
+                          ? 'border-purple-200 dark:border-purple-900/40 hover:border-purple-400' 
+                          : 'border-stone-200 dark:border-stone-800 opacity-70'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-base px-3 py-1 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 tracking-wider">
+                            {coupon.code}
+                          </span>
+                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                            coupon.isActive 
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300' 
+                              : 'bg-stone-100 dark:bg-stone-800 text-stone-500 border border-stone-300'
+                          }`}>
+                            {coupon.isActive ? '● सक्रिय (Active)' : '○ निष्क्रिय (Disabled)'}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-1.5 text-xs">
+                          <div className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                            <span>
+                              {coupon.discountType === 'percentage' 
+                                ? `${coupon.discountValue}% की छूट (Discount)` 
+                                : `₹${coupon.discountValue} की फ्लैट छूट (Cash Off)`}
+                            </span>
+                          </div>
+                          {coupon.descriptionHi && (
+                            <div className="text-stone-600 dark:text-stone-300 text-[11px] font-medium">
+                              {coupon.descriptionHi}
+                            </div>
+                          )}
+                          <div className="text-stone-500 dark:text-stone-400 text-[11px] flex items-center justify-between pt-1 border-t border-stone-100 dark:border-stone-800">
+                            <span>न्यूनतम ऑर्डर: <b className="text-stone-700 dark:text-stone-200 font-mono">₹{coupon.minAmount || 0}</b></span>
+                            <span className="font-mono text-[10px] text-stone-400">वैध: {coupon.validTill || '2026-12-31'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setEditingCoupon({ ...coupon })}
+                          className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 text-xs font-black flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>संपादित करें (Edit)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`क्या आप कूपन कोड '${coupon.code}' को हटाना चाहते हैं?`)) {
+                              deleteCoupon(coupon.code);
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition cursor-pointer"
+                          title="कूपन हटाएँ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -7425,6 +7744,246 @@ export const AdminDashboardView: React.FC = () => {
       )}
 
       {/* ========================================================= */}
+      {/* MODAL 5.1: ASSIGN USER TAG & ROLE MODAL */}
+      {/* ========================================================= */}
+      {tagModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-amber-500 rounded-3xl max-w-xl w-full p-5 sm:p-6 space-y-4 shadow-2xl my-6 relative animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center font-black shadow-md">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-base sm:text-lg text-stone-900 dark:text-white flex items-center gap-1.5">
+                    <span>छात्र का टैग एवं रोल सेट करें</span>
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 font-medium">
+                    {tagModalUser.name} • {tagModalUser.phone || tagModalUser.email}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setTagModalUser(null)}
+                className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Tag Presets */}
+            <div className="space-y-2">
+              <label className="block text-xs font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
+                1. त्वरित टैग चुनें (Quick Tag Presets)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {PRESET_USER_TAGS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setUserCustomTagInput(preset.label);
+                      setUserTagColor(preset.color);
+                    }}
+                    className={`p-2 rounded-xl text-left border transition text-xs font-bold flex flex-col justify-between cursor-pointer ${
+                      userCustomTagInput === preset.label
+                        ? 'bg-amber-100 dark:bg-amber-950/80 border-amber-500 text-amber-900 dark:text-amber-200 shadow-xs'
+                        : 'bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700 hover:border-amber-400 text-stone-700 dark:text-stone-300'
+                    }`}
+                  >
+                    <span className="truncate font-black">{preset.label}</span>
+                    <span className="text-[10px] text-stone-400 truncate mt-0.5">{preset.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Tag Input */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider">
+                  2. कस्टम टैग नाम (Custom Tag Text)
+                </label>
+                {userCustomTagInput && (
+                  <button
+                    type="button"
+                    onClick={() => setUserCustomTagInput('')}
+                    className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
+                  >
+                    टैग हटाएं
+                  </button>
+                )}
+              </div>
+              <input 
+                type="text"
+                placeholder="उदा. ⭐ VIP छात्र, 🎁 स्कॉलरशिप, बैच A, 🏆 टॉपर, आदि..."
+                value={userCustomTagInput}
+                onChange={(e) => setUserCustomTagInput(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-bold text-xs focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            {/* Role & Authenticity Selection */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider mb-1">
+                  3. यूज़र रोल (Portal Role)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUserRoleSelect('student')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border text-center transition cursor-pointer ${
+                      userRoleSelect === 'student'
+                        ? 'bg-[#7A2A1E] text-[#D4A017] border-[#7A2A1E]'
+                        : 'bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                    }`}
+                  >
+                    🎓 छात्र (Student)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserRoleSelect('admin')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border text-center transition cursor-pointer ${
+                      userRoleSelect === 'admin'
+                        ? 'bg-indigo-700 text-white border-indigo-700'
+                        : 'bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                    }`}
+                  >
+                    👑 एडमिन (Admin)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-stone-700 dark:text-stone-300 uppercase tracking-wider mb-1">
+                  4. खाता प्रकार (Account Type)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUserDummySelect(false)}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border text-center transition cursor-pointer ${
+                      !userDummySelect
+                        ? 'bg-emerald-700 text-white border-emerald-700'
+                        : 'bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                    }`}
+                  >
+                    ✅ असली छात्र
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserDummySelect(true)}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border text-center transition cursor-pointer ${
+                      userDummySelect
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                    }`}
+                  >
+                    🧪 डमी / टेस्ट
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+              <button
+                type="button"
+                onClick={() => setTagModalUser(null)}
+                className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold text-xs hover:bg-stone-200 transition cursor-pointer"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveUserTagAndRole}
+                className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>टैग एवं रोल सहेजें (Save Changes)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 5.2: DELETE USER CONFIRMATION MODAL */}
+      {/* ========================================================= */}
+      {deleteConfirmUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border-2 border-rose-600 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center gap-3 pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="w-11 h-11 rounded-2xl bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-black text-base text-rose-700 dark:text-rose-400">
+                  छात्र खाता डिलीट करें
+                </h3>
+                <p className="text-xs text-stone-500">
+                  यह क्रिया अपरिवर्तनीय (irreversible) है
+                </p>
+              </div>
+            </div>
+
+            {/* User Details Summary Box */}
+            <div className="p-3.5 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/60 rounded-2xl text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">छात्र का नाम:</span>
+                <span className="font-bold text-stone-900 dark:text-white">{deleteConfirmUser.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">मोबाइल / ईमेल:</span>
+                <span className="font-mono font-bold text-stone-700 dark:text-stone-300">
+                  {deleteConfirmUser.phone || deleteConfirmUser.email}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">जिला / राज्य:</span>
+                <span className="font-bold text-stone-700 dark:text-stone-300">
+                  {deleteConfirmUser.district} {deleteConfirmUser.state ? `(${deleteConfirmUser.state})` : ''}
+                </span>
+              </div>
+              {deleteConfirmUser.customTag && (
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-500">वर्तमान टैग:</span>
+                  <span className="font-bold text-amber-700 dark:text-amber-300">🏷️ {deleteConfirmUser.customTag}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-stone-600 dark:text-stone-300 font-medium leading-relaxed">
+              क्या आप सचमुच <span className="font-bold text-stone-900 dark:text-white">{deleteConfirmUser.name}</span> का खाता एवं संपूर्ण डेटा हटाना चाहते हैं?
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmUser(null)}
+                className="w-1/2 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold text-xs hover:bg-stone-200 transition cursor-pointer"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteUserConfirmed}
+                className="w-1/2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>हाँ, डिलीट करें</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* MODAL 5.4: ADD PERSON / STUDENT & ASSIGN TEST SERIES VIA CHECKBOXES */}
       {/* ========================================================= */}
       {isAddUserModalOpen && (
@@ -8294,6 +8853,202 @@ export const AdminDashboardView: React.FC = () => {
                   className="w-2/3 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-md hover:scale-[1.02] transition cursor-pointer flex items-center justify-center gap-2"
                 >
                   <span>💾 {editingAnnouncement.id ? 'अपडेट करें व सहेजें' : 'प्रकाशित करें व सहेजें'}</span>
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 7: COUPON CREATE & EDIT MODAL */}
+      {/* ========================================================= */}
+      {editingCoupon && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-purple-500 rounded-3xl max-w-xl w-full p-6 sm:p-7 space-y-5 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3.5 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-800 text-white flex items-center justify-center font-black shadow-md">
+                  <Percent className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-base sm:text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                    <span>{coupons.some(c => c.code === editingCoupon.code) ? 'कूपन कोड संपादित करें' : 'नया कूपन कोड बनाएँ'}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-[11px] font-mono font-bold">
+                      {coupons.some(c => c.code === editingCoupon.code) ? 'Update Promo' : 'New Promo'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    कूपन कोड, छूट प्रतिशत/फ्लैट छूट राशि और नियम दर्ज करें।
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditingCoupon(null)} 
+                className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleSaveCoupon} className="space-y-4 text-xs">
+              
+              {/* Coupon Code */}
+              <div>
+                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  कूपन कोड (Coupon Code) <span className="text-rose-500">*</span>
+                </label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="उदा: MP2026, PATWARI50, FESTIVE100"
+                  value={editingCoupon.code || ''}
+                  onChange={(e) => setEditingCoupon({ ...editingCoupon, code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                  className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-black text-sm uppercase text-purple-700 dark:text-purple-300 tracking-wider focus:outline-none focus:border-purple-500"
+                />
+                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                  नोट: कूपन कोड स्वतः बड़े अक्षरों (UPPERCASE) में सहेजा जाएगा।
+                </p>
+              </div>
+
+              {/* Discount Type & Value */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    छूट का प्रकार (Discount Type) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={editingCoupon.discountType || 'percentage'}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, discountType: e.target.value as 'percentage' | 'flat' })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold focus:outline-none"
+                  >
+                    <option value="percentage">प्रतिशत छूट (% Percentage Off)</option>
+                    <option value="flat">फ्लैट रुपये छूट (₹ Flat Cash Off)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    छूट मान (Discount Value) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 font-bold text-stone-400">
+                      {editingCoupon.discountType === 'flat' ? '₹' : '%'}
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={editingCoupon.discountType === 'percentage' ? 100 : 10000}
+                      required
+                      placeholder={editingCoupon.discountType === 'percentage' ? "20" : "100"}
+                      value={editingCoupon.discountValue ?? ''}
+                      onChange={(e) => setEditingCoupon({ ...editingCoupon, discountValue: Number(e.target.value) })}
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold focus:outline-none focus:border-purple-500 text-stone-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Min Amount & Validity Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    न्यूनतम ऑर्डर राशि (Min Order Amount ₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 font-bold text-stone-400">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="199"
+                      value={editingCoupon.minAmount ?? 0}
+                      onChange={(e) => setEditingCoupon({ ...editingCoupon, minAmount: Number(e.target.value) })}
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    वैधता अंतिम तिथि (Valid Till Date)
+                  </label>
+                  <input
+                    type="date"
+                    value={editingCoupon.validTill || '2026-12-31'}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, validTill: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Description (Hindi & English) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    विवरण (Hindi Description)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="उदा: 20% विशेष प्रारंभिक छूट"
+                    value={editingCoupon.descriptionHi || ''}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, descriptionHi: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-medium focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                    Description (English)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 20% Special Discount"
+                    value={editingCoupon.descriptionEn || ''}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, descriptionEn: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-medium focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Active Toggle */}
+              <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/70 border border-stone-200 dark:border-stone-700 flex items-center justify-between">
+                <div>
+                  <div className="font-black text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Check className="w-4 h-4" />
+                    <span>कूपन सक्रिय रखें (Active & Usable)</span>
+                  </div>
+                  <div className="text-[11px] text-stone-500">
+                    चेक रखने पर छात्र चेकआउट पर इस कूपन कोड का उपयोग करके छूट पा सकेंगे।
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={editingCoupon.isActive !== false}
+                  onChange={(e) => setEditingCoupon({ ...editingCoupon, isActive: e.target.checked })}
+                  className="w-5 h-5 accent-purple-600 cursor-pointer"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingCoupon(null)}
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-200 transition cursor-pointer"
+                >
+                  रद्द करें (Cancel)
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-600 hover:to-indigo-700 text-white font-black shadow-md hover:scale-[1.02] transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>💾 {coupons.some(c => c.code === editingCoupon.code) ? 'कूपन कोड अपडेट करें (Update Coupon)' : 'कूपन कोड जोड़ें व सहेजें (Add Coupon)'}</span>
                 </button>
               </div>
 
