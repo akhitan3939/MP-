@@ -28,6 +28,7 @@ const STATE_FILE_PATH = path.join(DATA_DIR, 'app_state.json');
 
 interface ServerAppState {
   testSeries?: any[];
+  deletedSeriesIds?: string[];
   platformSettings?: any;
   siteBanners?: any[];
   announcements?: any[];
@@ -330,31 +331,14 @@ if (!Array.isArray(inMemoryAppState.attempts) || inMemoryAppState.attempts.lengt
   inMemoryAppState.attempts = INITIAL_ATTEMPTS;
 }
 
-// 3. Initialize and preserve testSeries seed (CRITICAL for test active/inactive persistence across clients)
+// 3. Initialize and preserve testSeries seed (Respect admin deletions and modifications)
 if (!Array.isArray(inMemoryAppState.testSeries) || inMemoryAppState.testSeries.length === 0) {
   inMemoryAppState.testSeries = INITIAL_TEST_SERIES;
 } else {
-  const seriesMap = new Map<string, any>();
-  inMemoryAppState.testSeries.forEach(s => {
-    if (s && s.id) seriesMap.set(s.id, s);
-  });
-
-  // Preserve all default test series with their admin modifications (isActive, disabledSetNumbers, etc.)
-  const mergedSeries = INITIAL_TEST_SERIES.map(base => {
-    if (seriesMap.has(base.id)) {
-      return { ...base, ...seriesMap.get(base.id) };
-    }
-    return base;
-  });
-
-  // Include any extra custom series created by admin
-  seriesMap.forEach((val, id) => {
-    if (!INITIAL_TEST_SERIES.some(base => base.id === id)) {
-      mergedSeries.push(val);
-    }
-  });
-
-  inMemoryAppState.testSeries = mergedSeries;
+  // Respect existing inMemoryAppState.testSeries as the source of truth
+  // Ensure each series is properly merged with base fields if present, but DO NOT resurrect deleted series
+  const validSeriesList = inMemoryAppState.testSeries.filter(s => s && s.id && !(inMemoryAppState.deletedSeriesIds || []).includes(s.id));
+  inMemoryAppState.testSeries = validSeriesList;
 }
 
 // 4. Initialize orders and enrolledMap
@@ -1006,10 +990,22 @@ app.delete('/api/test-series/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   let list = inMemoryAppState.testSeries || [];
   inMemoryAppState.testSeries = list.filter(s => s.id !== id);
+  
+  if (!Array.isArray(inMemoryAppState.deletedSeriesIds)) {
+    inMemoryAppState.deletedSeriesIds = [];
+  }
+  if (!inMemoryAppState.deletedSeriesIds.includes(id)) {
+    inMemoryAppState.deletedSeriesIds.push(id);
+  }
+
   saveAppStateToDisk(inMemoryAppState);
+
+  console.log(`[MP Setu] Test Series DELETED globally: ${id}. Remaining series count: ${inMemoryAppState.testSeries.length}`);
 
   res.json({
     success: true,
+    deletedId: id,
+    testSeries: inMemoryAppState.testSeries,
     message: `Test series ${id} deleted globally`
   });
 });

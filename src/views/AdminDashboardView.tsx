@@ -67,6 +67,7 @@ import {
   Receipt,
   UserCheck,
   UserX,
+  UserPlus,
   Filter
 } from 'lucide-react';
 import { 
@@ -151,6 +152,8 @@ export const AdminDashboardView: React.FC = () => {
     deleteNote,
     refundOrder, 
     toggleUserAccess, 
+    setUserEnrolledSeries,
+    addUserWithSeries,
     grantAllSeriesToUser,
     revokeAllSeriesFromUser,
     toggleUserRole,
@@ -272,10 +275,53 @@ export const AdminDashboardView: React.FC = () => {
   const [passwordModalUser, setPasswordModalUser] = useState<UserProfile | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState('123456');
 
-  // Free Access Grant Modal State
+  // Free Access Grant Modal State (Checkbox-based & Single-click)
   const [grantModalUser, setGrantModalUser] = useState<UserProfile | null>(null);
-  const [grantReasonTag, setGrantReasonTag] = useState<string>('🎁 छात्रवृत्ति (Free Scholarship)');
+  const [grantReasonTag, setGrantReasonTag] = useState<string>('🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)');
+  const [grantSelectedSeries, setGrantSelectedSeries] = useState<string[]>([]);
+  const [grantSeriesSearch, setGrantSeriesSearch] = useState<string>('');
   const [studentFilterType, setStudentFilterType] = useState<'all' | 'valid' | 'dummy' | 'granted' | 'standard'>('all');
+
+  // Add New User & Direct Checkbox Test Series Assignment Modal State
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [newUserFormData, setNewUserFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    password: 'Student@123',
+    district: 'भोपाल (Bhopal)',
+    targetExam: 'MP पटवारी 2026',
+    role: 'student' as UserRole,
+    isDummyUser: false,
+    grantReason: '🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)'
+  });
+  const [newUserSelectedSeries, setNewUserSelectedSeries] = useState<string[]>([]);
+  const [newUserSeriesSearch, setNewUserSeriesSearch] = useState('');
+
+  const handleOpenAddUserModal = () => {
+    // Default select active series if desired or empty
+    setNewUserFormData({
+      name: '',
+      phone: '',
+      email: '',
+      password: 'Student@123',
+      district: 'भोपाल (Bhopal)',
+      targetExam: 'MP पटवारी 2026',
+      role: 'student',
+      isDummyUser: false,
+      grantReason: '🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)'
+    });
+    setNewUserSelectedSeries([]);
+    setNewUserSeriesSearch('');
+    setIsAddUserModalOpen(true);
+  };
+
+  const handleOpenGrantModal = (user: UserProfile) => {
+    setGrantModalUser(user);
+    const existing = enrolledMap[user.id] || [];
+    setGrantSelectedSeries([...existing]);
+    setGrantSeriesSearch('');
+  };
 
   // Successful Payments Module Dedicated State
   const [searchSuccessPayments, setSearchSuccessPayments] = useState('');
@@ -2984,7 +3030,17 @@ export const AdminDashboardView: React.FC = () => {
                   </div>
 
                   {/* Filter / Search inside Table */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenAddUserModal}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition hover:scale-105 cursor-pointer"
+                      title="नया छात्र खाता बनाएं और चेकबॉक्स से टेस्ट सीरीज़ असाइन करें"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>+ नया छात्र जोड़ें (+ Add Student)</span>
+                    </button>
+
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
                       <input
@@ -3279,12 +3335,12 @@ export const AdminDashboardView: React.FC = () => {
 
                                     {/* Grant Free Access Button */}
                                     <button
-                                      onClick={() => setGrantModalUser(user)}
+                                      onClick={() => handleOpenGrantModal(user)}
                                       className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-[10px] font-black flex items-center gap-1 shadow-sm transition hover:scale-105"
-                                      title="इस छात्र को मुफ़्त टेस्ट सीरीज़ असाइन करें"
+                                      title="इस छात्र को मुफ़्त टेस्ट सीरीज़ असाइन करें (Checkboxes द्वारा)"
                                     >
                                       <Gift className="w-3.5 h-3.5" />
-                                      <span>मुफ़्त</span>
+                                      <span>मुफ़्त टेस्ट</span>
                                     </button>
 
                                     <button
@@ -7369,27 +7425,399 @@ export const AdminDashboardView: React.FC = () => {
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 5.5: FREE ACCESS / SCHOLARSHIP GRANT MODAL */}
+      {/* MODAL 5.4: ADD PERSON / STUDENT & ASSIGN TEST SERIES VIA CHECKBOXES */}
       {/* ========================================================= */}
-      {grantModalUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-stone-900 border-2 border-emerald-500/50 rounded-3xl max-w-3xl w-full p-6 sm:p-7 space-y-5 shadow-2xl my-8 relative animate-in fade-in zoom-in-95 duration-200">
+      {isAddUserModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-emerald-500 rounded-3xl max-w-3xl w-full p-5 sm:p-7 space-y-5 shadow-2xl my-6 relative animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
             
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
+            <div className="flex items-start justify-between pb-3.5 border-b border-stone-200 dark:border-stone-800 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-black shadow-sm">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center font-black shadow-md">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-base sm:text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                    <span>नया छात्र जोड़ें एवं टेस्ट सीरीज़ असाइन करें</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[11px] font-mono font-bold">
+                      Direct Checkbox Access
+                    </span>
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    छात्र का विवरण भरें और नीचे चेकबॉक्स से जिन टेस्ट सीरीज़ पर टिक करेंगे, वे तुरंत इस छात्र के पोर्टल में फ्री अनलॉक हो जाएंगी।
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsAddUserModalOpen(false)} 
+                className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="overflow-y-auto space-y-5 pr-1 flex-1">
+              {/* Profile Inputs */}
+              <div className="bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl p-4 space-y-3">
+                <div className="text-xs font-black text-stone-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-stone-200 dark:border-stone-700">
+                  <Users className="w-4 h-4 text-emerald-600" />
+                  <span>छात्र का व्यक्तिगत विवरण (Student Profile Details)</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      छात्र का पूरा नाम <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="उदा. राहुल शर्मा"
+                      value={newUserFormData.name}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, name: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-bold focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      10-अंकों का मोबाइल नंबर <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-stone-400 font-bold">+91</span>
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        placeholder="9876543210"
+                        value={newUserFormData.phone}
+                        onChange={(e) => setNewUserFormData({ ...newUserFormData, phone: e.target.value.replace(/\D/g, '') })}
+                        className="w-full pl-11 pr-3 py-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-mono font-bold focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      ईमेल आईडी (वैकल्पिक)
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="student@example.com"
+                      value={newUserFormData.email}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, email: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-medium focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      लॉगिन पासवर्ड
+                    </label>
+                    <input
+                      type="text"
+                      value={newUserFormData.password}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, password: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-mono font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      गृह जिला (District)
+                    </label>
+                    <select
+                      value={newUserFormData.district}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, district: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-bold focus:outline-none"
+                    >
+                      {[
+                        'भोपाल (Bhopal)', 'इंदौर (Indore)', 'ग्वालियर (Gwalior)', 'जबलपुर (Jabalpur)', 'उज्जैन (Ujjain)',
+                        'सागर (Sagar)', 'रीवा (Rewa)', 'सतना (Satna)', 'छिंदवाड़ा (Chhindwara)', 'मुरैना (Morena)',
+                        'भिंड (Bhind)', 'शिवपुरी (Shivpuri)', 'विदिशा (Vidisha)', 'रायसेन (Raisen)', 'सीहोर (Sehore)',
+                        'नर्मदापुरम / होशंगाबाद', 'बैतूल (Betul)', 'देवास (Dewas)', 'रतलाम (Ratlam)', 'मंदसौर (Mandsaur)',
+                        'नीमच (Neemuch)', 'खंडवा (Khandwa)', 'खरगोन (Khargone)', 'धार (Dhar)', 'झाबुआ (Jhabua)',
+                        'बड़वानी (Barwani)', 'राजगढ़ (Rajgarh)', 'शाजापुर (Shajapur)', 'आगर मालवा', 'गुना (Guna)',
+                        'अशोकनगर', 'दतिया (Datia)', 'श्योपुर', 'दमोह (Damoh)', 'पन्ना (Panna)',
+                        'टीकमगढ़', 'छतरपुर', 'निवाड़ी', 'सिंगरौली', 'सीधी (Sidhi)',
+                        'शहडोल', 'उमरिया', 'अनूपपुर', 'डिंडोरी', 'मंडला',
+                        'बालाघाट', 'सिवनी', 'नरसिंहपुर', 'कटनी', 'हरदा',
+                        'बुरहानपुर', 'अलीराजपुर', 'मऊगंज', 'मैहर', 'पांढुरना', 'अन्य राज्य / जिला'
+                      ].map(dist => (
+                        <option key={dist} value={dist}>{dist}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      लक्ष्य परीक्षा (Target Exam)
+                    </label>
+                    <select
+                      value={newUserFormData.targetExam}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, targetExam: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-bold focus:outline-none"
+                    >
+                      <option value="MP पटवारी 2026">MP पटवारी 2026</option>
+                      <option value="MPPSC राज्य सेवा परीक्षा 2026">MPPSC राज्य सेवा परीक्षा 2026</option>
+                      <option value="MP पुलिस सब-इंस्पेक्टर (SI)">MP पुलिस सब-इंस्पेक्टर (SI)</option>
+                      <option value="MP पुलिस कांस्टेबल 2026">MP पुलिस कांस्टेबल 2026</option>
+                      <option value="MP वनरक्षक व जेल प्रहरी">MP वनरक्षक व जेल प्रहरी</option>
+                      <option value="MP संविदा शिक्षक वर्ग-1/2/3">MP संविदा शिक्षक वर्ग-1/2/3</option>
+                      <option value="MP ग्रुप 4 सहायक ग्रेड-3 व स्टेनो">MP ग्रुप 4 सहायक ग्रेड-3 व स्टेनो</option>
+                      <option value="MP आबकारी आरक्षक">MP आबकारी आरक्षक</option>
+                      <option value="MP महिला पर्यवेक्षक">MP महिला पर्यवेक्षक</option>
+                      <option value="MP व्यापम (ESB) ऑल-इन-वन">MP व्यापम (ESB) ऑल-इन-वन</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      उपयोगकर्ता रोल
+                    </label>
+                    <select
+                      value={newUserFormData.role}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, role: e.target.value as UserRole })}
+                      className="w-full p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-bold"
+                    >
+                      <option value="student">🎓 छात्र (Student)</option>
+                      <option value="admin">👑 प्रशासक (Admin - Full Access)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      खाता प्रकार (User Authenticity)
+                    </label>
+                    <select
+                      value={newUserFormData.isDummyUser ? 'dummy' : 'valid'}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, isDummyUser: e.target.value === 'dummy' })}
+                      className="w-full p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-bold"
+                    >
+                      <option value="valid">✅ Valid Real Student (वास्तविक छात्र)</option>
+                      <option value="dummy">🧪 Dummy User (परीक्षण खाता)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      मुफ़्त देने का कारण / टैग
+                    </label>
+                    <select
+                      value={newUserFormData.grantReason}
+                      onChange={(e) => setNewUserFormData({ ...newUserFormData, grantReason: e.target.value })}
+                      className="w-full p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 font-bold"
+                    >
+                      <option value="🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)">🎁 विशेष छात्रवृत्ति (Free Scholarship Grant)</option>
+                      <option value="⭐ एडमिन स्पेशल ग्रांट (Admin Special Access)">⭐ एडमिन स्पेशल ग्रांट (Admin Special Access)</option>
+                      <option value="🏆 टॉप रैंकर पुरस्कार (Top Ranker Award)">🏆 टॉप रैंकर पुरस्कार (Top Ranker Award)</option>
+                      <option value="🤝 आर्थिक सहायता (Financial Aid Support)">🤝 आर्थिक सहायता (Financial Aid Support)</option>
+                      <option value="📝 गुणवत्ता परीक्षक (Quality Reviewer / Tester)">📝 गुणवत्ता परीक्षक (Quality Reviewer / Tester)</option>
+                      <option value="🎟️ प्रोमोशनल फ्री पास (Promotional Free Pass)">🎟️ प्रोमोशनल फ्री पास (Promotional Free Pass)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* CHECKBOX TEST SERIES ASSIGNMENT SECTION */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-stone-200 dark:border-stone-800">
+                  <div>
+                    <div className="text-sm font-black text-stone-900 dark:text-white flex items-center gap-2">
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                      <span>लाइव टेस्ट सीरीज़ चेकबॉक्स चयन (Assign Live Test Series):</span>
+                    </div>
+                    <p className="text-[11px] text-stone-500">
+                      जिन टेस्ट सीरीज़ के आगे चेकबॉक्स टिक होगा, वे इस छात्र को तुरंत ₹0 मुफ़्त में असाइन हो जाएंगी।
+                    </p>
+                  </div>
+
+                  {/* Bulk Select / Deselect Buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allIds = testSeries.map(s => s.id);
+                        setNewUserSelectedSeries(allIds);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 text-[11px] font-black flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>सभी चुनें ({testSeries.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNewUserSelectedSeries([])}
+                      className="px-2.5 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-600 dark:text-stone-300 text-[11px] font-bold transition cursor-pointer"
+                    >
+                      <span>सभी हटाएं (Clear)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Box for Series */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
+                  <input
+                    type="text"
+                    placeholder="टेस्ट सीरीज़ नाम या श्रेणी से खोजें..."
+                    value={newUserSeriesSearch}
+                    onChange={(e) => setNewUserSeriesSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
+                  />
+                </div>
+
+                {/* Checkbox Grid / List */}
+                <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1">
+                  {testSeries
+                    .filter(s => {
+                      if (!newUserSeriesSearch) return true;
+                      const q = newUserSeriesSearch.toLowerCase();
+                      return (s.titleHi && s.titleHi.toLowerCase().includes(q)) ||
+                             (s.titleEn && s.titleEn.toLowerCase().includes(q)) ||
+                             (s.category && s.category.toLowerCase().includes(q)) ||
+                             (s.id && s.id.toLowerCase().includes(q));
+                    })
+                    .map(series => {
+                      const isChecked = newUserSelectedSeries.includes(series.id);
+                      const title = lang === 'hi' ? series.titleHi : series.titleEn;
+                      const price = series.price || 299;
+
+                      return (
+                        <label
+                          key={series.id}
+                          className={`flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer select-none ${
+                            isChecked
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 shadow-xs'
+                              : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700 hover:border-emerald-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewUserSelectedSeries(prev => [...prev, series.id]);
+                                } else {
+                                  setNewUserSelectedSeries(prev => prev.filter(id => id !== series.id));
+                                }
+                              }}
+                              className="w-5 h-5 rounded-md text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-black text-xs text-stone-900 dark:text-white">
+                                  {title}
+                                </span>
+                                <span className="px-2 py-0.2 rounded-md bg-stone-100 dark:bg-stone-700 text-[10px] font-bold text-stone-600 dark:text-stone-300">
+                                  {series.category}
+                                </span>
+                                <span className="px-2 py-0.2 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-mono font-black">
+                                  ₹{price} (सामान्य मूल्य)
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 flex items-center gap-2">
+                                <span>कुल टेस्ट: {series.totalTests || 10} सेट्स</span>
+                                <span>•</span>
+                                <span className="font-mono text-[10px]">ID: {series.id}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {isChecked ? (
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-black flex items-center gap-1 shadow-xs">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>अनलॉक होगा</span>
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-lg bg-stone-100 dark:bg-stone-700 text-stone-500 text-[10px] font-bold">
+                                बंद रहेगा
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                🎯 {newUserSelectedSeries.length} टेस्ट सीरीज़ चेकबॉक्स द्वारा तुरंत फ्री असाइन होंगी।
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddUserModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-bold text-xs transition"
+                >
+                  रद्द करें (Cancel)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const result = addUserWithSeries(
+                      {
+                        name: newUserFormData.name,
+                        phone: newUserFormData.phone,
+                        email: newUserFormData.email,
+                        password: newUserFormData.password,
+                        district: newUserFormData.district,
+                        targetExam: newUserFormData.targetExam,
+                        role: newUserFormData.role,
+                        isDummyUser: newUserFormData.isDummyUser
+                      },
+                      newUserSelectedSeries,
+                      newUserFormData.grantReason
+                    );
+                    if (result.success) {
+                      setIsAddUserModalOpen(false);
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center gap-2 shadow-lg transition hover:scale-105 cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>🎉 छात्र जोड़ें एवं टेस्ट सीरीज़ असाइन करें</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 5.5: FREE ACCESS / SCHOLARSHIP GRANT CHECKBOX MODAL */}
+      {/* ========================================================= */}
+      {grantModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-emerald-500/80 rounded-3xl max-w-3xl w-full p-5 sm:p-7 space-y-5 shadow-2xl my-6 relative animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3.5 border-b border-stone-200 dark:border-stone-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center font-black shadow-md">
                   <Gift className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-display font-black text-base sm:text-lg text-stone-900 dark:text-white flex items-center gap-2">
-                    <span>निःशुल्क एक्सेस प्रबंधन (Free Grant Management)</span>
+                    <span>निःशुल्क एक्सेस एवं चेकबॉक्स टेस्ट प्रबंधन</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[11px] font-mono font-bold">
                       {grantModalUser.role === 'admin' ? 'Admin Role' : 'Student'}
                     </span>
                   </h3>
                   <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                    इस छात्र को कौन-सी टेस्ट सीरीज़ फ्री में देनी है, उसका चयन करें। यह सुविधा केवल इस छात्र के लिए फ्री रहेगी, बाकी सभी के लिए सशुल्क (Paid) रहेगी।
+                    चेकबॉक्स टिक करके जिन-जिन टेस्ट सीरीज़ का चयन करेंगे, वे इस छात्र को मुफ़्त में मिलेंगी और बाकी सशुल्क रहेंगी।
                   </p>
                 </div>
               </div>
@@ -7403,7 +7831,7 @@ export const AdminDashboardView: React.FC = () => {
             </div>
 
             {/* Student Profile Overview Card */}
-            <div className="bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs shrink-0">
               <div>
                 <div className="text-stone-400 text-[10px] uppercase font-bold">छात्र का नाम</div>
                 <div className="font-black text-stone-900 dark:text-white">{grantModalUser.name}</div>
@@ -7417,19 +7845,19 @@ export const AdminDashboardView: React.FC = () => {
                 <div className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{grantModalUser.district || 'MP'} • {grantModalUser.targetExam || 'All MP Exams'}</div>
               </div>
               <div>
-                <div className="text-stone-400 text-[10px] uppercase font-bold">वर्तमान मुफ़्त पैकेज</div>
+                <div className="text-stone-400 text-[10px] uppercase font-bold">चयनित मुफ़्त पैकेज</div>
                 <div className="font-black text-emerald-600 dark:text-emerald-400">
                   {grantModalUser.role === 'admin' 
                     ? '🌟 पूर्ण पोर्टल (Admin)' 
-                    : (enrolledMap[grantModalUser.id] || []).includes('all_series_vip')
+                    : grantSelectedSeries.includes('all_series_vip')
                       ? '🌟 VIP All-Access'
-                      : `${(enrolledMap[grantModalUser.id] || []).length} टेस्ट सीरीज़ सक्रिय`}
+                      : `${grantSelectedSeries.length} टेस्ट सीरीज़ चयनित`}
                 </div>
               </div>
             </div>
 
             {/* Grant Reason & Quick Bulk Actions */}
-            <div className="space-y-3">
+            <div className="space-y-3 shrink-0">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex-1">
                   <label className="block text-[11px] font-black uppercase text-stone-500 dark:text-stone-400 mb-1">
@@ -7449,132 +7877,182 @@ export const AdminDashboardView: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Bulk Actions Buttons */}
-                <div className="flex items-center gap-2 sm:self-end">
+                {/* Bulk Checkbox Quick Actions */}
+                <div className="flex items-center gap-2 sm:self-end flex-wrap">
                   <button
                     type="button"
                     onClick={() => {
-                      grantAllSeriesToUser(grantModalUser.id, grantReasonTag);
+                      const allIds = testSeries.map(s => s.id);
+                      setGrantSelectedSeries(allIds);
                     }}
-                    className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition hover:scale-105"
+                    className="px-3 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-900 dark:text-emerald-200 font-black text-xs flex items-center gap-1.5 transition cursor-pointer"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>सभी टेस्ट सीरीज़ फ्री दें (VIP All-Pass)</span>
+                    <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>सभी चेक करें ({testSeries.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setGrantSelectedSeries([])}
+                    className="px-3 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-600 dark:text-stone-300 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <span>सभी अनचेक करें (Clear)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
-                      revokeAllSeriesFromUser(grantModalUser.id);
+                      grantAllSeriesToUser(grantModalUser.id, grantReasonTag);
+                      const allIds = testSeries.map(s => s.id);
+                      setGrantSelectedSeries(allIds);
                     }}
-                    className="px-3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-600 dark:text-stone-300 font-bold text-xs flex items-center gap-1 transition"
-                    title="इस छात्र के सभी मुफ़्त पैकेज रीसेट करें"
+                    className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center gap-1 shadow-xs transition"
                   >
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>सभी हटाएं</span>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>VIP All-Pass</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Test Series List Items */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-black text-stone-700 dark:text-stone-300">
+            {/* Test Series List Items with Checkboxes */}
+            <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between text-xs font-black text-stone-700 dark:text-stone-300 shrink-0">
                 <span>उपलब्ध टेस्ट सीरीज़ सूची ({testSeries.length}):</span>
-                <span className="text-[11px] text-stone-400 font-normal">क्लिक करके तुरंत मुफ़्त एक्सेस सक्रिय या निष्क्रिय करें</span>
+                <span className="text-[11px] text-stone-400 font-normal">चेकबॉक्स टिक करें और नीचे 'लागू करें' बटन दबाएं</span>
               </div>
 
-              <div className="max-h-[340px] overflow-y-auto space-y-2.5 pr-1.5">
-                {testSeries.map(series => {
-                  const userEnrollments = enrolledMap[grantModalUser.id] || [];
-                  const isUserEnrolled = userEnrollments.includes(series.id) || userEnrollments.includes('all_series_vip') || grantModalUser.role === 'admin';
-                  const title = lang === 'hi' ? series.titleHi : series.titleEn;
-                  const price = series.price || 299;
+              {/* Search Series */}
+              <div className="relative shrink-0">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="टेस्ट सीरीज़ खोजें..."
+                  value={grantSeriesSearch}
+                  onChange={(e) => setGrantSeriesSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-medium focus:outline-none"
+                />
+              </div>
 
-                  return (
-                    <div 
-                      key={series.id}
-                      className={`p-3.5 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        isUserEnrolled
-                          ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700/60 shadow-xs'
-                          : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700'
-                      }`}
-                    >
-                      <div className="flex items-start sm:items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${
-                          isUserEnrolled 
-                            ? 'bg-emerald-600 text-white' 
-                            : 'bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300'
-                        }`}>
-                          {isUserEnrolled ? '✓' : '🔒'}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-black text-xs text-stone-900 dark:text-white">
-                              {title}
-                            </span>
-                            <span className="px-2 py-0.2 rounded-md bg-stone-100 dark:bg-stone-700 text-[10px] font-bold text-stone-600 dark:text-stone-300">
-                              {series.category}
-                            </span>
-                            <span className="px-2 py-0.2 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-mono font-bold">
-                              ₹{price} (सामान्य मूल्य)
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 flex items-center gap-2">
-                            <span>कुल टेस्ट: {series.totalTests || 10} सेट्स</span>
-                            <span>•</span>
-                            <span className="font-mono text-[10px]">ID: {series.id}</span>
-                          </div>
-                        </div>
-                      </div>
+              <div className="overflow-y-auto space-y-2.5 pr-1.5 flex-1">
+                {testSeries
+                  .filter(series => {
+                    if (!grantSeriesSearch) return true;
+                    const q = grantSeriesSearch.toLowerCase();
+                    return (series.titleHi && series.titleHi.toLowerCase().includes(q)) ||
+                           (series.titleEn && series.titleEn.toLowerCase().includes(q)) ||
+                           (series.category && series.category.toLowerCase().includes(q)) ||
+                           (series.id && series.id.toLowerCase().includes(q));
+                  })
+                  .map(series => {
+                    const isChecked = grantSelectedSeries.includes(series.id) || grantSelectedSeries.includes('all_series_vip') || grantModalUser.role === 'admin';
+                    const currentlySaved = (enrolledMap[grantModalUser.id] || []).includes(series.id) || (enrolledMap[grantModalUser.id] || []).includes('all_series_vip') || grantModalUser.role === 'admin';
+                    const title = lang === 'hi' ? series.titleHi : series.titleEn;
+                    const price = series.price || 299;
 
-                      {/* Action Button */}
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                        {isUserEnrolled ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                              <span>मुफ़्त सक्रिय (Active Free)</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => toggleUserAccess(grantModalUser.id, series.id)}
-                              className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition flex items-center gap-1"
-                              title="इस छात्र से इस टेस्ट सीरीज़ का फ्री एक्सेस वापस लें"
-                            >
-                              <Lock className="w-3 h-3" />
-                              <span>हटाएं</span>
-                            </button>
+                    return (
+                      <label 
+                        key={series.id}
+                        className={`p-3 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none ${
+                          isChecked
+                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 shadow-xs'
+                            : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700 hover:border-emerald-300'
+                        }`}
+                      >
+                        <div className="flex items-start sm:items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setGrantSelectedSeries(prev => [...prev.filter(id => id !== series.id), series.id]);
+                              } else {
+                                setGrantSelectedSeries(prev => prev.filter(id => id !== series.id && id !== 'all_series_vip'));
+                              }
+                            }}
+                            className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600 mt-1 sm:mt-0 cursor-pointer"
+                          />
+
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                            isChecked 
+                              ? 'bg-emerald-600 text-white' 
+                              : 'bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300'
+                          }`}>
+                            {isChecked ? '✓' : '🔒'}
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => toggleUserAccess(grantModalUser.id, series.id, { reason: grantReasonTag })}
-                            className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-sm hover:scale-105"
-                          >
-                            <Gift className="w-3.5 h-3.5" />
-                            <span>मुफ़्त में दें (₹0 Free Grant)</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-black text-xs text-stone-900 dark:text-white">
+                                {title}
+                              </span>
+                              <span className="px-2 py-0.2 rounded-md bg-stone-100 dark:bg-stone-700 text-[10px] font-bold text-stone-600 dark:text-stone-300">
+                                {series.category}
+                              </span>
+                              <span className="px-2 py-0.2 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-mono font-bold">
+                                ₹{price} (सामान्य मूल्य)
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 flex items-center gap-2">
+                              <span>कुल टेस्ट: {series.totalTests || 10} सेट्स</span>
+                              <span>•</span>
+                              <span className="font-mono text-[10px]">ID: {series.id}</span>
+                              {currentlySaved && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-emerald-600 font-bold">वर्तमान में सक्रिय</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Status Tag */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {isChecked ? (
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-black flex items-center gap-1 shadow-xs">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>चयनित (मुफ़्त)</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-700 text-stone-500 text-[10px] font-bold">
+                              सशुल्क / लॉक
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between">
+            {/* Modal Footer with Save Action */}
+            <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
               <div className="text-[11px] text-stone-500 dark:text-stone-400">
-                💡 <span className="font-bold">नोट:</span> यह बदलाव तुरंत सुरक्षित हो जाता है और छात्र अपने खाते से इस टेस्ट सीरीज़ को तुरंत बिना किसी भुगतान के हल कर सकेगा।
+                💡 <span className="font-bold">चयनित:</span> {grantSelectedSeries.length} टेस्ट सीरीज़ चुनी गई हैं। 'लागू करें' पर क्लिक करने पर छात्र के पोर्टल में तुरंत सुरक्षित हो जाएंगी।
               </div>
-              <button
-                type="button"
-                onClick={() => setGrantModalUser(null)}
-                className="px-5 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs hover:bg-[#5E1F16] transition"
-              >
-                पूर्ण / बंद करें (Done)
-              </button>
+
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setGrantModalUser(null)}
+                  className="px-4 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-bold text-xs transition"
+                >
+                  रद्द करें
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserEnrolledSeries(grantModalUser.id, grantSelectedSeries, grantReasonTag);
+                    setGrantModalUser(null);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center gap-2 shadow-lg transition hover:scale-105 cursor-pointer"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  <span>💾 चयनित टेस्ट सीरीज़ लागू करें ({grantSelectedSeries.length} Selected)</span>
+                </button>
+              </div>
             </div>
 
           </div>

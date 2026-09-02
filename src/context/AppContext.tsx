@@ -137,6 +137,8 @@ interface AppContextType {
   resetNavMenusToDefault: () => void;
   refundOrder: (orderId: string) => void;
   toggleUserAccess: (userId: string, seriesId: string, options?: { reason?: string }) => void;
+  setUserEnrolledSeries: (userId: string, seriesIds: string[], reason?: string) => void;
+  addUserWithSeries: (userData: Partial<UserProfile>, selectedSeriesIds: string[], reason?: string) => { success: boolean; message: string; user?: UserProfile };
   grantAllSeriesToUser: (userId: string, reason?: string) => void;
   revokeAllSeriesFromUser: (userId: string) => void;
   toggleUserRole: (userId: string) => void;
@@ -1271,8 +1273,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       StorageService.setQuestions(updated);
       return updated;
     });
-    fetch(`/api/test-series/${seriesId}`, { method: 'DELETE' }).catch(e => console.warn('Server sync error for test-series deletion:', e));
-    showToast(lang === 'hi' ? 'टेस्ट सीरीज़ हटाई गई' : 'Test series deleted');
+    
+    fetch(`/api/test-series/${seriesId}`, { method: 'DELETE' })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.testSeries)) {
+          setTestSeries(data.testSeries);
+          StorageService.setTestSeries(data.testSeries);
+        }
+      })
+      .catch(e => console.warn('Server sync error for test-series deletion:', e));
+
+    showToast(lang === 'hi' ? '🗑️ टेस्ट सीरीज़ सफलतापूर्वक हटाई गई' : '🗑️ Test series deleted successfully');
   };
 
   const toggleTestSeriesActive = (seriesId: string) => {
@@ -1698,6 +1710,151 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const setUserEnrolledSeries = (userId: string, seriesIds: string[], reason?: string) => {
+    const targetUser = users.find(u => u.id === userId);
+    const studentName = targetUser?.name || 'छात्र';
+
+    let updatedEnrolledMap: Record<string, string[]> = {};
+    setEnrolledMap(prev => {
+      if (seriesIds.length === 0) {
+        const copy = { ...prev };
+        delete copy[userId];
+        updatedEnrolledMap = copy;
+        return copy;
+      }
+      updatedEnrolledMap = { ...prev, [userId]: seriesIds };
+      return updatedEnrolledMap;
+    });
+
+    fetch('/api/enrolled-map/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedEnrolledMap)
+    }).catch(err => console.warn('Enrolled sync error:', err));
+
+    // Audit and record free grant transaction for each assigned series
+    if (targetUser && seriesIds.length > 0) {
+      const grantOrders: OrderTransaction[] = seriesIds.map(sid => {
+        const s = testSeries.find(item => item.id === sid);
+        return {
+          id: `txn_grant_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          orderId: `order_GRANT_${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          razorpayPaymentId: 'FREE_ADMIN_SCHOLARSHIP_GRANT',
+          userId: targetUser.id,
+          userName: targetUser.name,
+          userEmail: targetUser.email,
+          userPhone: targetUser.phone,
+          userDistrict: targetUser.district,
+          userState: targetUser.state,
+          seriesId: sid,
+          seriesTitle: s ? (lang === 'hi' ? s.titleHi : s.titleEn) : sid,
+          amount: s?.price || 0,
+          discount: s?.price || 0,
+          gstAmount: 0,
+          finalAmount: 0,
+          paymentMethod: 'UPI',
+          status: 'SUCCESS',
+          couponCode: reason || 'ADMIN_CHECKBOX_GRANT',
+          createdAt: new Date().toISOString(),
+          invoiceNumber: `INV-GRANT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          isDummyUser: targetUser.isDummyUser === true
+        };
+      });
+
+      setOrders(prev => {
+        const filtered = prev.filter(o => !(o.userId === userId && o.finalAmount === 0));
+        return [...grantOrders, ...filtered];
+      });
+
+      grantOrders.forEach(go => {
+        fetch('/api/orders/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(go)
+        }).catch(err => console.warn('Grant order sync error:', err));
+      });
+    }
+
+    showToast(
+      lang === 'hi' 
+        ? `✅ ${studentName} के लिए ${seriesIds.length} टेस्ट सीरीज़ चेकबॉक्स द्वारा सुरक्षित कर दी गईं!` 
+        : `✅ ${seriesIds.length} Test series access set for ${studentName}!`
+    );
+  };
+
+  const addUserWithSeries = (userData: Partial<UserProfile>, selectedSeriesIds: string[], reason?: string): { success: boolean; message: string; user?: UserProfile } => {
+    const cleanPhone = (userData.phone || '').replace(/\D/g, '').slice(-10);
+    const cleanEmail = (userData.email || '').trim().toLowerCase();
+
+    if (!userData.name || userData.name.trim().length === 0) {
+      const msg = lang === 'hi' ? '❌ कृपया छात्र का नाम दर्ज करें।' : '❌ Please enter student name.';
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    if (cleanPhone.length < 10) {
+      const msg = lang === 'hi' ? '❌ कृपया वैध 10-अंकों का मोबाइल नंबर दर्ज करें।' : '❌ Please enter valid 10-digit phone number.';
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    // Check duplicate phone
+    if (users.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
+      const msg = lang === 'hi' 
+        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है!` 
+        : `❌ Mobile number (+91-${cleanPhone}) is already registered!`;
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+
+    const newId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newUser: UserProfile = {
+      id: newId,
+      name: userData.name.trim(),
+      username: userData.username?.trim() || `usr_${cleanPhone}`,
+      email: cleanEmail || `${cleanPhone}@mpparikshasetu.in`,
+      phone: cleanPhone,
+      password: userData.password?.trim() || 'Student@123',
+      role: userData.role || 'student',
+      district: userData.district || 'भोपाल (Bhopal)',
+      state: userData.state || 'मध्यप्रदेश (MP)',
+      targetExam: userData.targetExam || 'MP पटवारी 2026',
+      xp: typeof userData.xp === 'number' ? userData.xp : 250,
+      streak: typeof userData.streak === 'number' ? userData.streak : 1,
+      badges: ['🌱 New Aspirant', '🎁 Direct Admin Enrolled'],
+      joinedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      isDummyUser: userData.isDummyUser === true,
+      userType: (userData.isDummyUser === true ? 'dummy' : 'authentic') as 'dummy' | 'authentic'
+    };
+
+    // 1. Save user to state & storage
+    setUsers(prev => {
+      const updated = [newUser, ...prev];
+      StorageService.setUsers(updated);
+      return updated;
+    });
+
+    // 2. Sync to server
+    fetch('/api/users/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newUser)
+    }).catch(e => console.warn('User register sync error:', e));
+
+    // 3. Assign selected test series via checkboxes
+    if (selectedSeriesIds.length > 0) {
+      setUserEnrolledSeries(newUser.id, selectedSeriesIds, reason || 'ADMIN_NEW_USER_GRANT');
+    }
+
+    const successMsg = lang === 'hi'
+      ? `🎉 छात्र '${newUser.name}' को सफलतापूर्वक जोड़ा गया और ${selectedSeriesIds.length} टेस्ट सीरीज़ चेकबॉक्स द्वारा तुरंत असाइन कर दी गईं!`
+      : `🎉 User '${newUser.name}' added with ${selectedSeriesIds.length} test series granted!`;
+
+    showToast(successMsg);
+    return { success: true, message: successMsg, user: newUser };
+  };
+
   const grantAllSeriesToUser = (userId: string, reason?: string) => {
     const targetUser = users.find(u => u.id === userId);
     const studentName = targetUser?.name || 'छात्र';
@@ -1998,6 +2155,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         resetNavMenusToDefault,
         refundOrder,
         toggleUserAccess,
+        setUserEnrolledSeries,
+        addUserWithSeries,
         grantAllSeriesToUser,
         revokeAllSeriesFromUser,
         toggleUserRole,
