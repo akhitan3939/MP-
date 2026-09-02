@@ -195,7 +195,7 @@ export const ResultAnalyticsView: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition cursor-pointer"
           >
             <Share2 className="w-4 h-4" />
-            <span>{lang === 'hi' ? 'WhatsApp पर शेयर (+50 XP)' : 'Share Result (+50 XP)'}</span>
+            <span>{lang === 'hi' ? 'WhatsApp पर शेयर करें' : 'Share Result'}</span>
           </button>
 
           <button
@@ -277,72 +277,6 @@ export const ResultAnalyticsView: React.FC = () => {
           </div>
         </div>
 
-      </div>
-
-      {/* 1.1 GAMIFIED XP REWARDS & PENALTY BREAKDOWN CARD */}
-      <div className="bg-gradient-to-r from-amber-500/15 via-stone-900 to-amber-950/40 border-2 border-amber-500/60 rounded-3xl p-6 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400 text-stone-950 font-black text-xs">
-            <Zap className="w-3.5 h-3.5 fill-current" />
-            <span>{lang === 'hi' ? 'XP रिवॉर्ड व पेनाल्टी रिपोर्ट' : 'XP Points & Penalty Breakdown'}</span>
-          </div>
-          <h3 className="font-display font-black text-xl text-stone-900 dark:text-white">
-            {lang === 'hi' ? 'इस टेस्ट से आपका अर्जित कुल XP' : 'Total XP Earned From This Attempt'}
-          </h3>
-          <p className="text-xs text-stone-600 dark:text-stone-300 max-w-xl">
-            {lang === 'hi'
-              ? 'सही उत्तरों पर +10 XP पुरस्कार, गलत उत्तरों पर -5 XP पेनाल्टी, और स्ट्रीक बोनस लागू किया गया है।'
-              : 'Correct answers reward +10 XP, incorrect answers penalize -5 XP with streak bonuses.'}
-          </p>
-        </div>
-
-        {/* Breakdown Badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0 w-full md:w-auto">
-          {/* Correct XP */}
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl text-center">
-            <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>सही उत्तर (+10)</span>
-            </div>
-            <div className="font-mono font-black text-xl text-emerald-600 dark:text-emerald-400 mt-0.5">
-              +{attempt.xpBreakdown?.correctXp !== undefined ? attempt.xpBreakdown.correctXp : (attempt.correctAnswers || 0) * 10} XP
-            </div>
-          </div>
-
-          {/* Penalty XP */}
-          <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-700/60 rounded-2xl text-center">
-            <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-300">
-              <TrendingDown className="w-3.5 h-3.5" />
-              <span>गलत पेनाल्टी (-5)</span>
-            </div>
-            <div className="font-mono font-black text-xl text-rose-600 dark:text-rose-400 mt-0.5">
-              -{attempt.xpBreakdown?.penaltyXp !== undefined ? attempt.xpBreakdown.penaltyXp : (attempt.incorrectAnswers || 0) * 5} XP
-            </div>
-          </div>
-
-          {/* Streak Bonus */}
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/60 rounded-2xl text-center">
-            <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300">
-              <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-              <span>स्ट्रीक बोनस</span>
-            </div>
-            <div className="font-mono font-black text-xl text-amber-600 dark:text-amber-400 mt-0.5">
-              +{attempt.xpBreakdown?.streakBonus || 25} XP
-            </div>
-          </div>
-
-          {/* Net XP */}
-          <div className="p-3 bg-stone-900 dark:bg-white text-white dark:text-stone-950 border border-amber-500 rounded-2xl text-center shadow-md">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 dark:text-amber-600">
-              नेट XP स्कोर
-            </div>
-            <div className="font-mono font-black text-xl mt-0.5">
-              {attempt.xpBreakdown?.netXp !== undefined 
-                ? (attempt.xpBreakdown.netXp >= 0 ? `+${attempt.xpBreakdown.netXp}` : `${attempt.xpBreakdown.netXp}`)
-                : `+150`} XP
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* 2. AI In-Depth Evaluation Section */}

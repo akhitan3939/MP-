@@ -64,9 +64,9 @@ class AudioAlertService {
   }
 
   /**
-   * Play positive chime for correct answer / XP boost
+   * Play positive chime for correct answer / achievement
    */
-  public playXpGainSound(): void {
+  public playSuccessChime(): void {
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
@@ -77,14 +77,14 @@ class AudioAlertService {
       this.createHarmonicNote(ctx, now + 0.2, 0.3, 783.99, 0.25);  // G5
       this.createHarmonicNote(ctx, now + 0.3, 0.4, 1046.50, 0.3); // C6
     } catch (err) {
-      console.warn('Error playing XP gain sound:', err);
+      console.warn('Error playing success chime:', err);
     }
   }
 
   /**
-   * Play subtle low-pitch sound for XP penalty / wrong answer
+   * Play subtle low-pitch sound for alert / wrong answer
    */
-  public playXpPenaltySound(): void {
+  public playAlertChime(): void {
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
@@ -93,8 +93,17 @@ class AudioAlertService {
       this.createBeepPulse(ctx, now + 0.0, 0.2, 330, 0.25, 'sawtooth'); // E4
       this.createBeepPulse(ctx, now + 0.22, 0.3, 220, 0.25, 'sawtooth'); // A3
     } catch (err) {
-      console.warn('Error playing XP penalty sound:', err);
+      console.warn('Error playing alert chime:', err);
     }
+  }
+
+  // Backwards compatibility aliases
+  public playXpGainSound(): void {
+    this.playSuccessChime();
+  }
+
+  public playXpPenaltySound(): void {
+    this.playAlertChime();
   }
 
   private createBeepPulse(

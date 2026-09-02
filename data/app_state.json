@@ -16,6 +16,1038 @@
     "instagramUrl": "https://instagram.com/mpparikshasetu_official",
     "telegramUrl": "https://t.me/mpparikshasetu_mp",
     "youtubeUrl": "https://youtube.com/@mpparikshasetu",
-    "whatsappCommunityUrl": "https://chat.whatsapp.com/mpparikshasetu"
-  }
+    "whatsappCommunityUrl": "https://chat.whatsapp.com/mpparikshasetu",
+    "visitorHitsCount": 50,
+    "lastUpdatedDateHi": "01 सितम्बर 2026",
+    "lastUpdatedDateEn": "01 September 2026",
+    "showHitCounter": true,
+    "showLastUpdated": true
+  },
+  "users": [
+    {
+      "id": "usr_admin",
+      "name": "प्रशासक (Akhilesh Korsne)",
+      "username": "akhitan_3939",
+      "email": "akhitan3939@mppariksha.in",
+      "phone": "9893012345",
+      "password": "Tanmayee*1234",
+      "role": "admin",
+      "district": "भोपाल (Bhopal)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "All MP Exams Management",
+      "joinedAt": "2025-01-01T10:00:00.000Z",
+      "streak": 45,
+      "badges": [
+        "👑 Admin Master",
+        "🏛️ MP Setu Director",
+        "📊 Analytics Lead"
+      ],
+      "isDummyUser": false,
+      "userType": "authentic"
+    },
+    {
+      "id": "usr_student_1",
+      "name": "अमित कुमार (Amit Kumar)",
+      "username": "amit_kumar_mp",
+      "email": "amit.kumar@gmail.com",
+      "phone": "9826011223",
+      "role": "student",
+      "district": "जबलपुर (Jabalpur)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "MP पटवारी / समूह-2 उपसमूह-4",
+      "joinedAt": "2025-01-15T09:30:00.000Z",
+      "streak": 14,
+      "badges": [
+        "🥈 Rank 2 (MP Topper)",
+        "🔥 14-Day Streak",
+        "🎯 40-Q Free Mock Master"
+      ],
+      "isDummyUser": false,
+      "userType": "authentic"
+    },
+    {
+      "id": "usr_student_2",
+      "name": "प्रिया शर्मा (Priya Sharma)",
+      "username": "priya_sharma_indore",
+      "email": "priya.sharma99@gmail.com",
+      "phone": "9752044556",
+      "role": "student",
+      "district": "इंदौर (Indore)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "MP पटवारी 2026",
+      "joinedAt": "2025-01-10T14:20:00.000Z",
+      "streak": 22,
+      "badges": [
+        "👑 All MP Rank 1",
+        "⭐ Top Scorer",
+        "⚡ Fast Solver"
+      ],
+      "isDummyUser": false,
+      "userType": "authentic"
+    },
+    {
+      "id": "usr_student_3",
+      "name": "रोहित वर्मा (Rohit Verma)",
+      "username": "rohit_verma_gwl",
+      "email": "rohit.verma@yahoo.com",
+      "phone": "9425077889",
+      "role": "student",
+      "district": "ग्वालियर (Gwalior)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "MP पुलिस आरक्षक & SI",
+      "joinedAt": "2025-01-20T11:15:00.000Z",
+      "streak": 8,
+      "badges": [
+        "🎖️ Police Fighter",
+        "⭐ Top 5 Aspirant"
+      ],
+      "isDummyUser": false,
+      "userType": "authentic"
+    },
+    {
+      "id": "usr_student_4",
+      "name": "अनिता पटेल (Anita Patel)",
+      "username": "anita_patel_ujjain",
+      "email": "anita.patel@gmail.com",
+      "phone": "9827033445",
+      "role": "student",
+      "district": "उज्जैन (Ujjain)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "MPPSC प्रारंभिक परीक्षा 2026",
+      "joinedAt": "2025-01-25T16:45:00.000Z",
+      "streak": 11,
+      "badges": [
+        "📜 MPPSC Aspirant",
+        "🎯 Top 10 Qualifier"
+      ],
+      "isDummyUser": false,
+      "userType": "authentic"
+    },
+    {
+      "id": "usr_student_5",
+      "name": "विकास यादव (Vikas Yadav)",
+      "username": "vikas_yadav_rewa",
+      "email": "vikas.yadav@gmail.com",
+      "phone": "9179066778",
+      "role": "student",
+      "district": "रीवा (Rewa)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "कृषि विस्तार अधिकारी (RAEO)",
+      "joinedAt": "2025-02-01T10:00:00.000Z",
+      "streak": 6,
+      "badges": [
+        "🌱 Agri Warrior",
+        "🎯 Free Mock Completed"
+      ],
+      "isDummyUser": false,
+      "userType": "authentic"
+    },
+    {
+      "id": "usr_sample_demo_1",
+      "name": "डेमो छात्र टेस्ट (Demo Aspirant)",
+      "username": "demo_test_user",
+      "email": "demo.student@mppariksha.in",
+      "phone": "9000000001",
+      "role": "student",
+      "district": "भोपाल (Bhopal)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "MP व्यापम सैंपल टेस्ट",
+      "joinedAt": "2025-02-10T12:00:00.000Z",
+      "streak": 1,
+      "badges": [
+        "🧪 Demo Sample"
+      ],
+      "isDummyUser": true,
+      "userType": "dummy"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "att_free_priya_1",
+      "userId": "usr_student_2",
+      "userName": "प्रिया शर्मा (Priya Sharma)",
+      "userState": "मध्यप्रदेश (MP)",
+      "userDistrict": "इंदौर (Indore)",
+      "seriesId": "free_mock_40",
+      "seriesTitle": "🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)",
+      "startedAt": "2026-03-01T10:00:00.000Z",
+      "completedAt": "2026-03-01T10:22:15.000Z",
+      "durationSeconds": 1335,
+      "score": 38,
+      "totalMarks": 40,
+      "percentage": 95,
+      "accuracy": 97.4,
+      "rank": 1,
+      "totalParticipants": 28450,
+      "percentile": 99.9,
+      "correctAnswers": 38,
+      "incorrectAnswers": 1,
+      "unattempted": 1,
+      "totalQuestions": 40,
+      "certificateId": "CERT-MPSETU-2026-88192"
+    },
+    {
+      "id": "att_free_amit_2",
+      "userId": "usr_student_1",
+      "userName": "अमित कुमार (Amit Kumar)",
+      "userState": "मध्यप्रदेश (MP)",
+      "userDistrict": "जबलपुर (Jabalpur)",
+      "seriesId": "free_mock_40",
+      "seriesTitle": "🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)",
+      "startedAt": "2026-03-01T11:15:00.000Z",
+      "completedAt": "2026-03-01T11:38:40.000Z",
+      "durationSeconds": 1420,
+      "score": 36,
+      "totalMarks": 40,
+      "percentage": 90,
+      "accuracy": 92.3,
+      "rank": 2,
+      "totalParticipants": 28450,
+      "percentile": 99.6,
+      "correctAnswers": 36,
+      "incorrectAnswers": 3,
+      "unattempted": 1,
+      "totalQuestions": 40,
+      "certificateId": "CERT-MPSETU-2026-72419"
+    },
+    {
+      "id": "att_free_rohit_3",
+      "userId": "usr_student_3",
+      "userName": "रोहित वर्मा (Rohit Verma)",
+      "userState": "मध्यप्रदेश (MP)",
+      "userDistrict": "ग्वालियर (Gwalior)",
+      "seriesId": "free_mock_40",
+      "seriesTitle": "🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)",
+      "startedAt": "2026-03-01T12:30:00.000Z",
+      "completedAt": "2026-03-01T12:54:10.000Z",
+      "durationSeconds": 1450,
+      "score": 34,
+      "totalMarks": 40,
+      "percentage": 85,
+      "accuracy": 89.5,
+      "rank": 4,
+      "totalParticipants": 28450,
+      "percentile": 98.4,
+      "correctAnswers": 34,
+      "incorrectAnswers": 4,
+      "unattempted": 2,
+      "totalQuestions": 40,
+      "certificateId": "CERT-MPSETU-2026-63102"
+    },
+    {
+      "id": "att_free_anita_4",
+      "userId": "usr_student_4",
+      "userName": "अनिता पटेल (Anita Patel)",
+      "userState": "मध्यप्रदेश (MP)",
+      "userDistrict": "उज्जैन (Ujjain)",
+      "seriesId": "free_mock_40",
+      "seriesTitle": "🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)",
+      "startedAt": "2026-03-01T14:00:00.000Z",
+      "completedAt": "2026-03-01T14:24:50.000Z",
+      "durationSeconds": 1490,
+      "score": 32,
+      "totalMarks": 40,
+      "percentage": 80,
+      "accuracy": 84.2,
+      "rank": 7,
+      "totalParticipants": 28450,
+      "percentile": 96.8,
+      "correctAnswers": 32,
+      "incorrectAnswers": 6,
+      "unattempted": 2,
+      "totalQuestions": 40,
+      "certificateId": "CERT-MPSETU-2026-51208"
+    },
+    {
+      "id": "att_free_vikas_5",
+      "userId": "usr_student_5",
+      "userName": "विकास यादव (Vikas Yadav)",
+      "userState": "मध्यप्रदेश (MP)",
+      "userDistrict": "रीवा (Rewa)",
+      "seriesId": "free_mock_40",
+      "seriesTitle": "🎯 ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)",
+      "startedAt": "2026-03-01T15:10:00.000Z",
+      "completedAt": "2026-03-01T15:35:15.000Z",
+      "durationSeconds": 1515,
+      "score": 30,
+      "totalMarks": 40,
+      "percentage": 75,
+      "accuracy": 81.1,
+      "rank": 12,
+      "totalParticipants": 28450,
+      "percentile": 94.5,
+      "correctAnswers": 30,
+      "incorrectAnswers": 7,
+      "unattempted": 3,
+      "totalQuestions": 40,
+      "certificateId": "CERT-MPSETU-2026-44910"
+    }
+  ],
+  "orders": [],
+  "enrolledMap": {},
+  "testSeries": [
+    {
+      "id": "ts_agri_ext_2026",
+      "titleHi": "समूह-2 उप समूह-1: कृषि विस्तार अधिकारी (RAEO) एवं SADO भर्ती परीक्षा 2026",
+      "titleEn": "Group-2 SubGroup-1: Rural Agriculture Extension Officer (RAEO) & SADO Exam 2026",
+      "category": "agri",
+      "department": "Farmer Welfare & Agriculture Development Dept",
+      "departmentHi": "किसान कल्याण तथा कृषि विकास विभाग / म.प्र. कर्मचारी चयन मंडल (MPESB)",
+      "descriptionHi": "म.प्र. कर्मचारी चयन मंडल समूह-2 उपसमूह-1 (RAEO / SADO / कृषि विस्तार अधिकारी) भर्ती परीक्षा 2026 हेतु पूर्ण 200 प्रश्नों के 20 फुल लेंथ टेस्ट: भाग-1 सामान्य विषय 100 प्रश्न (सामान्य ज्ञान 15, सामान्य हिन्दी 14, सामान्य अंग्रेजी 14, सामान्य गणित 14, तार्किक योग्यता 14, सामान्य विज्ञान 15, कंप्यूटर ज्ञान 14) + भाग-2 कृषि विषय 100 प्रश्न (सामान्य कृषि, सस्य विज्ञान, मृदा विज्ञान, जल संरक्षण व वाटरशेड, पादप कार्यिकी, फसल सुधार, उद्यानिकी, पादप संरक्षण, कृषि अर्थशास्त्र, कृषि प्रसार शिक्षा प्रत्येक 10 प्रश्न)। 100% सटीक एवं प्रामाणिक द्विभाषी व्याख्या सहित।",
+      "descriptionEn": "Official 200-question test series for MPESB Group-2 SubGroup-1 (RAEO/SADO): Part-1 General Subjects (100 Qs) + Part-2 Agriculture Core Specialization (100 Qs across 10 agronomical & technical modules). All 20 full sets with instant score, timer, and detailed solutions.",
+      "price": 349,
+      "originalPrice": 999,
+      "totalTests": 20,
+      "durationMinutes": 180,
+      "totalMarks": 200,
+      "totalQuestions": 200,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": false,
+      "isFeatured": true,
+      "isActive": true,
+      "enrolledCount": 16840,
+      "rating": 4.95,
+      "syllabus": [
+        {
+          "section": "General Knowledge",
+          "sectionHi": "सामान्य ज्ञान (भाग-1)",
+          "questionsCount": 15,
+          "marks": 15
+        },
+        {
+          "section": "General Hindi",
+          "sectionHi": "सामान्य हिन्दी (भाग-1)",
+          "questionsCount": 14,
+          "marks": 14
+        },
+        {
+          "section": "General English",
+          "sectionHi": "सामान्य अंग्रेज़ी (भाग-1)",
+          "questionsCount": 14,
+          "marks": 14
+        },
+        {
+          "section": "General Mathematics",
+          "sectionHi": "सामान्य गणित (भाग-1)",
+          "questionsCount": 14,
+          "marks": 14
+        },
+        {
+          "section": "General Reasoning Ability",
+          "sectionHi": "सामान्य तार्किक योग्यता (भाग-1)",
+          "questionsCount": 14,
+          "marks": 14
+        },
+        {
+          "section": "General Science",
+          "sectionHi": "सामान्य विज्ञान (भाग-1)",
+          "questionsCount": 15,
+          "marks": 15
+        },
+        {
+          "section": "Computer Science",
+          "sectionHi": "सामान्य कंप्यूटर ज्ञान (भाग-1)",
+          "questionsCount": 14,
+          "marks": 14
+        },
+        {
+          "section": "General Agriculture",
+          "sectionHi": "सामान्य कृषि (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Agronomy",
+          "sectionHi": "सस्य विज्ञान (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Soil Science",
+          "sectionHi": "मृदा विज्ञान (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Soil & Water Conservation",
+          "sectionHi": "मृदा एवं जल संरक्षण, वाटरशेड (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Plant Physiology",
+          "sectionHi": "पादप कार्यिकी (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Crop Improvement",
+          "sectionHi": "फसल सुधार एवं पादप प्रजनन (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Horticulture",
+          "sectionHi": "उद्यानिकी (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Plant Protection",
+          "sectionHi": "पादप संरक्षण एवं कीट विज्ञान (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Agricultural Economics",
+          "sectionHi": "कृषि अर्थशास्त्र एवं विपणन (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        },
+        {
+          "section": "Agricultural Extension Education",
+          "sectionHi": "कृषि प्रसार शिक्षा (भाग-2)",
+          "questionsCount": 10,
+          "marks": 10
+        }
+      ],
+      "pdfNotesCount": 24,
+      "badgeTagHi": "समूह-02 उपसमूह-01 कृषि विशेष (20 फुल सेट)",
+      "badgeTagEn": "Group-2 Sub-1 Agri Special (20 Sets)"
+    },
+    {
+      "id": "ts_patwari_2026",
+      "titleHi": "समूह-02 उपसमूह-04 संयुक्त भर्ती परीक्षा-2026 (पटवारी एवं समकक्ष पद)",
+      "titleEn": "Group-02 SubGroup-04 Combined Recruitment Exam 2026 (Patwari & Equivalent)",
+      "category": "patwari",
+      "department": "Revenue & General Administration Dept",
+      "departmentHi": "राजस्व एवं भू-अभिलेख विभाग / म.प्र. कर्मचारी चयन मंडल",
+      "descriptionHi": "मध्य प्रदेश कर्मचारी चयन मंडल (MPESB) समूह-02 उपसमूह-04 संयुक्त भर्ती परीक्षा 2026 (पटवारी, सहायक संपरीक्षक, कनिष्ठ लेखा अधिकारी व समकक्ष पद) हेतु नवीनतम 200 प्रश्नों के संपूर्ण पैटर्न पर आधारित: सामान्य विज्ञान (25), सामान्य हिन्दी (25), सामान्य अंग्रेजी (25), सामान्य गणित (25), सामान्य ज्ञान एवं अभिरुचि (25), सामान्य कंप्यूटर ज्ञान (25), सामान्य तार्किक योग्यता (25) एवं सामान्य प्रबंधन/ग्रामीण प्रशासन (25 प्रश्न)। 100% सटीक एवं प्रामाणिक द्विभाषी व्याख्या सहित।",
+      "descriptionEn": "Full 200-question comprehensive mock exam for MPESB Group-02 SubGroup-04 Combined Recruitment Exam 2026 (Patwari & Equivalent): General Science (25), General Hindi (25), General English (25), General Maths (25), General Knowledge & Aptitude (25), Computer Science (25), General Reasoning (25), and General Management (25). 100% verified bilingual solutions.",
+      "price": 349,
+      "originalPrice": 999,
+      "totalTests": 20,
+      "disabledSetNumbers": [],
+      "durationMinutes": 180,
+      "totalMarks": 200,
+      "totalQuestions": 200,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": false,
+      "isFeatured": true,
+      "isActive": true,
+      "enrolledCount": 14280,
+      "rating": 4.9,
+      "syllabus": [
+        {
+          "section": "General Science",
+          "sectionHi": "सामान्य विज्ञान",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "General Hindi",
+          "sectionHi": "सामान्य हिन्दी",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "General English",
+          "sectionHi": "सामान्य अंग्रेज़ी",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "General Mathematics",
+          "sectionHi": "सामान्य गणित",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "General Knowledge & Aptitude",
+          "sectionHi": "सामान्य ज्ञान एवं अभिरुचि",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "Computer Science",
+          "sectionHi": "सामान्य कंप्यूटर ज्ञान",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "General Reasoning Ability",
+          "sectionHi": "सामान्य तार्किक योग्यता (रीजनिंग)",
+          "questionsCount": 25,
+          "marks": 25
+        },
+        {
+          "section": "General Management",
+          "sectionHi": "सामान्य प्रबंधन एवं ग्रामीण प्रशासन",
+          "questionsCount": 25,
+          "marks": 25
+        }
+      ],
+      "pdfNotesCount": 18,
+      "badgeTagHi": "समूह-02 उपसमूह-04 विशेष",
+      "badgeTagEn": "Group-2 Sub-4 Special"
+    },
+    {
+      "id": "ts_mppsc_pre_2026",
+      "titleHi": "MPPSC राज्य सेवा प्रारंभिक परीक्षा 2026 — टारगेट टेस्ट पैक (GS + CSAT)",
+      "titleEn": "MPPSC State Service Prelims 2026 — Target Test Pack (GS + CSAT)",
+      "category": "mppsc",
+      "department": "MPPSC Indore",
+      "departmentHi": "म.प्र. लोक सेवा आयोग, इंदौर",
+      "descriptionHi": "MPPSC नवीन पाठ्यक्रम 10 यूनिट्स पर आधारित प्रश्न पत्र-1 (सामान्य अध्ययन) व पत्र-2 (CSAT)। मध्यप्रदेश का इतिहास, संस्कृति, भूगोल, अर्थव्यवस्था एवं राष्ट्रीय आयोगों पर विशेष फोकस।",
+      "descriptionEn": "Comprehensive test series based on MPPSC 10 Units syllabus covering Paper-1 (General Studies) and Paper-2 (CSAT) with AI ranking and detailed analysis.",
+      "price": 599,
+      "originalPrice": 1499,
+      "totalTests": 60,
+      "durationMinutes": 120,
+      "totalMarks": 200,
+      "totalQuestions": 15,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": true,
+      "isFeatured": true,
+      "isActive": true,
+      "enrolledCount": 8940,
+      "rating": 4.95,
+      "syllabus": [
+        {
+          "section": "MP History, Culture & Literature",
+          "sectionHi": "म.प्र. का इतिहास, संस्कृति एवं साहित्य",
+          "questionsCount": 4,
+          "marks": 50
+        },
+        {
+          "section": "MP & Indian Geography",
+          "sectionHi": "म.प्र. व भारत का भूगोल",
+          "questionsCount": 3,
+          "marks": 40
+        },
+        {
+          "section": "Constitutional System & Economy of MP",
+          "sectionHi": "म.प्र. की संवैधानिक व्यवस्था एवं अर्थव्यवस्था",
+          "questionsCount": 3,
+          "marks": 40
+        },
+        {
+          "section": "Science, Tech & Environment",
+          "sectionHi": "विज्ञान, पर्यावरण एवं स्वास्थ्य",
+          "questionsCount": 3,
+          "marks": 40
+        },
+        {
+          "section": "National & Regional Commissions",
+          "sectionHi": "राष्ट्रीय एवं प्रादेशिक संवैधानिक आयोग",
+          "questionsCount": 2,
+          "marks": 30
+        }
+      ],
+      "pdfNotesCount": 28,
+      "badgeTagHi": "आयोग पैटर्न (Official आयोग Pattern)",
+      "badgeTagEn": "Top Rated"
+    },
+    {
+      "id": "ts_police_si_2026",
+      "titleHi": "MP पुलिस आरक्षक (Constable) & सब-इंस्पेक्टर (SI) 2026 भर्ती टेस्ट सीरीज़",
+      "titleEn": "MP Police Constable & Sub-Inspector (SI) 2026 Recruitment Test Series",
+      "category": "police",
+      "department": "Home & Police Department",
+      "departmentHi": "गृह एवं पुलिस मुख्यालय, भोपाल",
+      "descriptionHi": "पुलिस भर्ती हेतु विशेष तैयार: मानसिक अभिरुचि, तर्कशक्ति, म.प्र. सामान्य ज्ञान, सामान्य विज्ञान, अंकगणित एवं हिन्दी का सटीक अभ्यास सेट।",
+      "descriptionEn": "Tailored for MP Police selection: Mental Ability, Reasoning, MP GK, General Science, Arithmetic and Hindi with live countdown timer and immediate AI scorecard.",
+      "price": 299,
+      "originalPrice": 799,
+      "totalTests": 40,
+      "durationMinutes": 90,
+      "totalMarks": 100,
+      "totalQuestions": 15,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": true,
+      "isFeatured": true,
+      "isActive": true,
+      "enrolledCount": 16750,
+      "rating": 4.85,
+      "syllabus": [
+        {
+          "section": "MP Police Special GK & Law Basics",
+          "sectionHi": "म.प्र. पुलिस विशेष ज्ञान व सामान्य ज्ञान",
+          "questionsCount": 4,
+          "marks": 25
+        },
+        {
+          "section": "Reasoning & Mental Ability",
+          "sectionHi": "तर्कशक्ति एवं मानसिक अभिरुचि",
+          "questionsCount": 4,
+          "marks": 25
+        },
+        {
+          "section": "General Science & Physics/Bio",
+          "sectionHi": "सामान्य विज्ञान (भौतिक, रसायन, जीव)",
+          "questionsCount": 4,
+          "marks": 25
+        },
+        {
+          "section": "Mathematics & Speed Calculation",
+          "sectionHi": "अंकगणित एवं संख्यात्मक योग्यता",
+          "questionsCount": 3,
+          "marks": 25
+        }
+      ],
+      "pdfNotesCount": 15,
+      "badgeTagHi": "7500+ पद विशेष (Special)",
+      "badgeTagEn": "High Selection Rate"
+    },
+    {
+      "id": "ts_vyapam_group4_2026",
+      "titleHi": "MP व्यापम (ESB) समूह-4 / सहायक ग्रेड-3 एवं स्टेनो भर्ती टेस्ट पैक",
+      "titleEn": "MP Vyapam (ESB) Group-4 / Assistant Grade-3 & Steno Mock Pack",
+      "category": "vyapam",
+      "department": "General Administration Dept",
+      "departmentHi": "सामान्य प्रशासन विभाग / म.प्र. कर्मचारी चयन मंडल",
+      "descriptionHi": "सहायक ग्रेड-3, शीघ्रलेखक, स्टेनो टंकक एवं डाटा एंट्री ऑपरेटर पदों हेतु 100 अंकों के 35+ फुल मॉक टेस्ट, कंप्यूटर दक्षता CPCT स्तर के प्रश्न शामिल।",
+      "descriptionEn": "Mock test pack for AG-3, Steno, DEO positions with CPCT standard computer questions, General Hindi, English, Math and MP GK.",
+      "price": 249,
+      "originalPrice": 699,
+      "totalTests": 35,
+      "durationMinutes": 90,
+      "totalMarks": 100,
+      "totalQuestions": 15,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": true,
+      "isFeatured": false,
+      "isActive": true,
+      "enrolledCount": 6820,
+      "rating": 4.8,
+      "syllabus": [
+        {
+          "section": "Computer Knowledge & MS Office",
+          "sectionHi": "कंप्यूटर दक्षता व एमएस ऑफिस",
+          "questionsCount": 5,
+          "marks": 35
+        },
+        {
+          "section": "General Hindi & English",
+          "sectionHi": "सामान्य हिन्दी व अंग्रेजी",
+          "questionsCount": 4,
+          "marks": 25
+        },
+        {
+          "section": "General Knowledge MP",
+          "sectionHi": "म.प्र. सामान्य ज्ञान",
+          "questionsCount": 3,
+          "marks": 20
+        },
+        {
+          "section": "Maths & Aptitude",
+          "sectionHi": "सामान्य गणित व अभिरुचि",
+          "questionsCount": 3,
+          "marks": 20
+        }
+      ],
+      "pdfNotesCount": 12,
+      "badgeTagHi": "CPCT पैटर्न प्रश्न",
+      "badgeTagEn": "ESB Special"
+    },
+    {
+      "id": "ts_vanrakshak_2026",
+      "titleHi": "MP वनरक्षक (Forest Guard) एवं क्षेत्ररक्षक संयुक्त भर्ती टेस्ट सीरीज़",
+      "titleEn": "MP Forest Guard (Vanrakshak) & Field Guard Combined Test Series",
+      "category": "vanrakshak",
+      "department": "Forest Department MP",
+      "departmentHi": "वन विभाग, मध्यप्रदेश शासन",
+      "descriptionHi": "म.प्र. के राष्ट्रीय उद्यान, वन्यजीव अभयारण्य, वन संपदा, जनजातीय संस्कृति, सामान्य विज्ञान एवं अंकगणित पर आधारित उच्च स्तरीय टेस्ट सीरीज़।",
+      "descriptionEn": "Dedicated test series focusing on MP National Parks, Wildlife Sanctuaries, Forest Wealth, Tribal Culture, General Science and Arithmetic.",
+      "price": 279,
+      "originalPrice": 749,
+      "totalTests": 30,
+      "durationMinutes": 90,
+      "totalMarks": 100,
+      "totalQuestions": 15,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": true,
+      "isFeatured": false,
+      "isActive": true,
+      "enrolledCount": 5410,
+      "rating": 4.75,
+      "syllabus": [
+        {
+          "section": "MP Forest, Flora & Fauna",
+          "sectionHi": "म.प्र. के वन, वन्यजीव व राष्ट्रीय उद्यान",
+          "questionsCount": 5,
+          "marks": 35
+        },
+        {
+          "section": "General Science",
+          "sectionHi": "सामान्य विज्ञान व पर्यावरण",
+          "questionsCount": 4,
+          "marks": 25
+        },
+        {
+          "section": "Hindi & English Language",
+          "sectionHi": "हिन्दी व अंग्रेजी भाषा",
+          "questionsCount": 3,
+          "marks": 20
+        },
+        {
+          "section": "Mathematics & Reasoning",
+          "sectionHi": "अंकगणित व तार्किक ज्ञान",
+          "questionsCount": 3,
+          "marks": 20
+        }
+      ],
+      "pdfNotesCount": 14,
+      "badgeTagHi": "वन विभाग स्पेशल",
+      "badgeTagEn": "Green Forest Pack"
+    },
+    {
+      "id": "ts_mptet_2026",
+      "titleHi": "MP TET (प्राथमिक एवं माध्यमिक शिक्षक पात्रता परीक्षा वर्ग 2 & 3) टेस्ट सीरीज़",
+      "titleEn": "MP TET (Primary & Middle School Teacher Eligibility Varg 2 & 3) Pack",
+      "category": "tet",
+      "department": "School Education Dept",
+      "departmentHi": "स्कूल शिक्षा विभाग, म.प्र.",
+      "descriptionHi": "बाल विकास एवं शिक्षाशास्त्र (CDP), भाषा-1 (हिन्दी), भाषा-2 (अंग्रेजी/संस्कृत), गणित एवं पर्यावरण अध्ययन (EVS) के 40+ विषयवार व फुल टेस्ट।",
+      "descriptionEn": "Child Development & Pedagogy (CDP), Hindi, English/Sanskrit, Maths and Environmental Studies test series designed for MP TET aspirants.",
+      "price": 399,
+      "originalPrice": 1099,
+      "totalTests": 40,
+      "durationMinutes": 150,
+      "totalMarks": 150,
+      "totalQuestions": 15,
+      "negativeMarking": 0,
+      "isFreeDemoAvailable": true,
+      "isFeatured": false,
+      "isActive": true,
+      "enrolledCount": 7120,
+      "rating": 4.9,
+      "syllabus": [
+        {
+          "section": "Child Development & Pedagogy",
+          "sectionHi": "बाल विकास एवं शिक्षाशास्त्र",
+          "questionsCount": 4,
+          "marks": 40
+        },
+        {
+          "section": "Environmental Studies (EVS)",
+          "sectionHi": "पर्यावरण अध्ययन (म.प्र. विशेष)",
+          "questionsCount": 4,
+          "marks": 40
+        },
+        {
+          "section": "Hindi Language & Grammar",
+          "sectionHi": "हिन्दी भाषा एवं शिक्षण विधियाँ",
+          "questionsCount": 4,
+          "marks": 40
+        },
+        {
+          "section": "Mathematics Pedagogy",
+          "sectionHi": "गणित एवं तार्किक शिक्षाशास्त्र",
+          "questionsCount": 3,
+          "marks": 30
+        }
+      ],
+      "pdfNotesCount": 20,
+      "badgeTagHi": "शिक्षक भर्ती स्पेशल",
+      "badgeTagEn": "Teacher Special"
+    }
+  ],
+  "siteBanners": [
+    {
+      "id": "ban_1",
+      "titleHi": "समूह-02 उपसमूह-04 संयुक्त भर्ती परीक्षा 2026 — 20 फुल मॉक टेस्ट सीरीज़",
+      "titleEn": "Group-02 SubGroup-04 Combined Recruitment 2026 — 20 Full Mock Series",
+      "subtitleHi": "200 प्रश्न प्रति टेस्ट (8 विषय) • 180 मिनट CBT सिमुलेटर • AI विश्लेषण व ऑल-एमपी रैंक",
+      "subtitleEn": "200 Questions per test (8 Sections) • 180 Mins CBT • AI Report & State Rank",
+      "imageUrl": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1200&auto=format&fit=crop&q=80",
+      "badgeText": "🔥 सर्वाधिक लोकप्रिय (Bestseller)",
+      "buttonTextHi": "20 फुल मॉक टेस्ट सीरीज़ देखें",
+      "buttonTextEn": "View 20 Full Mock Series",
+      "targetView": "testDetail",
+      "targetId": "ts_patwari_2026",
+      "isActive": true,
+      "order": 1
+    },
+    {
+      "id": "ban_2",
+      "titleHi": "MPPSC प्रारंभिक परीक्षा 2026 — 50+ विषयवार व फुल टेस्ट",
+      "titleEn": "MPPSC State Service Prelims 2026 — 50+ Topic & Full Tests",
+      "subtitleHi": "नवीनतम आयोग पैटर्न, MP स्पेशल GK, समसामयिकी व CSAT के विस्तृत द्विभाषी हल",
+      "subtitleEn": "Latest Commission pattern, MP Special GK, Current Affairs & CSAT with full explanations",
+      "imageUrl": "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200&auto=format&fit=crop&q=80",
+      "badgeText": "🏛️ म.प्र. लोक सेवा आयोग",
+      "buttonTextHi": "सीरीज़ विवरण देखें",
+      "buttonTextEn": "View Series Details",
+      "targetView": "testDetail",
+      "targetId": "ts_mppsc_pre_2026",
+      "isActive": true,
+      "order": 2
+    },
+    {
+      "id": "ban_3",
+      "titleHi": "MP पुलिस सब-इंस्पेक्टर (SI) 2026 — स्पेशल खाकी वर्दी बैच",
+      "titleEn": "MP Police SI 2026 — Special Khaki Mock Batch",
+      "subtitleHi": "हिंदी, अंग्रेजी, विज्ञान व MP GK के 30+ टेस्ट • ऑल-एमपी लाइव कटऑफ व रैंक",
+      "subtitleEn": "Hindi, English, Science & MP GK 30+ Tests • All-MP Live Cutoff & Merit Rank",
+      "imageUrl": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&auto=format&fit=crop&q=80",
+      "badgeText": "🎖️ खाकी वर्दी संकल्प",
+      "buttonTextHi": "टेस्ट सीरीज़ देखें",
+      "buttonTextEn": "Explore Tests",
+      "targetView": "testDetail",
+      "targetId": "ts_police_si_2026",
+      "isActive": true,
+      "order": 3
+    }
+  ],
+  "navMenuItems": [
+    {
+      "id": "nav_home",
+      "labelHi": "मुख्य पृष्ठ",
+      "labelEn": "Home",
+      "placement": "both",
+      "targetType": "view",
+      "targetValue": "home",
+      "iconName": "BookOpen",
+      "isActive": true,
+      "order": 1,
+      "subTextHi": "होम पेज",
+      "subTextEn": "Home Page"
+    },
+    {
+      "id": "nav_free_mock",
+      "labelHi": "🎯 40-प्रश्न फ्री मॉक टेस्ट",
+      "labelEn": "🎯 Free Mock (40 Qs)",
+      "placement": "both",
+      "targetType": "view",
+      "targetValue": "freeMockTest",
+      "iconName": "Sparkles",
+      "highlight": true,
+      "badgeTextHi": "मुफ़्त DEMO",
+      "badgeTextEn": "FREE DEMO",
+      "isActive": true,
+      "order": 2,
+      "subTextHi": "निःशुल्क अभ्यास",
+      "subTextEn": "Free Practice"
+    },
+    {
+      "id": "nav_catalog",
+      "labelHi": "टेस्ट सीरीज़",
+      "labelEn": "Test Series",
+      "placement": "both",
+      "targetType": "view",
+      "targetValue": "catalog",
+      "iconName": "Award",
+      "isActive": true,
+      "order": 3,
+      "subTextHi": "सभी पैकेज",
+      "subTextEn": "All Packages"
+    },
+    {
+      "id": "nav_leaderboard",
+      "labelHi": "ऑल-एमपी रैंक",
+      "labelEn": "All MP Rank",
+      "placement": "both",
+      "targetType": "view",
+      "targetValue": "leaderboard",
+      "iconName": "Trophy",
+      "isActive": true,
+      "order": 4,
+      "subTextHi": "राज्य मेरिट सूची",
+      "subTextEn": "State Merit"
+    },
+    {
+      "id": "nav_notes",
+      "labelHi": "ई-नोट्स (PDF)",
+      "labelEn": "E-Notes (PDF)",
+      "placement": "both",
+      "targetType": "modal",
+      "targetValue": "notes",
+      "iconName": "FileText",
+      "isActive": true,
+      "order": 5,
+      "subTextHi": "हस्तलिखित नोट्स",
+      "subTextEn": "PDF Notes"
+    },
+    {
+      "id": "nav_dashboard",
+      "labelHi": "मेरा डैशबोर्ड",
+      "labelEn": "My Dashboard",
+      "placement": "both",
+      "targetType": "view",
+      "targetValue": "dashboard",
+      "iconName": "LayoutDashboard",
+      "isActive": true,
+      "order": 6,
+      "subTextHi": "स्कोरकार्ड व रैंक",
+      "subTextEn": "Scorecard & Rank"
+    }
+  ],
+  "coupons": [
+    {
+      "code": "MPGOVT50",
+      "discountType": "flat",
+      "discountValue": 50,
+      "minAmount": 200,
+      "descriptionHi": "₹50 की सीधी छूट सभी टेस्ट सीरीज़ पर",
+      "descriptionEn": "Flat ₹50 OFF on all test series",
+      "isActive": true,
+      "usageCount": 1420,
+      "expiresAt": "2026-12-31"
+    },
+    {
+      "code": "MPTOPPER",
+      "discountType": "percentage",
+      "discountValue": 20,
+      "minAmount": 300,
+      "descriptionHi": "20% की विशेष छात्रवृत्ति छूट",
+      "descriptionEn": "20% Special Merit Scholarship Discount",
+      "isActive": true,
+      "usageCount": 890,
+      "expiresAt": "2026-12-31"
+    },
+    {
+      "code": "PATWARI100",
+      "discountType": "flat",
+      "discountValue": 100,
+      "minAmount": 500,
+      "descriptionHi": "₹100 की छूट ₹500+ के कॉम्बो पैक पर",
+      "descriptionEn": "₹100 OFF on Combo packs above ₹500",
+      "isActive": true,
+      "usageCount": 430,
+      "expiresAt": "2026-12-31"
+    }
+  ],
+  "announcements": [
+    {
+      "id": "ann_1",
+      "titleHi": "📢 MPESB समूह-02 उपसमूह-04 संयुक्त भर्ती परीक्षा 2026: 3500+ रिक्तियों हेतु 20 फुल मॉक सेट्स लाइव",
+      "titleEn": "📢 MPESB Group-02 SubGroup-04 Recruitment 2026: 20 Full Mock Test Sets Live Now",
+      "descriptionHi": "व्यापम ESB द्वारा जारी नवीनतम सिलेबस पर आधारित 200 प्रश्नों के 20 पूर्ण मॉक टेस्ट एवं विस्तृत AI समाधान उपलब्ध हैं।",
+      "descriptionEn": "20 Full Length Mock Tests with 200 Questions each and AI performance analytics based on latest ESB pattern.",
+      "tag": "VACANCY",
+      "date": "2026-08-30",
+      "publishedAt": "2026-09-02T07:52:35.103Z",
+      "linkTextHi": "मॉक सेट्स देखें →",
+      "linkTextEn": "View Mock Series →",
+      "targetView": "catalog",
+      "isPinned": true,
+      "isActive": true,
+      "isNew": true
+    },
+    {
+      "id": "ann_2",
+      "titleHi": "🏆 ऑल मध्यप्रदेश रविवार महा-मॉक टेस्ट: 50,000+ छात्र देंगे परीक्षा, तुरंत देखें ऑल-एमपी रैंक",
+      "titleEn": "🏆 All MP Sunday Grand Live Mock Test: 50,000+ Aspirants competing live with Rank",
+      "descriptionHi": "रविवार प्रातः 09:00 बजे से लाइव टेस्ट शुरू होगा। परीक्षा समाप्ति के तुरंत बाद जिलावार मेरिट व विस्तृत व्याख्या मिलेगी।",
+      "descriptionEn": "Live Mock starts at 9:00 AM. Get district-level percentile, rank & deep AI solutions immediately.",
+      "tag": "LIVE_TEST",
+      "date": "2026-08-29",
+      "publishedAt": "2026-09-02T07:52:35.103Z",
+      "linkTextHi": "फ्री टेस्ट दें →",
+      "linkTextEn": "Attempt Free Test →",
+      "targetView": "freeMockTest",
+      "isPinned": true,
+      "isActive": true,
+      "isNew": true
+    },
+    {
+      "id": "ann_3",
+      "titleHi": "📜 MPPSC 2026 राज्य सेवा प्रारंभिक परीक्षा संशोधित मॉडल प्रश्न व 10 यूनिट्स विशेष अध्ययन नोट्स",
+      "titleEn": "📜 MPPSC 2026 State Services Prelims Model Papers & 10 Unit Complete Notes",
+      "descriptionHi": "आयोग के नए सिलेबस अनुसार म.प्र. का इतिहास, संस्कृति, भूगोल, अर्थव्यवस्था एवं ICT के 1000+ विशेष वस्तुनिष्ठ प्रश्न।",
+      "descriptionEn": "1000+ targeted MCQs covering all 10 MPPSC units with detailed bilingual explanations.",
+      "tag": "NOTICE",
+      "date": "2026-08-28",
+      "publishedAt": "2026-09-02T07:52:35.103Z",
+      "linkTextHi": "MPPSC टेस्ट देखें →",
+      "linkTextEn": "Explore MPPSC →",
+      "targetView": "catalog",
+      "isPinned": false,
+      "isActive": true,
+      "isNew": false
+    },
+    {
+      "id": "ann_4",
+      "titleHi": "🚨 MP पुलिस आरक्षक एवं उपनिरीक्षक (SI) 2026: सामान्य विज्ञान व गणित विषयवार टेस्ट सीरीज सक्रिय",
+      "titleEn": "🚨 MP Police Constable & Sub-Inspector 2026: Science & Reasoning Tests Active",
+      "descriptionHi": "पुलिस भर्ती हेतु शारीरिक दक्षता मानक (PET) के साथ लिखित परीक्षा के पूर्व वर्षों के हल प्रश्न पत्र शामिल हैं।",
+      "descriptionEn": "Previous years solved papers and sectional practice for MP Police Constable and SI exam.",
+      "tag": "VACANCY",
+      "date": "2026-08-27",
+      "publishedAt": "2026-09-02T07:52:35.103Z",
+      "linkTextHi": "पुलिस टेस्ट देखें →",
+      "linkTextEn": "View Police Tests →",
+      "targetView": "catalog",
+      "isPinned": false,
+      "isActive": true,
+      "isNew": false
+    },
+    {
+      "id": "ann_5",
+      "titleHi": "🎁 विशेष कूपन \"SETU50\" सक्रिय: सभी टेस्ट सीरीज़ पैक पर ₹50 की अतिरिक्त तत्काल छूट",
+      "titleEn": "🎁 Special Coupon \"SETU50\" Active: Flat ₹50 Instant Discount on All Test Packages",
+      "descriptionHi": "सीमित समय के लिए चेकआउट पर प्रोमो कोड SETU50 डालें और सभी टेस्ट सीरीज पर अधिकतम बचत पाएं।",
+      "descriptionEn": "Apply coupon code SETU50 during checkout to avail ₹50 flat discount instantly.",
+      "tag": "OFFER",
+      "date": "2026-08-26",
+      "publishedAt": "2026-09-02T07:52:35.103Z",
+      "linkTextHi": "ऑफर लागू करें →",
+      "linkTextEn": "Apply Offer →",
+      "targetView": "catalog",
+      "isPinned": false,
+      "isActive": true,
+      "isNew": false
+    }
+  ],
+  "notes": [
+    {
+      "id": "note_1",
+      "titleHi": "मध्यप्रदेश सामान्य ज्ञान 2026 — 500+ त्वरित तथ्य एवं सार संग्रह (Handwritten)",
+      "titleEn": "Madhya Pradesh GK 2026 — 500+ Quick Facts & Summary (Handwritten)",
+      "category": "MP Special GK",
+      "fileSize": "4.8 MB",
+      "pages": 42,
+      "downloadCount": 18450,
+      "summaryHi": "म.प्र. का गठन (1 नवंबर 1956), पुनर्गठन, 55 जिले, संभाग, राज्य प्रतीक, नदियाँ, जलप्रपात, राष्ट्रीय उद्यान एवं प्रमुख व्यक्तित्व का संपूर्ण सार।",
+      "summaryEn": "Complete gist of MP formation, reorganization, 55 districts, divisions, state symbols, rivers, waterfalls, national parks and prominent personalities.",
+      "sampleContentHi": "१. मध्यप्रदेश का नामकरण: पंडित जवाहरलाल नेहरू द्वारा 'हृदय प्रदेश' कहा गया।\n२. राज्य प्रतीक:\n- राज्य पशु: बारहसिंगा (ब्रेडरी प्रजाति - कान्हा किसली)\n- राज्य पक्षी: दूधराज (शाह बुलबुल / पैराडाइज फ्लाईकैचर)\n- राज्य वृक्ष: बरगद (वटवृक्ष)\n- राज्य मछली: महाशीर (टोर टोर)\n- राज्य खेल: मलखंब (2013 में घोषित, प्रभाष जोशी पुरस्कार)\n- राज्य नृत्य: राई (बुंदेलखंड क्षेत्र)\n- राज्य नाट्य: माच (मालवा क्षेत्र)\n३. सीमावर्ती राज्य: कुल 5 राज्य (उत्तर प्रदेश, राजस्थान, गुजरात, महाराष्ट्र, छत्तीसगढ़)। सबसे लंबी सीमा उप्र के साथ एवं न्यूनतम गुजरात के साथ।"
+    },
+    {
+      "id": "note_2",
+      "titleHi": "ग्रामीण अर्थव्यवस्था एवं पंचायती राज — पटवारी परीक्षा विशेषांक 2026",
+      "titleEn": "Rural Economy & Panchayati Raj — Patwari Special Guide 2026",
+      "category": "Panchayati Raj & Land Records",
+      "fileSize": "3.6 MB",
+      "pages": 35,
+      "downloadCount": 14200,
+      "summaryHi": "73वां संविधान संशोधन, म.प्र. पंचायती राज अधिनियम 1993, ग्राम सभा, खसरा, खतौनी, बंदोबस्त, गिरदावरी, पीएम किसान व मुख्यमंत्री किसान कल्याण योजना।",
+      "summaryEn": "73rd Amendment, MP Panchayati Raj Act 1993, Gram Sabha, Khasra, Khatauni, Settlement, Girdawari and MP state agricultural schemes.",
+      "sampleContentHi": "१. बलवंत राय मेहता समिति (1957) ने त्रि-स्तरीय पंचायती राज की सिफारिश की।\n२. 73वां संविधान संशोधन 1992 (लागू 24 अप्रैल 1993 - राष्ट्रीय पंचायती राज दिवस)।\n३. संविधान की 11वीं अनुसूची में पंचायतों के 29 विषय शामिल हैं।\n४. भू-अभिलेख शब्दावली:\n- खसरा: भूमि का सर्वेक्षण नंबर व फसल ब्यौरा।\n- खतौनी: भू-स्वामी के नाम सभी खसरों का समेकित खाता।\n- गिरदावरी: वर्ष में दो बार (खरीफ व रबी) फसलों का भौतिक सत्यापन।"
+    },
+    {
+      "id": "note_3",
+      "titleHi": "मध्यप्रदेश की प्रमुख जनजातियाँ एवं लोक कलाएँ (Bhil, Gond, Baiga, Sahariya)",
+      "titleEn": "Major Tribes & Folk Arts of Madhya Pradesh (Bhil, Gond, Baiga, Sahariya)",
+      "category": "MP Tribal Culture",
+      "fileSize": "5.2 MB",
+      "pages": 48,
+      "downloadCount": 12900,
+      "summaryHi": "भील (भगोरिया उत्सव, पिथोरा चित्रकला), गोंड (डिगना कला), बैगा (कर्मा नृत्य), सहरिया (लहंगी), भारिया (पातालकोट) पर विशेष नोट्स।",
+      "summaryEn": "Comprehensive notes on Bhil, Gond, Baiga, Sahariya, Bharia tribes, their customs, festivals, paintings (Pithora, Digna) and folk dances.",
+      "sampleContentHi": "१. मध्यप्रदेश भारत का सर्वाधिक जनजातीय जनसंख्या वाला राज्य है (कुल जनसंख्या का 21.1%)।\n२. सबसे बड़ी जनजाति: भील (पश्चिमी म.प्र. - झाबुआ, अलीराजपुर, धार)।\n- भगोरिया हाट: होली के समय 7 दिनों तक आयोजित होता है (गुलालिया, गोल गधेड़ो, उजाड़िया)।\n- पेमा फत्या व भूरी बाई: प्रसिद्ध पिथोरा चित्रकार (पद्मश्री विजेता)।\n३. गोंड जनजाति: प्रदेश की दूसरी बड़ी जनजाति।\n४. विशेष पिछड़ी जनजातियाँ (PVTG): बैगा, भारिया, सहरिया।"
+    },
+    {
+      "id": "note_4",
+      "titleHi": "सामान्य हिन्दी व्याकरण — संपूर्ण प्रतियोगी परीक्षा नोट्स (रस, छंद, अलंकार, समास, संधि)",
+      "titleEn": "General Hindi Grammar — Complete Competitive Exam Handbook",
+      "category": "General Hindi",
+      "fileSize": "4.1 MB",
+      "pages": 50,
+      "downloadCount": 16800,
+      "summaryHi": "स्वर-व्यंजन संधि, समास विग्रह, रस-निष्पत्ति, 200+ महत्वपूर्ण मुहावरे, पर्यायवाची, विलोम शब्द एवं शुद्ध वर्तनी के परीक्षा उपयोगी नियम।",
+      "summaryEn": "Full Hindi Grammar coverage: Sandhi, Samas, Ras, Chhand, Alankar, 200+ Idioms, Synonyms, Antonyms, and standard spelling rules.",
+      "sampleContentHi": "१. स्वर संधि के 5 भेद: दीर्घ, गुण, वृद्धि, यण, अयादि।\n- गुण संधि: अ/आ + इ/ई = ए (नर + इन्द्र = नरेन्द्र), अ/आ + उ/ऊ = ओ (महा + उत्सव = महोत्सव)।\n- यण संधि: इ/ई + असमान स्वर = य् (प्रति + एक = प्रत्येक)।\n२. समास: 6 प्रकार (अव्ययीभाव, तत्पुरुष, कर्मधारय, द्विगु, द्वंद्व, बहुव्रीहि)।\n३. रस के 4 अंग: विभाव, अनुभाव, संचारी भाव (33) और स्थायी भाव (9/11)।"
+    }
+  ]
 }

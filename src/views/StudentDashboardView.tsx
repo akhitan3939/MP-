@@ -19,10 +19,12 @@ import {
   ListOrdered,
   Gift,
   Share2,
-  Tag
+  Tag,
+  Copy,
+  Check,
+  Percent
 } from 'lucide-react';
 import { ALL_20_PATWARI_SETS } from '../data/patwariSetsData';
-import { XP_TIERS } from '../utils/xpSystem';
 
 export const StudentDashboardView: React.FC = () => {
   const { 
@@ -33,19 +35,28 @@ export const StudentDashboardView: React.FC = () => {
     bookmarkedQuestionIds, 
     questions, 
     reminders, 
+    coupons,
     lang, 
     navigate, 
     openCertificateModal, 
     openNotesModal, 
     openRemindersModal,
     openShareModal,
-    redeemXpForCoupon
+    showToast
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'ENROLLED' | 'ATTEMPTS' | 'BOOKMARKS' | 'XP_REWARDS'>('ENROLLED');
+  const [activeTab, setActiveTab] = useState<'ENROLLED' | 'ATTEMPTS' | 'BOOKMARKS' | 'COUPONS'>('ENROLLED');
+  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
   const [selectedSetPerSeries, setSelectedSetPerSeries] = useState<{ [key: string]: number }>({
     'ts_patwari_2026': 1
   });
+
+  const handleCopyCoupon = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCoupon(code);
+    showToast(lang === 'hi' ? `कूपन कोड '${code}' कॉपी किया गया!` : `Coupon '${code}' copied!`);
+    setTimeout(() => setCopiedCoupon(null), 2000);
+  };
 
   const enrolledSeries = testSeries.filter(s => enrolledSeriesIds.includes(s.id));
   const userAttempts = attempts.filter(a => a.userId === currentUser?.id);
@@ -124,11 +135,12 @@ export const StudentDashboardView: React.FC = () => {
           </div>
 
           <div className="p-4 bg-stone-50 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 rounded-2xl">
-            <span className="text-[10px] uppercase font-bold text-stone-400">अर्जित XP स्कोर</span>
-            <div className="font-mono font-extrabold text-2xl text-amber-500 mt-1">
-              {currentUser?.xp || 0} XP
+            <span className="text-[10px] uppercase font-bold text-stone-400">दैनिक अध्ययन स्ट्रीक</span>
+            <div className="font-mono font-extrabold text-2xl text-orange-500 mt-1 flex items-center gap-1.5">
+              <span>{currentUser?.streak || 1} दिन</span>
+              <Flame className="w-5 h-5 fill-orange-500 text-orange-500" />
             </div>
-            <div className="text-[11px] text-amber-600 font-bold mt-0.5">{currentUser?.streak || 1} दिन स्ट्रीक 🔥</div>
+            <div className="text-[11px] text-emerald-600 font-bold mt-0.5">लगातार सक्रिय अभ्यास</div>
           </div>
 
           <div className="p-4 bg-stone-50 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 rounded-2xl">
@@ -178,15 +190,15 @@ export const StudentDashboardView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('XP_REWARDS')}
+          onClick={() => setActiveTab('COUPONS')}
           className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
-            activeTab === 'XP_REWARDS'
+            activeTab === 'COUPONS'
               ? 'bg-amber-500 text-stone-950 shadow-sm font-extrabold'
               : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
           }`}
         >
           <Gift className="w-4 h-4 text-amber-500" />
-          <span>{lang === 'hi' ? `XP रिवॉर्ड्स व डिस्काउंट कूपन` : `XP Rewards & Coupons`}</span>
+          <span>{lang === 'hi' ? `विशेष डिस्काउंट कूपन` : `Discount Coupons`}</span>
         </button>
       </div>
 
@@ -387,24 +399,24 @@ export const StudentDashboardView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: XP Rewards, Tiers, Coupon Redemption & Viral Referrals */}
-      {activeTab === 'XP_REWARDS' && (
+      {/* TAB 4: Discount Coupons & Offers */}
+      {activeTab === 'COUPONS' && (
         <div className="space-y-8 animate-fadeIn">
           
-          {/* 1. XP Hero & Tier Banner */}
+          {/* 1. Offers Hero Banner */}
           <div className="bg-gradient-to-r from-stone-900 via-amber-950/40 to-stone-900 border-2 border-amber-500/50 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-stone-950 font-black text-xs">
-                <Zap className="w-3.5 h-3.5 fill-current" />
-                <span>MP परीक्षा गेमिफिकेशन व रिवॉर्ड हब</span>
+                <Gift className="w-3.5 h-3.5 fill-current" />
+                <span>MP परीक्षा सेतु विशेष डिस्काउंट व ऑफर्स</span>
               </div>
               <h2 className="font-display font-black text-2xl sm:text-3xl text-white">
-                कुल अर्जित XP: <span className="text-amber-400 font-mono">{currentUser?.xp || 0} XP</span>
+                सक्रिय डिस्काउंट कूपन्स (Active Promo Offers)
               </h2>
               <p className="text-xs sm:text-sm text-stone-300 max-w-xl">
                 {lang === 'hi'
-                  ? 'मॉक टेस्ट दें, सही उत्तरों से XP कमाएँ (गलत पर -5 XP पेनाल्टी), दोस्तों को शेयर करें और डिस्काउंट कूपन अनलॉक करें!'
-                  : 'Earn XP from test attempts (+10 on correct, -5 on incorrect), invite friends, and redeem for mock discounts!'}
+                  ? 'नीचे दिए गए कूपन कोड को कॉपी करें और किसी भी टेस्ट सीरीज़ के चेकआउट पर लागू करके भारी छूट पाएँ!'
+                  : 'Copy the coupon codes below and apply at checkout for instant discounts on premium test series!'}
               </p>
             </div>
 
@@ -416,158 +428,99 @@ export const StudentDashboardView: React.FC = () => {
                 className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl text-xs sm:text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
               >
                 <Share2 className="w-4 h-4" />
-                <span>दोस्तों को शेयर करें (+100 XP)</span>
+                <span>दोस्तों के साथ पोर्टल शेयर करें</span>
               </button>
             </div>
           </div>
 
-          {/* 2. XP Tiers Progress Cards */}
+          {/* 2. Active Platform Coupons Grid */}
           <div className="space-y-4">
             <h3 className="font-display font-black text-lg text-stone-900 dark:text-white flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-500" />
-              <span>XP टियर व रैंक लेवल्स (Progression Tiers)</span>
+              <Tag className="w-5 h-5 text-amber-500" />
+              <span>उपलब्ध कूपन कोड्स (Available Coupon Codes)</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {XP_TIERS.map((tier) => {
-                const userXp = currentUser?.xp || 0;
-                const isCurrent = userXp >= tier.minXp && (tier.minXp === 5000 || userXp < (tier.minXp * 2.5));
-                const isUnlocked = userXp >= tier.minXp;
-
-                return (
-                  <div
-                    key={tier.level}
-                    className={`p-5 rounded-2xl border-2 transition relative flex flex-col justify-between ${
-                      isCurrent
-                        ? 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-400/50 shadow-md'
-                        : isUnlocked
-                        ? 'bg-white dark:bg-stone-900 border-emerald-500/50'
-                        : 'bg-stone-50 dark:bg-stone-950 border-stone-200 dark:border-stone-800 opacity-70'
-                    }`}
-                  >
-                    {isCurrent && (
-                      <span className="absolute -top-3 right-4 px-2 py-0.5 rounded-full bg-amber-500 text-stone-950 text-[10px] font-black uppercase tracking-wider">
-                        वर्तमान टियर
-                      </span>
-                    )}
-
-                    <div className="space-y-2">
-                      <div className="text-3xl">{tier.badge}</div>
-                      <div className="font-display font-bold text-base text-stone-900 dark:text-white">
-                        {tier.titleHi}
-                      </div>
-                      <div className="text-xs text-stone-500 font-mono font-bold">
-                        {tier.minXp}+ XP
-                      </div>
-                      <p className="text-[11px] text-stone-600 dark:text-stone-400">
-                        {tier.perksHi}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 pt-2 border-t border-stone-200 dark:border-stone-800 text-[10px] font-bold">
-                      {isUnlocked ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">✓ अनलॉक्ड (Unlocked)</span>
-                      ) : (
-                        <span className="text-stone-400">🔒 {tier.minXp - userXp} XP शेष</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. XP Rules & Earning Formula */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-white dark:bg-stone-900 border border-emerald-300 dark:border-emerald-700/60 rounded-2xl space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-black text-emerald-600">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>सही उत्तर (+10 XP)</span>
-              </div>
-              <p className="text-xs text-stone-500">प्रत्येक सही हल किए गए प्रश्न पर तुरंत 10 XP मिलते हैं।</p>
-            </div>
-
-            <div className="p-4 bg-white dark:bg-stone-900 border border-rose-300 dark:border-rose-700/60 rounded-2xl space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-black text-rose-600">
-                <Flame className="w-4 h-4" />
-                <span>गलत उत्तर पेनाल्टी (-5 XP)</span>
-              </div>
-              <p className="text-xs text-stone-500">तुक्का लगाने से बचें! प्रत्येक गलत उत्तर पर -5 XP कटेंगे।</p>
-            </div>
-
-            <div className="p-4 bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-700/60 rounded-2xl space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-black text-amber-600">
-                <Sparkles className="w-4 h-4" />
-                <span>स्ट्रीक व स्पीड बोनस (+25 to +50 XP)</span>
-              </div>
-              <p className="text-xs text-stone-500">लगातार सही उत्तरों और तेज गति से टेस्ट पूरा करने पर अतिरिक्त बोनस।</p>
-            </div>
-
-            <div className="p-4 bg-white dark:bg-stone-900 border border-purple-300 dark:border-purple-700/60 rounded-2xl space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-black text-purple-600">
-                <Share2 className="w-4 h-4" />
-                <span>रेफरल शेयरिंग (+100 XP)</span>
-              </div>
-              <p className="text-xs text-stone-500">दोस्तों के साथ WhatsApp/Telegram पर शेयर करने पर +100 XP पाएँ।</p>
-            </div>
-          </div>
-
-          {/* 4. Instant XP Coupon Redemption */}
-          <div className="bg-white dark:bg-stone-900 border-2 border-stone-200 dark:border-stone-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-display font-black text-lg sm:text-xl text-stone-900 dark:text-white flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-amber-500" />
-                  <span>XP रिडीम करें और डिस्काउंट कूपन पाएँ</span>
-                </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  अपने संचित XP पॉइंट्स को टेस्ट सीरीज़ के डिस्काउंट कूपन में बदलें।
-                </p>
-              </div>
-              <div className="font-mono font-black text-xs px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300">
-                बैलेंस: {currentUser?.xp || 0} XP
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { requiredXp: 300, discountPct: 20, code: 'XP20_DISCOUNT', titleHi: '20% छूट कूपन (20% OFF)' },
-                { requiredXp: 700, discountPct: 50, code: 'XP50_HALFOFF', titleHi: '50% भारी छूट कूपन (50% OFF)' },
-                { requiredXp: 1500, discountPct: 100, code: 'XP100_FREESET', titleHi: '100% फ्री टेस्ट सीरीज़ कूपन (100% FREE)' }
-              ].map(coupon => {
-                const canRedeem = (currentUser?.xp || 0) >= coupon.requiredXp;
-                return (
-                  <div 
-                    key={coupon.code}
-                    className="p-5 rounded-2xl border-2 border-dashed border-amber-400 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-950/20 flex flex-col justify-between space-y-4"
-                  >
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900 px-2 py-0.5 rounded">
-                        {coupon.requiredXp} XP आवश्यक
+              {coupons.map((coupon) => (
+                <div 
+                  key={coupon.code}
+                  className="p-5 rounded-2xl border-2 border-dashed border-amber-400 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-950/20 flex flex-col justify-between space-y-4 shadow-sm"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Percent className="w-3 h-3" />
+                        {coupon.discountType === 'percentage' ? `${coupon.discountValue}% की छूट` : `₹${coupon.discountValue} की फ्लैट छूट`}
                       </span>
-                      <h4 className="font-display font-bold text-base text-stone-900 dark:text-white">
-                        {coupon.titleHi}
-                      </h4>
-                      <p className="text-xs text-stone-600 dark:text-stone-400">
-                        किसी भी प्रीमियम MP ESB 20-सेट टेस्ट सीरीज़ के चेकआउट पर लागू करें।
-                      </p>
+                      <span className="text-[10px] text-stone-500">
+                        {coupon.expiresAt ? `वैधता: ${coupon.expiresAt}` : 'वैधता: 31 दिस. 2026'}
+                      </span>
                     </div>
 
+                    <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-amber-300 dark:border-amber-800 flex items-center justify-between font-mono font-black text-base text-amber-600 dark:text-amber-400">
+                      <span>{coupon.code}</span>
+                      <button
+                        onClick={() => handleCopyCoupon(coupon.code)}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black flex items-center gap-1 transition cursor-pointer"
+                        title="Copy coupon code"
+                      >
+                        {copiedCoupon === coupon.code ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-stone-950" />
+                            <span>कॉपी हुआ!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-stone-950" />
+                            <span>कॉपी करें</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-stone-600 dark:text-stone-400">
+                      {coupon.descriptionHi || coupon.descriptionEn || 'सभी 20-सेट फुल लेंथ मॉक टेस्ट सीरीज़ पर लागू।'}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between text-[11px]">
+                    <span className="text-emerald-600 font-bold">✓ 100% सत्यापित कूपन</span>
                     <button
-                      onClick={() => redeemXpForCoupon(coupon.requiredXp)}
-                      disabled={!canRedeem}
-                      className={`w-full py-2.5 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-2 ${
-                        canRedeem
-                          ? 'bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-md hover:scale-105 active:scale-95'
-                          : 'bg-stone-200 dark:bg-stone-800 text-stone-400 cursor-not-allowed'
-                      }`}
+                      onClick={() => navigate('catalog')}
+                      className="text-amber-600 dark:text-amber-400 font-bold hover:underline"
                     >
-                      <Gift className="w-4 h-4" />
-                      <span>{canRedeem ? 'XP रिडीम करें (Redeem Coupon)' : `🔒 ${coupon.requiredXp - (currentUser?.xp || 0)} XP और चाहिए`}</span>
+                      टेस्ट सीरीज़ देखें →
                     </button>
                   </div>
-                );
-              })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Study Tips & Benefits Card */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-black text-emerald-600">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>नि:शुल्क डेमो टेस्ट्स</span>
+              </div>
+              <p className="text-xs text-stone-500">प्रत्येक टेस्ट सीरीज़ का पहला सेट पूर्णतः नि:शुल्क अभ्यास हेतु उपलब्ध है।</p>
+            </div>
+
+            <div className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-black text-blue-600">
+                <Flame className="w-4 h-4" />
+                <span>दैनिक अध्ययन स्ट्रीक</span>
+              </div>
+              <p className="text-xs text-stone-500">प्रतिदिन कम से कम एक टेस्ट हल करके अपनी स्ट्रीक को लगातार सक्रिय रखें।</p>
+            </div>
+
+            <div className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-600">
+                <Award className="w-4 h-4" />
+                <span>ऑल-एमपी ई-सर्टिफिकेट</span>
+              </div>
+              <p className="text-xs text-stone-500">टेस्ट पूरा करने पर तुरंत आधिकारिक रैंक व मार्क्स वाला सत्यापन प्रमाणपत्र डाउनलोड करें।</p>
             </div>
           </div>
 

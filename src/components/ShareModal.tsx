@@ -13,7 +13,6 @@ import {
   Flame,
   MessageCircle
 } from 'lucide-react';
-import { AudioAlert } from '../utils/audioAlert';
 
 export const ShareModal: React.FC = () => {
   const { 
@@ -22,12 +21,10 @@ export const ShareModal: React.FC = () => {
     shareModalParams, 
     currentUser, 
     lang, 
-    awardXp, 
     showToast 
   } = useApp();
 
   const [copied, setCopied] = useState<boolean>(false);
-  const [hasEarnedShareXp, setHasEarnedShareXp] = useState<boolean>(false);
   const [showQr, setShowQr] = useState<boolean>(false);
 
   if (!isShareModalOpen) return null;
@@ -54,36 +51,24 @@ export const ShareModal: React.FC = () => {
 
   const defaultShareText = lang === 'hi' ? shareTextHi : shareTextEn;
 
-  const handleRewardXp = () => {
-    if (!hasEarnedShareXp) {
-      setHasEarnedShareXp(true);
-      AudioAlert.playXpGainSound();
-      awardXp(50, 'वायरल शेयर बोनस (+50 XP)');
-    }
-  };
-
   const handleCopyLink = () => {
     navigator.clipboard.writeText(defaultShareText);
     setCopied(true);
-    handleRewardXp();
-    showToast(lang === 'hi' ? '📋 शेयर संदेश व लिंक कॉपी हो गया! (+50 XP रिवॉर्ड मिला 🎉)' : '📋 Link copied! (+50 XP awarded 🎉)');
+    showToast(lang === 'hi' ? '📋 शेयर संदेश व लिंक कॉपी हो गया!' : '📋 Link copied successfully!');
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleWhatsAppShare = () => {
-    handleRewardXp();
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(defaultShareText)}`;
     window.open(waUrl, '_blank');
   };
 
   const handleTelegramShare = () => {
-    handleRewardXp();
     const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(lang === 'hi' ? `🎯 MP परीक्षा सेतु - ${testTitle}` : `🎯 MP Pariksha Setu - ${testTitle}`)}`;
     window.open(tgUrl, '_blank');
   };
 
   const handleTwitterShare = () => {
-    handleRewardXp();
     const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(defaultShareText)}`;
     window.open(twUrl, '_blank');
   };
@@ -96,8 +81,7 @@ export const ShareModal: React.FC = () => {
           text: defaultShareText,
           url: shareUrl,
         });
-        handleRewardXp();
-        showToast(lang === 'hi' ? '🎉 सफलतापूर्वक शेयर किया गया! (+50 XP)' : '🎉 Shared successfully! (+50 XP)');
+        showToast(lang === 'hi' ? '🎉 सफलतापूर्वक शेयर किया गया!' : '🎉 Shared successfully!');
       } catch (e) {
         // User cancelled or share failed
       }
@@ -123,8 +107,8 @@ export const ShareModal: React.FC = () => {
 
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400 text-stone-950 font-black text-xs rounded-full shadow-sm">
-              <Gift className="w-3.5 h-3.5" />
-              {lang === 'hi' ? 'शेयर करें & +50 XP पाएँ' : 'Share & Earn +50 XP'}
+              <Share2 className="w-3.5 h-3.5" />
+              {lang === 'hi' ? 'शेयर करें & आमंत्रित करें' : 'Share & Invite'}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200">
               <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
@@ -138,7 +122,7 @@ export const ShareModal: React.FC = () => {
           <p className="text-xs text-amber-100/90 mt-1">
             {lang === 'hi' 
               ? 'व्हाट्सएप ग्रुप्स व टेलीग्राम चैनल्स में शेयर करके अपने साथियों को मॉक टेस्ट के लिए आमंत्रित करें।'
-              : 'Share in your study groups to challenge peers and earn instant XP bonuses!'}
+              : 'Share in your study groups to challenge peers and prepare together!'}
           </p>
         </div>
 
@@ -267,13 +251,13 @@ export const ShareModal: React.FC = () => {
             )}
           </div>
 
-          {/* XP Reward Status Alert */}
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2.5 text-xs text-emerald-800 dark:text-emerald-300">
-            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          {/* Share Info Alert */}
+          <div className="p-3 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-xl flex items-center gap-2.5 text-xs text-stone-700 dark:text-stone-300">
+            <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
               {lang === 'hi' 
-                ? 'प्रत्येक शेयर पर आपको तुरंत +50 XP पॉइंट मिलते हैं जिन्हें आप छूट कूपन में बदल सकते हैं!' 
-                : 'Earn +50 XP on every share to unlock exclusive fee discount coupons!'}
+                ? 'अपने अध्ययन मित्रों और स्टडी ग्रुप्स में शेयर करके उन्हें ऑल-एमपी रैंकिंग में भाग लेने के लिए आमंत्रित करें!' 
+                : 'Invite your study partners and peers to join the All-MP Live Rankings!'}
             </span>
           </div>
         </div>

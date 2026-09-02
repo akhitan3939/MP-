@@ -46,7 +46,7 @@ interface SocialFeedItem {
 }
 
 export const SocialSidePanel: React.FC = () => {
-  const { lang, platformSettings, showToast, grantStudentXp, currentUser } = useApp();
+  const { lang, platformSettings, showToast, currentUser } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [activePlatformFilter, setActivePlatformFilter] = useState<'all' | 'facebook' | 'instagram' | 'telegram'>('all');
   const [isPaused, setIsPaused] = useState(false);
@@ -179,8 +179,7 @@ export const SocialSidePanel: React.FC = () => {
     if (selectedPollOption !== null) return;
     setSelectedPollOption(optionIndex);
     if (optionIndex === 0) {
-      showToast('🎉 बिल्कुल सही उत्तर! पचमढ़ी (1999) पहला बायोस्फीयर रिज़र्व है। +10 XP');
-      if (currentUser) grantStudentXp(currentUser.id, 10);
+      showToast('🎉 बिल्कुल सही उत्तर! पचमढ़ी (1999) पहला बायोस्फीयर रिज़र्व है।');
     } else {
       showToast('❌ सही उत्तर "पचमढ़ी (1999)" है। अगली बार बेहतर प्रयास करें!');
     }

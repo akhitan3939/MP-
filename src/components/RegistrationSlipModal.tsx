@@ -265,19 +265,19 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                 </div>
               </div>
 
-              {/* Welcome Bonus XP Banner */}
+              {/* Welcome Free Mock Pass Banner */}
               <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black">
                     <Award className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="font-black text-xs text-emerald-950">वेलकम बोनस क्रेडिट (Welcome Bonus)</div>
-                    <div className="text-[10px] text-emerald-700">ऑल-एमपी टेस्ट सीरीज छूट हेतु ₹500 मूल्य के XP क्रेडिटेड</div>
+                    <div className="font-black text-xs text-emerald-950">मुफ़्त मॉक टेस्ट पास (Free Mock Pass)</div>
+                    <div className="text-[10px] text-emerald-700">ऑल-एमपी लाइव रैंकिंग और विस्तृत AI व्याख्या सक्रिय</div>
                   </div>
                 </div>
-                <div className="font-mono font-black text-base text-emerald-700">
-                  +{user.xp || 500} XP
+                <div className="font-bold text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-300">
+                  UNLOCKED
                 </div>
               </div>
             </div>

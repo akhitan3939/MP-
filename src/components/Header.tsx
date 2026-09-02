@@ -142,7 +142,7 @@ export const Header: React.FC = () => {
                       )}
                     </div>
                     <div className="text-[9px] text-[#D4A017] font-bold font-mono">
-                      {currentUser.xp} XP • {currentUser.streak}🔥
+                      🔥 {currentUser.streak || 1} दिन स्ट्रीक
                     </div>
                   </div>
                   <ChevronDown className="w-3.5 h-3.5 text-[#EAD8B1] hidden sm:block" />

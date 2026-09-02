@@ -56,7 +56,6 @@ const INITIAL_DEFAULT_USERS = [
     state: 'मध्यप्रदेश (MP)',
     targetExam: 'All MP Exams Management',
     joinedAt: '2025-01-01T10:00:00.000Z',
-    xp: 25000,
     streak: 45,
     badges: ['👑 Admin Master', '🏛️ MP Setu Director', '📊 Analytics Lead'],
   },
@@ -71,7 +70,6 @@ const INITIAL_DEFAULT_USERS = [
     state: 'मध्यप्रदेश (MP)',
     targetExam: 'MP पटवारी / समूह-2 उपसमूह-4',
     joinedAt: '2025-01-15T09:30:00.000Z',
-    xp: 4850,
     streak: 14,
     badges: ['🥈 Rank 2 (MP Topper)', '🔥 14-Day Streak', '🎯 40-Q Free Mock Master'],
   },
@@ -86,7 +84,6 @@ const INITIAL_DEFAULT_USERS = [
     state: 'मध्यप्रदेश (MP)',
     targetExam: 'MP पटवारी 2026',
     joinedAt: '2025-01-10T14:20:00.000Z',
-    xp: 5920,
     streak: 22,
     badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
   },
@@ -101,7 +98,6 @@ const INITIAL_DEFAULT_USERS = [
     state: 'मध्यप्रदेश (MP)',
     targetExam: 'MP पुलिस आरक्षक & SI',
     joinedAt: '2025-01-20T11:15:00.000Z',
-    xp: 3400,
     streak: 8,
     badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
   },
@@ -116,7 +112,6 @@ const INITIAL_DEFAULT_USERS = [
     state: 'मध्यप्रदेश (MP)',
     targetExam: 'MPPSC प्रारंभिक परीक्षा 2026',
     joinedAt: '2025-01-25T16:45:00.000Z',
-    xp: 2950,
     streak: 11,
     badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
   },
@@ -131,7 +126,6 @@ const INITIAL_DEFAULT_USERS = [
     state: 'मध्यप्रदेश (MP)',
     targetExam: 'कृषि विस्तार अधिकारी (RAEO)',
     joinedAt: '2025-02-01T10:00:00.000Z',
-    xp: 2600,
     streak: 6,
     badges: ['🌱 Agri Warrior', '🎯 Free Mock Completed'],
   }
@@ -561,7 +555,6 @@ app.post('/api/users/register', (req: Request, res: Response) => {
     state: newUser.state || 'मध्यप्रदेश (MP)',
     targetExam: newUser.targetExam || 'MP पटवारी 2026',
     joinedAt: newUser.joinedAt || new Date().toISOString(),
-    xp: typeof newUser.xp === 'number' ? newUser.xp : 100,
     streak: typeof newUser.streak === 'number' ? newUser.streak : 1,
     badges: Array.isArray(newUser.badges) ? newUser.badges : ['🌱 New Aspirant']
   };
@@ -684,14 +677,12 @@ app.post('/api/attempts', (req: Request, res: Response) => {
 
   inMemoryAppState.attempts = attempts;
 
-  // Award XP to user if registered
+  // Update streak for user if registered
   if (attemptWithDefaults.userId && Array.isArray(inMemoryAppState.users)) {
     const uIdx = inMemoryAppState.users.findIndex(u => u.id === attemptWithDefaults.userId);
     if (uIdx >= 0) {
-      const earnedXp = Math.round((attemptWithDefaults.score || 10) * 10);
       inMemoryAppState.users[uIdx] = {
         ...inMemoryAppState.users[uIdx],
-        xp: (inMemoryAppState.users[uIdx].xp || 0) + earnedXp,
         streak: (inMemoryAppState.users[uIdx].streak || 1) + 1
       };
     }

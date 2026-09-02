@@ -19,7 +19,6 @@ import {
   NavigationMenuItem 
 } from '../types';
 import { StorageService, INITIAL_NAV_MENUS } from '../utils/storage';
-import { calculateAttemptXp } from '../utils/xpSystem';
 
 interface AppContextType {
   // Global State
@@ -87,10 +86,8 @@ interface AppContextType {
   closeShareModal: () => void;
 
   // Actions
-  awardXp: (amount: number, reason?: string) => void;
-  redeemXpForCoupon: (xpToRedeem: number) => { success: boolean; couponCode?: string; message: string };
   login: (identifier: string, password?: string, role?: 'student' | 'admin') => boolean;
-  register: (user: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>) => { success: boolean; message: string; user?: UserProfile };
+  register: (user: Omit<UserProfile, 'id' | 'joinedAt' | 'streak' | 'badges'>) => { success: boolean; message: string; user?: UserProfile };
   resetPassword: (identifier: string, newPassword: string) => { success: boolean; message: string; user?: UserProfile };
   logout: () => void;
   switchUser: (userId: string) => void;
@@ -144,7 +141,6 @@ interface AppContextType {
   toggleUserRole: (userId: string) => void;
   toggleUserDummyStatus: (userId: string) => void;
   resetStudentPassword: (userId: string, newPass: string) => void;
-  grantStudentXp: (userId: string, xp: number) => void;
   broadcastPushNotification: (title: string, message: string) => void;
   refreshCloudData: () => Promise<void>;
 }
@@ -616,7 +612,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return true;
   };
 
-  const register = (data: Omit<UserProfile, 'id' | 'joinedAt' | 'xp' | 'streak' | 'badges'>): { success: boolean; message: string; user?: UserProfile } => {
+  const register = (data: Omit<UserProfile, 'id' | 'joinedAt' | 'streak' | 'badges'>): { success: boolean; message: string; user?: UserProfile } => {
     const cleanEmail = data.email.trim().toLowerCase();
     const cleanUsername = (data.username || '').trim().toLowerCase();
     const cleanPhone = (data.phone || '').trim().replace(/\D/g, '').slice(-10);
@@ -656,7 +652,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       username: autoUsername,
       id: `usr_${Date.now()}`,
       joinedAt: new Date().toISOString(),
-      xp: 500,
       streak: 1,
       badges: ['🌟 New Aspirant', '🎯 MP Ready'],
       isDummyUser: false,
@@ -679,8 +674,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }).catch(err => console.warn('Registration server sync error:', err));
     
     const successMsg = lang === 'hi' 
-      ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा और ₹500 वेलकम बोनस XP मिला।` 
-      : `🎉 Welcome, ${newUser.name}! Registration successful with 500 XP bonus.`;
+      ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा।` 
+      : `🎉 Welcome, ${newUser.name}! Registration successful.`;
     showToast(successMsg);
     return { success: true, message: successMsg, user: newUser };
   };
@@ -786,58 +781,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setShareModalParams(null);
   };
 
-  const awardXp = (amount: number, reason?: string) => {
-    const user = currentUser || users[1];
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: (u.xp || 0) + amount } : u));
-    showToast(lang === 'hi' ? `🎉 +${amount} XP रिवॉर्ड मिला! ${reason ? `(${reason})` : ''}` : `🎉 +${amount} XP awarded! ${reason ? `(${reason})` : ''}`);
-  };
-
-  const redeemXpForCoupon = (xpToRedeem: number): { success: boolean; couponCode?: string; message: string } => {
-    const user = currentUser || users[1];
-    const currentXp = user.xp || 0;
-
-    if (currentXp < xpToRedeem) {
-      const msg = lang === 'hi'
-        ? `⚠️ आपके पास पर्याप्त XP नहीं हैं। आवश्यक: ${xpToRedeem} XP, उपलब्ध: ${currentXp} XP`
-        : `⚠️ Insufficient XP. Required: ${xpToRedeem} XP, Available: ${currentXp} XP`;
-      showToast(msg);
-      return { success: false, message: msg };
-    }
-
-    let discountAmount = 50;
-    if (xpToRedeem >= 2000) discountAmount = 200;
-    else if (xpToRedeem >= 1000) discountAmount = 100;
-    else if (xpToRedeem >= 500) discountAmount = 50;
-
-    const generatedCode = `XP${discountAmount}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-    // Deduct user's XP
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: Math.max(0, u.xp - xpToRedeem) } : u));
-
-    // Create new Coupon in system
-    const newCoupon: Coupon = {
-      code: generatedCode,
-      discountType: 'flat',
-      discountValue: discountAmount,
-      minAmount: discountAmount + 50,
-      descriptionHi: `${xpToRedeem} XP रिडीम करने पर ₹${discountAmount} की विशेष छूट`,
-      descriptionEn: `₹${discountAmount} flat discount from ${xpToRedeem} XP redemption`,
-      validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      usageCount: 0,
-      isActive: true
-    };
-
-    setCoupons(prev => [newCoupon, ...prev]);
-
-    const successMsg = lang === 'hi'
-      ? `🎉 बधाई! ${xpToRedeem} XP के बदले ₹${discountAmount} की छूट वाला विशेष कूपन कोड '${generatedCode}' सक्रिय हो गया है!`
-      : `🎉 Success! Redeemed ${xpToRedeem} XP for ₹${discountAmount} discount coupon '${generatedCode}'!`;
-
-    showToast(successMsg);
-    return { success: true, couponCode: generatedCode, message: successMsg };
-  };
-
   const isEnrolled = (seriesId: string): boolean => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
@@ -900,9 +843,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Update series enrolled count
     setTestSeries(prev => prev.map(s => s.id === series.id ? { ...s, enrolledCount: s.enrolledCount + 1 } : s));
-
-    // Award XP
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, xp: u.xp + 300 } : u));
 
     // Immediate server sync for order and enrollment
     fetch('/api/orders/record', {
@@ -1009,7 +949,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       role: 'student',
       district: 'भोपाल (Bhopal)',
       state: 'मध्यप्रदेश (MP)',
-      xp: 100,
       streak: 1,
       badges: ['🎯 MP Aspirant', '📝 Mock Tested']
     };
@@ -1037,16 +976,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       studentName: user.name || 'परीक्षार्थी',
     });
 
-    // Calculate Dynamic XP Breakdown (+10 for correct, -5 penalty for wrong, streak & speed bonus)
-    const xpBreakdown = calculateAttemptXp({
-      correctCount: safeCorrect,
-      incorrectCount: safeIncorrect,
-      unattemptedCount: safeUnattempted,
-      streak: user.streak || 1,
-      durationSeconds: safeDuration,
-      totalQuestions: safeTotalQuestions,
-    });
-
     const newAttempt: TestAttempt = {
       ...rawAttempt,
       id: `att_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -1064,7 +993,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rank,
       totalParticipants,
       percentile,
-      xpBreakdown,
       aiReport: instantAiReport
     };
 
@@ -1107,12 +1035,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return ranked;
     });
 
-    // Award / Penalize XP dynamically (Net XP applied to user profile)
+    // Update streak for student
     if (user.id && user.id !== 'usr_guest') {
       setUsers(prev => {
         const updated = (prev || []).map(u => u.id === user.id ? { 
           ...u, 
-          xp: Math.max(0, (u.xp || 0) + xpBreakdown.netXp), 
           streak: (u.streak || 0) + 1 
         } : u);
         StorageService.setUsers(updated);
@@ -1829,7 +1756,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       district: userData.district || 'भोपाल (Bhopal)',
       state: userData.state || 'मध्यप्रदेश (MP)',
       targetExam: userData.targetExam || 'MP पटवारी 2026',
-      xp: typeof userData.xp === 'number' ? userData.xp : 250,
       streak: typeof userData.streak === 'number' ? userData.streak : 1,
       badges: ['🌱 New Aspirant', '🎁 Direct Admin Enrolled'],
       joinedAt: new Date().toISOString(),
@@ -2035,25 +1961,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(lang === 'hi' ? 'पासवर्ड सफलतापूर्वक रीसेट हुआ' : 'Password reset successfully');
   };
 
-  const grantStudentXp = (userId: string, xpToAdd: number) => {
-    let targetUpdated: UserProfile | undefined;
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        targetUpdated = { ...u, xp: (u.xp || 0) + xpToAdd };
-        return targetUpdated;
-      }
-      return u;
-    }));
-    if (targetUpdated) {
-      fetch('/api/users/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(targetUpdated)
-      }).catch(err => console.warn('User xp update sync error:', err));
-    }
-    showToast(lang === 'hi' ? `+${xpToAdd} XP छात्र को प्रदान किए गए` : `+${xpToAdd} XP granted to student`);
-  };
-
   const broadcastPushNotification = (title: string, message: string) => {
     showToast(`📢 [BROADCAST]: ${title} — ${message}`);
   };
@@ -2122,9 +2029,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         openShareModal,
         closeShareModal,
 
-        awardXp,
-        redeemXpForCoupon,
-
         login,
         register,
         resetPassword,
@@ -2175,7 +2079,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleUserRole,
         toggleUserDummyStatus,
         resetStudentPassword,
-        grantStudentXp,
         broadcastPushNotification,
         refreshCloudData
       }}

@@ -17,7 +17,6 @@ export interface UserProfile {
   avatarUrl?: string;
   joinedAt?: string;
   createdAt?: string;
-  xp: number;
   streak: number;
   badges: string[];
   customTag?: string;
@@ -352,13 +351,6 @@ export interface TestAttempt {
   answers: Record<string, UserAnswerRecord | number | any>;
   sectionScores: SectionScore[];
   aiReport?: AiEvaluationReport;
-  xpBreakdown?: {
-    correctXp: number;
-    penaltyXp: number;
-    streakBonus: number;
-    speedBonus: number;
-    netXp: number;
-  };
   certificateId: string;
 }
 

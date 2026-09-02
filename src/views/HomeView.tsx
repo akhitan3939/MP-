@@ -283,7 +283,7 @@ export const HomeView: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-black text-sm sm:text-base leading-tight">
-                {lang === 'hi' ? (wc?.regBannerTitleHi || 'नया छात्र पंजीकरण (Free Registration) करें और ₹500 वेलकम बोनस XP पाएँ!') : (wc?.regBannerTitleEn || 'New Aspirant Free Sign Up & Get ₹500 Welcome Bonus XP!')}
+                {lang === 'hi' ? (wc?.regBannerTitleHi || 'नया छात्र पंजीकरण (Free Registration) करें और मुफ़्त फुल मॉक टेस्ट पाएँ!') : (wc?.regBannerTitleEn || 'New Aspirant Free Sign Up & Get 1 Free Full Mock Test!')}
               </h3>
               <p className="text-xs font-bold text-stone-800 mt-0.5">
                 {lang === 'hi' ? (wc?.regBannerSubtitleHi || '55 जिलों के 50,000+ अभ्यर्थियों के साथ ऑल-एमपी लाइव रैंक और निःशुल्क ई-नोट्स अनलॉक करें।') : (wc?.regBannerSubtitleEn || 'Join 50,000+ aspirants across 55 MP districts with live state rank and free e-notes.')}

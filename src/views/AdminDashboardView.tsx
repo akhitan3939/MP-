@@ -164,7 +164,6 @@ export const AdminDashboardView: React.FC = () => {
     toggleUserRole,
     toggleUserDummyStatus,
     resetStudentPassword,
-    grantStudentXp,
     broadcastPushNotification, 
     enrolledSeriesIds, 
     enrolledMap,
@@ -391,10 +390,6 @@ export const AdminDashboardView: React.FC = () => {
 
   // Orders Tab Filter State
   const [orderFilterType, setOrderFilterType] = useState<'all' | 'valid' | 'dummy' | 'success' | 'failed'>('all');
-
-  // Bonus XP Modal
-  const [xpModalUser, setXpModalUser] = useState<UserProfile | null>(null);
-  const [bonusXpVal, setBonusXpVal] = useState<number>(500);
 
   // Push Broadcast
   const [broadcastTitle, setBroadcastTitle] = useState('');
@@ -738,7 +733,6 @@ export const AdminDashboardView: React.FC = () => {
       'गृह जिला (District)': u.district,
       'लक्ष्य परीक्षा': u.targetExam,
       'रोल': u.role === 'admin' ? 'प्रशासक (Admin)' : 'छात्र (Student)',
-      'XP अंक': u.xp || 0,
       'लगातार दिन (Streak)': u.streak || 0,
       'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleDateString('hi-IN')
     }));
@@ -2783,7 +2777,7 @@ export const AdminDashboardView: React.FC = () => {
                         <span className="text-xs font-black text-stone-800 dark:text-white">1. पंजीकृत छात्र रिपोर्ट</span>
                         <Users className="w-4 h-4 text-blue-600" />
                       </div>
-                      <p className="text-[11px] text-stone-500 mt-1">छात्र नाम, मोबाइल, ईमेल, जिला, रोल, XP व स्ट्रीक</p>
+                      <p className="text-[11px] text-stone-500 mt-1">छात्र नाम, मोबाइल, ईमेल, जिला, रोल व स्ट्रीक</p>
                     </div>
                     <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
                       <button
@@ -2796,7 +2790,6 @@ export const AdminDashboardView: React.FC = () => {
                             'गृह जिला': u.district,
                             'लक्ष्य परीक्षा': u.targetExam,
                             'रोल': u.role === 'admin' ? 'प्रशासक (Admin)' : 'छात्र (Student)',
-                            'XP अंक': u.xp || 0,
                             'लगातार दिन (Streak)': u.streak || 0,
                             'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleDateString('hi-IN')
                           }));
@@ -2818,7 +2811,6 @@ export const AdminDashboardView: React.FC = () => {
                             'गृह जिला': u.district,
                             'लक्ष्य परीक्षा': u.targetExam,
                             'रोल': u.role,
-                            'XP': u.xp || 0,
                             'Streak': u.streak || 0
                           }));
                           exportToCsv(data, `MP_Pariksha_Setu_Users_${new Date().toISOString().split('T')[0]}`);
@@ -3143,7 +3135,6 @@ export const AdminDashboardView: React.FC = () => {
                           'लक्ष्य परीक्षा': u.targetExam,
                           'रोल': u.role,
                           'मुफ़्त पैकेज': u.role === 'admin' ? 'ALL_ADMIN' : (enrolledMap[u.id] || []).join(', ') || 'None',
-                          'XP अंक': u.xp || 0,
                           'Streak': u.streak || 0,
                           'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleString('hi-IN')
                         }));
@@ -3241,7 +3232,7 @@ export const AdminDashboardView: React.FC = () => {
                           <th className="py-3 px-4">गृह जिला व परीक्षा</th>
                           <th className="py-3 px-4">रोल (Role)</th>
                           <th className="py-3 px-4">🎁 मुफ़्त / अनलॉक पैकेज</th>
-                          <th className="py-3 px-4">प्रगति (XP & Streak)</th>
+                          <th className="py-3 px-4">प्रगति (Streak)</th>
                           <th className="py-3 px-4">पंजीकरण दिनांक</th>
                           <th className="py-3 px-4 text-center">कार्रवाई</th>
                         </tr>
@@ -3368,8 +3359,7 @@ export const AdminDashboardView: React.FC = () => {
                                 </td>
 
                                 <td className="py-3.5 px-4 font-mono">
-                                  <div className="font-black text-amber-600">{user.xp || 0} XP</div>
-                                  <div className="text-[10px] text-stone-400">🔥 {user.streak || 0} दिन स्ट्रीक</div>
+                                  <div className="font-black text-amber-600">🔥 {user.streak || 0} दिन स्ट्रीक</div>
                                 </td>
 
                                 <td className="py-3.5 px-4 text-stone-400 font-mono text-[11px]">
@@ -3410,17 +3400,6 @@ export const AdminDashboardView: React.FC = () => {
                                     >
                                       <Gift className="w-3.5 h-3.5" />
                                       <span>मुफ़्त टेस्ट</span>
-                                    </button>
-
-                                    <button
-                                      onClick={() => {
-                                        setXpModalUser(user);
-                                        setBonusXpVal(500);
-                                      }}
-                                      className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                                      title="+XP बोनस अंक दें"
-                                    >
-                                      <Award className="w-3.5 h-3.5" />
                                     </button>
 
                                     <button
@@ -4502,8 +4481,8 @@ export const AdminDashboardView: React.FC = () => {
                               <span className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{user.targetExam || 'MP पटवारी 2026'}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-stone-500">XP व स्ट्रीक:</span>
-                              <span className="font-mono font-bold text-amber-600">{user.xp || 0} XP • 🔥 {user.streak || 0} Days</span>
+                              <span className="text-stone-500">अध्ययन स्ट्रीक:</span>
+                              <span className="font-mono font-bold text-amber-600">🔥 {user.streak || 0} Days</span>
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-stone-500">अनलॉक टेस्ट सीरीज़:</span>
@@ -4546,18 +4525,6 @@ export const AdminDashboardView: React.FC = () => {
                             title="पासवर्ड रीसेट करें"
                           >
                             <Key className="w-3.5 h-3.5 text-stone-600 dark:text-stone-300" />
-                          </button>
-
-                          {/* Bonus XP */}
-                          <button
-                            onClick={() => {
-                              setXpModalUser(user);
-                              setBonusXpVal(500);
-                            }}
-                            className="py-2 px-3 rounded-xl bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 hover:bg-amber-200 text-xs font-bold cursor-pointer transition"
-                            title="बोनस XP प्रदान करें"
-                          >
-                            <Award className="w-3.5 h-3.5 text-amber-600" />
                           </button>
 
                           {/* Delete User Button */}
@@ -5707,7 +5674,7 @@ export const AdminDashboardView: React.FC = () => {
                             type="text"
                             value={editingSettings.websiteContent?.regBannerSubtitleHi || ''}
                             onChange={(e) => updateWebsiteContent('regBannerSubtitleHi', e.target.value)}
-                            placeholder="अभी रजिस्टर करें और पाएँ 500 बोनस XP और 1 फ्री फुल मॉक टेस्ट"
+                            placeholder="अभी रजिस्टर करें और पाएँ 1 फ्री फुल मॉक टेस्ट"
                             className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
                           />
                         </div>
@@ -7695,48 +7662,6 @@ export const AdminDashboardView: React.FC = () => {
                 className="w-2/3 py-2 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs"
               >
                 नया पासवर्ड लागू करें
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL 5: BONUS XP MODAL */}
-      {/* ========================================================= */}
-      {xpModalUser && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
-              <Award className="w-5 h-5 text-amber-600" />
-              <span>बोनस XP प्रदान करें — {xpModalUser.name}</span>
-            </h3>
-            <p className="text-xs text-stone-500">
-              छात्र के खाते में जोड़ने हेतु XP अंक दर्ज करें:
-            </p>
-            <input 
-              type="number"
-              value={bonusXpVal}
-              onChange={(e) => setBonusXpVal(Number(e.target.value))}
-              className="w-full p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono font-bold text-sm text-amber-600"
-            />
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setXpModalUser(null)}
-                className="w-1/3 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-xs font-bold"
-              >
-                रद्द करें
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  grantStudentXp(xpModalUser.id, bonusXpVal);
-                  setXpModalUser(null);
-                }}
-                className="w-2/3 py-2 rounded-xl bg-amber-600 text-white font-black text-xs"
-              >
-                +XP छात्र को जोड़ें
               </button>
             </div>
           </div>

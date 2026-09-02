@@ -116,7 +116,7 @@ export const LeaderboardView: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-stone-600 dark:text-stone-300">
-                कुल अर्जित XP: <strong className="text-amber-600 dark:text-amber-400 font-mono">{currentUser.xp} XP</strong> • दैनिक अध्ययन स्ट्रीक: <strong className="text-orange-500 font-mono">{currentUser.streak} दिन 🔥</strong>
+                दैनिक अध्ययन स्ट्रीक: <strong className="text-orange-500 font-mono">{currentUser.streak || 1} दिन लगातार 🔥</strong> • लक्ष्य: <strong className="text-amber-600 dark:text-amber-400">{currentUser.targetExam || 'MP परीक्षा 2026'}</strong>
               </p>
             </div>
           </div>

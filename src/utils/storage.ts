@@ -130,8 +130,8 @@ export const INITIAL_NAV_MENUS: NavigationMenuItem[] = [
     iconName: 'LayoutDashboard',
     isActive: true,
     order: 6,
-    subTextHi: 'स्कोरकार्ड व XP',
-    subTextEn: 'Scorecard & XP'
+    subTextHi: 'स्कोरकार्ड व रैंक',
+    subTextEn: 'Scorecard & Rank'
   }
 ];
 
@@ -296,8 +296,8 @@ export const INITIAL_WEBSITE_CONTENT: WebsiteContentConfig = {
   spotlightPillar4Text: 'ऑफलाइन PDF नोट्स',
 
   // New Student Welcome Bonus Bar
-  regBannerTitleHi: 'नया छात्र पंजीकरण (Free Registration) करें और ₹500 वेलकम बोनस XP पाएँ!',
-  regBannerTitleEn: 'New Aspirant Free Sign Up & Get ₹500 Welcome Bonus XP!',
+  regBannerTitleHi: 'नया छात्र पंजीकरण (Free Registration) करें और मुफ़्त फुल मॉक टेस्ट पाएँ!',
+  regBannerTitleEn: 'New Aspirant Free Sign Up & Get 1 Free Full Mock Test!',
   regBannerSubtitleHi: '55 जिलों के 50,000+ अभ्यर्थियों के साथ ऑल-एमपी लाइव रैंक और निःशुल्क ई-नोट्स अनलॉक करें।',
   regBannerSubtitleEn: 'Join 50,000+ aspirants across 55 MP districts with live state rank and free e-notes.',
   regBannerBtn1Hi: '📝 नया खाता बनाएँ (Sign Up)',
