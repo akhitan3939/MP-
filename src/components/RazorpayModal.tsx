@@ -31,6 +31,7 @@ export const RazorpayModal: React.FC = () => {
     completePurchase, 
     lang,
     navigate,
+    openAuthModal,
     showToast 
   } = useApp();
 
@@ -207,6 +208,13 @@ export const RazorpayModal: React.FC = () => {
 
   // Launch Live Razorpay Payment Flow
   const launchLiveRazorpay = async () => {
+    if (!currentUser) {
+      closeRazorpayModal();
+      openAuthModal('register');
+      showToast(lang === 'hi' ? '🔐 कृपया पेमेंट करने से पहले लॉगिन या रजिस्ट्रेशन करें ताकि टेस्ट आपके खाते में सुरक्षित रहे।' : '🔐 Please login or register first before making payment.');
+      return;
+    }
+
     setIsProcessing(true);
     setVerificationError('');
 
@@ -218,10 +226,10 @@ export const RazorpayModal: React.FC = () => {
           seriesId: selectedSeriesForPurchase.id,
           seriesTitle: selectedSeriesForPurchase.titleHi,
           amount: payablePrice,
-          userId: currentUser?.id || 'guest',
-          userName: currentUser?.name || 'Candidate',
-          userEmail: currentUser?.email || 'student@mpparikshasetu.in',
-          userPhone: currentUser?.phone || '9876543210',
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userEmail: currentUser.email,
+          userPhone: currentUser.phone,
           couponCode: appliedCoupon?.code
         })
       }).then(r => r.json());
@@ -441,6 +449,49 @@ export const RazorpayModal: React.FC = () => {
                 </div>
               </div>
 
+              {/* Linked Student Account Banner */}
+              {currentUser ? (
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                      {currentUser.name?.charAt(0) || 'U'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-emerald-950 flex items-center gap-1.5 truncate">
+                        <span>{currentUser.name}</span>
+                        <span className="text-[10px] bg-emerald-200/70 text-emerald-900 font-semibold px-1.5 py-0.2 rounded">
+                          {lang === 'hi' ? 'सत्यापित खाता' : 'Verified Account'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 truncate font-mono">
+                        +91 {currentUser.phone} • {currentUser.email}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 pl-2">
+                    <span className="text-[10px] text-slate-500 block">{lang === 'hi' ? 'रोल/आईडी' : 'Roll ID'}</span>
+                    <span className="text-[11px] font-mono font-bold text-slate-700">{currentUser.id}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-bold text-amber-950">{lang === 'hi' ? '🔒 लॉगिन आवश्यक है' : '🔒 Login Required'}</div>
+                    <div className="text-[11px] text-amber-800">{lang === 'hi' ? 'टेस्ट अनलॉक करने हेतु पहले खाता बनाएं' : 'Sign up to unlock tests permanently'}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeRazorpayModal();
+                      openAuthModal('register');
+                    }}
+                    className="px-3 py-1.5 bg-[#7A2A1E] text-[#D4A017] font-bold rounded-lg text-xs hover:bg-[#5E1F16]"
+                  >
+                    {lang === 'hi' ? 'साइन-अप / लॉगिन' : 'Sign Up / Login'}
+                  </button>
+                </div>
+              )}
+
               {/* Coupon Code Section */}
               <div className="space-y-2.5">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -585,9 +636,34 @@ export const RazorpayModal: React.FC = () => {
                   )}
                 </button>
 
-                <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-                  <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{lang === 'hi' ? 'Razorpay द्वारा 256-बिट सुरक्षित भुगतान' : '256-bit encrypted by Razorpay'}</span>
+                <div className="flex flex-col items-center justify-center gap-1.5 text-xs text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{lang === 'hi' ? 'Razorpay द्वारा 256-बिट सुरक्षित भुगतान' : '256-bit encrypted by Razorpay'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeRazorpayModal();
+                        navigate('terms', { tab: 'terms' });
+                      }}
+                      className="hover:text-blue-600 underline cursor-pointer"
+                    >
+                      {lang === 'hi' ? 'नियम व शर्तें' : 'Terms & Conditions'}
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeRazorpayModal();
+                        navigate('refund', { tab: 'refund' });
+                      }}
+                      className="hover:text-blue-600 underline cursor-pointer"
+                    >
+                      {lang === 'hi' ? 'रिफंड नीति' : 'Refund Policy'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

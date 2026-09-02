@@ -16,7 +16,8 @@ import {
   ChevronDown,
   Sparkles,
   FileText,
-  LayoutDashboard
+  LayoutDashboard,
+  RotateCcw
 } from 'lucide-react';
 import { DynamicNavIcon } from '../utils/navIcons';
 
@@ -207,6 +208,17 @@ export const Header: React.FC = () => {
                             <Flame className="w-3.5 h-3.5 text-[#D4A017]" />
                             <span>{lang === 'hi' ? 'दैनिक अध्ययन रिमाइंडर' : 'Study Reminders'}</span>
                           </button>
+
+                          <button
+                            onClick={() => {
+                              setIsProfileDropdownOpen(false);
+                              navigate('aboutUs', { tab: 'about' });
+                            }}
+                            className="w-full text-left px-4 py-2 text-xs font-bold hover:bg-[#963E2F] flex items-center gap-2 cursor-pointer text-[#EAD8B1] hover:text-white"
+                          >
+                            <Award className="w-3.5 h-3.5 text-[#D4A017]" />
+                            <span>{lang === 'hi' ? '📖 हमारे बारे में व नीतियां' : 'About Us & Policies'}</span>
+                          </button>
                         </>
                       )}
                     </div>
@@ -349,6 +361,31 @@ export const Header: React.FC = () => {
               </button>
             );
           })}
+
+          {/* Quick Institutional / Legal Links */}
+          <div className="pt-2 border-t border-[#963E2F]/80 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                navigate('aboutUs', { tab: 'about' });
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#7A2A1E] text-white hover:bg-[#963E2F] text-[11px] font-bold border border-[#D4A017]/30 text-left cursor-pointer"
+            >
+              <Award className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
+              <span>{lang === 'hi' ? 'हमारे बारे में' : 'About Us'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                navigate('refund', { tab: 'refund' });
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 p-2 rounded-xl bg-[#7A2A1E] text-white hover:bg-[#963E2F] text-[11px] font-bold border border-[#D4A017]/30 text-left cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
+              <span>{lang === 'hi' ? 'रिफंड नीति' : 'Refund Policy'}</span>
+            </button>
+          </div>
 
           {currentUser?.role === 'admin' && (
             <button

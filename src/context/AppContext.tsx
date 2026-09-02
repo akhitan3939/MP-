@@ -63,6 +63,8 @@ interface AppContextType {
   
   isRazorpayModalOpen: boolean;
   selectedSeriesForPurchase: TestSeries | null;
+  pendingPurchaseSeries: TestSeries | null;
+  setPendingPurchaseSeries: (series: TestSeries | null) => void;
   openRazorpayModal: (series: TestSeries) => void;
   closeRazorpayModal: () => void;
   
@@ -240,6 +242,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [isRazorpayModalOpen, setIsRazorpayModalOpen] = useState<boolean>(false);
   const [selectedSeriesForPurchase, setSelectedSeriesForPurchase] = useState<TestSeries | null>(null);
+  const [pendingPurchaseSeries, setPendingPurchaseSeries] = useState<TestSeries | null>(null);
 
   const [isNotesModalOpen, setIsNotesModalOpen] = useState<boolean>(false);
   const [selectedNote, setSelectedNote] = useState<OfflineNote | null>(null);
@@ -609,6 +612,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     StorageService.setCurrentUserId(found.id);
     closeAuthModal();
     showToast(lang === 'hi' ? `स्वागत है, ${found.name}!` : `Welcome, ${found.name}!`);
+
+    if (pendingPurchaseSeries) {
+      const targetSeries = pendingPurchaseSeries;
+      setPendingPurchaseSeries(null);
+      setTimeout(() => {
+        openRazorpayModal(targetSeries);
+      }, 350);
+    }
+
     return true;
   };
 
@@ -677,6 +689,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा।` 
       : `🎉 Welcome, ${newUser.name}! Registration successful.`;
     showToast(successMsg);
+
+    if (pendingPurchaseSeries) {
+      const targetSeries = pendingPurchaseSeries;
+      setPendingPurchaseSeries(null);
+      setTimeout(() => {
+        openRazorpayModal(targetSeries);
+      }, 350);
+    }
+
     return { success: true, message: successMsg, user: newUser };
   };
 
@@ -740,6 +761,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Modals for Purchase
   const openRazorpayModal = (series: TestSeries) => {
     setSelectedSeriesForPurchase(series);
+
+    // If user is not logged in, prompt to register/login first
+    if (!currentUser) {
+      setPendingPurchaseSeries(series);
+      openAuthModal('register');
+      showToast(
+        lang === 'hi' 
+          ? `🔐 '${series.titleHi}' अनलॉक करने के लिए कृपया पहले साइन-अप या लॉगिन करें। लॉगिन के बाद पेमेंट विंडो स्वतः खुलेगी।` 
+          : `🔐 Please register or login first to unlock '${series.titleEn}'. Payment window will open right after login.`
+      );
+      return;
+    }
+
     setIsRazorpayModalOpen(true);
   };
 
@@ -2007,6 +2041,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         isRazorpayModalOpen,
         selectedSeriesForPurchase,
+        pendingPurchaseSeries,
+        setPendingPurchaseSeries,
         openRazorpayModal,
         closeRazorpayModal,
 

@@ -43,7 +43,7 @@ export const TARGET_EXAMS_LIST = [
 ];
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, closeAuthModal, authModalMode, login, register, resetPassword, users, lang } = useApp();
+  const { isAuthModalOpen, closeAuthModal, authModalMode, login, register, resetPassword, users, lang, pendingPurchaseSeries } = useApp();
   
   // Split modes: 'login' | 'register' | 'admin' | 'forgot'
   const [mode, setMode] = useState<'login' | 'register' | 'admin' | 'forgot'>('login');
@@ -533,6 +533,25 @@ export const AuthModal: React.FC = () => {
                 </button>
                 <div className="text-stone-500 font-bold">
                   चरण 2/2: OTP सत्यापन
+                </div>
+              </div>
+            )}
+
+            {/* Pending Purchase Notification Banner */}
+            {pendingPurchaseSeries && mode !== 'admin' && (
+              <div className="mx-4 mt-3 p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border-2 border-amber-300 dark:border-amber-700/70 rounded-2xl flex items-start gap-3 shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center shrink-0 font-black text-sm mt-0.5">
+                  <Lock className="w-4 h-4 text-stone-950" />
+                </div>
+                <div className="min-w-0 flex-1 text-xs">
+                  <div className="font-extrabold text-amber-950 dark:text-amber-200 leading-tight">
+                    🎯 {lang === 'hi' ? pendingPurchaseSeries.titleHi : pendingPurchaseSeries.titleEn} (₹{pendingPurchaseSeries.price})
+                  </div>
+                  <p className="text-[11px] text-amber-900 dark:text-amber-300 mt-1 leading-snug">
+                    {lang === 'hi' 
+                      ? 'इस टेस्ट सीरीज़ को अनलॉक करने के लिए कृपया साइन-अप या लॉगिन करें। लॉगिन होते ही पेमेंट विंडो स्वतः खुल जाएगी और टेस्ट आपके खाते में हमेशा के लिए सुरक्षित रहेगा।' 
+                      : 'Please sign up or login to unlock this test series. Payment gateway will open automatically after authentication and lock the series to your account.'}
+                  </p>
                 </div>
               </div>
             )}

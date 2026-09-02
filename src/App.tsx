@@ -22,6 +22,7 @@ import { ResultAnalyticsView } from './views/ResultAnalyticsView';
 import { LeaderboardView } from './views/LeaderboardView';
 import { StudentDashboardView } from './views/StudentDashboardView';
 import { AdminDashboardView } from './views/AdminDashboardView';
+import { LegalAndAboutView } from './views/LegalAndAboutView';
 
 const MainAppContent: React.FC = () => {
   const { activeView, toastMessage } = useApp();
@@ -56,6 +57,7 @@ const MainAppContent: React.FC = () => {
         {activeView === 'notes' && <CatalogView />}
         {(activeView === 'dashboard' || activeView === 'studentDashboard') && <StudentDashboardView />}
         {activeView === 'admin' && <AdminDashboardView />}
+        {(activeView === 'legal' || activeView === 'aboutUs' || activeView === 'terms' || activeView === 'privacy' || activeView === 'refund') && <LegalAndAboutView />}
       </main>
 
       {/* 4. Global Modals & Live Social Side Panel */}

@@ -299,8 +299,45 @@ export const Footer: React.FC = () => {
 
         </div>
 
+        {/* Dedicated Legal & Transparency Links Bar */}
+        <div className="mt-8 pt-6 border-t border-[#963E2F]/80">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-6 gap-y-2 text-xs font-bold text-[#EAD8B1]">
+            <span className="text-[#D4A017] font-black uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#D4A017]" />
+              {lang === 'hi' ? 'महत्वपूर्ण नीतियां व संस्थागत पृष्ठ:' : 'Legal & Institutional Policies:'}
+            </span>
+            <button
+              onClick={() => navigate('aboutUs', { tab: 'about' })}
+              className="hover:text-[#D4A017] hover:underline transition cursor-pointer text-[11px] sm:text-xs"
+            >
+              📖 {lang === 'hi' ? 'हमारे बारे में (About Us)' : 'About Us'}
+            </button>
+            <span className="text-white/20 hidden sm:inline">•</span>
+            <button
+              onClick={() => navigate('terms', { tab: 'terms' })}
+              className="hover:text-[#D4A017] hover:underline transition cursor-pointer text-[11px] sm:text-xs"
+            >
+              📜 {lang === 'hi' ? 'नियम एवं शर्तें (Terms & Conditions)' : 'Terms & Conditions'}
+            </button>
+            <span className="text-white/20 hidden sm:inline">•</span>
+            <button
+              onClick={() => navigate('privacy', { tab: 'privacy' })}
+              className="hover:text-[#D4A017] hover:underline transition cursor-pointer text-[11px] sm:text-xs"
+            >
+              🔒 {lang === 'hi' ? 'गोपनीयता नीति (Privacy Policy)' : 'Privacy Policy'}
+            </button>
+            <span className="text-white/20 hidden sm:inline">•</span>
+            <button
+              onClick={() => navigate('refund', { tab: 'refund' })}
+              className="hover:text-[#D4A017] hover:underline transition cursor-pointer text-[11px] sm:text-xs"
+            >
+              💳 {lang === 'hi' ? 'रिफंड एवं रद्दीकरण नीति (Refund Policy)' : 'Refund & Cancellation Policy'}
+            </button>
+          </div>
+        </div>
+
         {/* Bottom copyright & Admin Login Link */}
-        <div className="mt-10 pt-6 border-t border-[#963E2F] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#EAD8B1] text-[11px] font-bold">
+        <div className="mt-6 pt-6 border-t border-[#963E2F] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#EAD8B1] text-[11px] font-bold">
           <div>
             {copyrightText}
           </div>
