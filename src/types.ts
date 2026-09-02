@@ -20,6 +20,8 @@ export interface UserProfile {
   xp: number;
   streak: number;
   badges: string[];
+  isDummyUser?: boolean;
+  userType?: 'authentic' | 'dummy';
 }
 
 export type ExamCategory = 
@@ -389,10 +391,13 @@ export interface OrderTransaction {
   id: string;
   orderId: string;
   razorpayPaymentId: string;
+  utrNumber?: string;
   userId: string;
   userName: string;
   userEmail: string;
   userPhone: string;
+  userDistrict?: string;
+  userState?: string;
   seriesId: string;
   seriesTitle: string;
   amount: number;
@@ -404,6 +409,7 @@ export interface OrderTransaction {
   couponCode?: string;
   createdAt: string;
   invoiceNumber: string;
+  isDummyUser?: boolean;
 }
 
 export interface Coupon {

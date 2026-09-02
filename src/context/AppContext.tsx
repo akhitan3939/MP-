@@ -140,6 +140,7 @@ interface AppContextType {
   grantAllSeriesToUser: (userId: string, reason?: string) => void;
   revokeAllSeriesFromUser: (userId: string) => void;
   toggleUserRole: (userId: string) => void;
+  toggleUserDummyStatus: (userId: string) => void;
   resetStudentPassword: (userId: string, newPass: string) => void;
   grantStudentXp: (userId: string, xp: number) => void;
   broadcastPushNotification: (title: string, message: string) => void;
@@ -655,7 +656,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       joinedAt: new Date().toISOString(),
       xp: 500,
       streak: 1,
-      badges: ['🌟 New Aspirant', '🎯 MP Ready']
+      badges: ['🌟 New Aspirant', '🎯 MP Ready'],
+      isDummyUser: false,
+      userType: 'authentic'
     };
 
     setUsers(prev => {
@@ -850,14 +853,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const gstAmount = +(finalAmount * 0.18).toFixed(2);
     const invoiceNumber = `INV-MPSETU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const isDummy = user.isDummyUser === true;
+    const utrNumber = `UTR-${paymentMethod}-${new Date().getFullYear()}-${Math.floor(1000000 + Math.random() * 9000000)}`;
+
     const newOrder: OrderTransaction = {
       id: `txn_${Date.now()}`,
       orderId: `order_MP_${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
       razorpayPaymentId: `pay_RZP_MP_${Math.random().toString(36).substring(2, 10)}`,
+      utrNumber,
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
       userPhone: user.phone,
+      userDistrict: user.district,
+      userState: user.state || 'मध्यप्रदेश (MP)',
       seriesId: series.id,
       seriesTitle: lang === 'hi' ? series.titleHi : series.titleEn,
       amount: series.price,
@@ -868,7 +877,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       status: 'SUCCESS',
       couponCode,
       createdAt: new Date().toISOString(),
-      invoiceNumber
+      invoiceNumber,
+      isDummyUser: isDummy
     };
 
     // Update orders list
@@ -1278,10 +1288,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       StorageService.setTestSeries(updated);
       return updated;
     });
+
     fetch('/api/test-series/toggle-active', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ seriesId, isActive: newStatus })
+    }).then(res => res.json()).then(data => {
+      if (data && data.success && Array.isArray(data.testSeries)) {
+        setTestSeries(data.testSeries);
+        StorageService.setTestSeries(data.testSeries);
+      }
     }).catch(e => console.warn('Server sync error for toggle active:', e));
 
     showToast(
@@ -1324,6 +1340,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ seriesId, setNumber, isActive: willBeActive })
+    }).then(res => res.json()).then(data => {
+      if (data && data.success && Array.isArray(data.testSeries)) {
+        setTestSeries(data.testSeries);
+        StorageService.setTestSeries(data.testSeries);
+      }
     }).catch(e => console.warn('Server sync error for toggle set:', e));
 
     showToast(
@@ -1357,6 +1378,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ seriesId, ...config })
+    }).then(res => res.json()).then(data => {
+      if (data && data.success && Array.isArray(data.testSeries)) {
+        setTestSeries(data.testSeries);
+        StorageService.setTestSeries(data.testSeries);
+      }
     }).catch(e => console.warn('Server sync error for save sets config:', e));
 
     showToast(lang === 'hi' ? 'सेट्स विन्यास अपडेट किया गया' : 'Sets configuration updated');
@@ -1773,6 +1799,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(lang === 'hi' ? 'उपयोगकर्ता रोल अपडेट किया गया' : 'User role updated');
   };
 
+  const toggleUserDummyStatus = (userId: string) => {
+    let targetUpdated: UserProfile | undefined;
+    let nextIsDummy = false;
+    setUsers(prev => {
+      const updated = prev.map(u => {
+        if (u.id === userId) {
+          nextIsDummy = !(u.isDummyUser === true);
+          targetUpdated = {
+            ...u,
+            isDummyUser: nextIsDummy,
+            userType: (nextIsDummy ? 'dummy' : 'authentic') as 'dummy' | 'authentic'
+          };
+          return targetUpdated;
+        }
+        return u;
+      });
+      StorageService.setUsers(updated);
+      return updated;
+    });
+
+    // Update related orders in state & storage
+    setOrders(prev => {
+      const updatedOrders = prev.map(o => {
+        if (o.userId === userId) {
+          return { ...o, isDummyUser: nextIsDummy };
+        }
+        return o;
+      });
+      StorageService.setOrders(updatedOrders);
+      return updatedOrders;
+    });
+
+    if (targetUpdated) {
+      fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetUpdated)
+      }).catch(err => console.warn('User dummy update sync error:', err));
+    }
+
+    showToast(
+      nextIsDummy
+        ? (lang === 'hi' ? '🧪 छात्र को "Dummy User (डमी खाता)" के रूप में चिह्नित किया गया।' : '🧪 Marked as Dummy User.')
+        : (lang === 'hi' ? '🟢 छात्र को "Valid User (सत्यापित वास्तविक छात्र)" के रूप में टैग किया गया।' : '🟢 Tagged as Valid Authentic User.')
+    );
+  };
+
   const resetStudentPassword = (userId: string, newPass: string) => {
     let targetUpdated: UserProfile | undefined;
     setUsers(prev => prev.map(u => {
@@ -1928,6 +2001,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         grantAllSeriesToUser,
         revokeAllSeriesFromUser,
         toggleUserRole,
+        toggleUserDummyStatus,
         resetStudentPassword,
         grantStudentXp,
         broadcastPushNotification,

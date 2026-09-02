@@ -15,11 +15,14 @@ export const INITIAL_USERS: UserProfile[] = [
     password: 'Tanmayee*1234',
     role: 'admin',
     district: 'भोपाल (Bhopal)',
+    state: 'मध्यप्रदेश (MP)',
     targetExam: 'All MP Exams Management',
     joinedAt: '2025-01-01T10:00:00.000Z',
     xp: 25000,
     streak: 45,
     badges: ['👑 Admin Master', '🏛️ MP Setu Director', '📊 Analytics Lead'],
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_1',
@@ -35,6 +38,8 @@ export const INITIAL_USERS: UserProfile[] = [
     xp: 4850,
     streak: 14,
     badges: ['🥈 Rank 2 (MP Topper)', '🔥 14-Day Streak', '🎯 40-Q Free Mock Master'],
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_2',
@@ -50,6 +55,8 @@ export const INITIAL_USERS: UserProfile[] = [
     xp: 5920,
     streak: 22,
     badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_3',
@@ -65,6 +72,8 @@ export const INITIAL_USERS: UserProfile[] = [
     xp: 3400,
     streak: 8,
     badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_4',
@@ -80,6 +89,8 @@ export const INITIAL_USERS: UserProfile[] = [
     xp: 2950,
     streak: 11,
     badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_5',
@@ -95,6 +106,25 @@ export const INITIAL_USERS: UserProfile[] = [
     xp: 2600,
     streak: 6,
     badges: ['🌱 Agri Warrior', '🎯 Free Mock Completed'],
+    isDummyUser: false,
+    userType: 'authentic'
+  },
+  {
+    id: 'usr_sample_demo_1',
+    name: 'डेमो छात्र टेस्ट (Demo Aspirant)',
+    username: 'demo_test_user',
+    email: 'demo.student@mppariksha.in',
+    phone: '9000000001',
+    role: 'student',
+    district: 'भोपाल (Bhopal)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP व्यापम सैंपल टेस्ट',
+    joinedAt: '2025-02-10T12:00:00.000Z',
+    xp: 500,
+    streak: 1,
+    badges: ['🧪 Demo Sample'],
+    isDummyUser: true,
+    userType: 'dummy'
   }
 ];
 
@@ -1073,7 +1103,127 @@ export const INITIAL_ATTEMPTS: TestAttempt[] = [
   }
 ];
 
-export const INITIAL_ORDERS: OrderTransaction[] = [];
+export const INITIAL_ORDERS: OrderTransaction[] = [
+  {
+    id: 'ord_success_101',
+    orderId: 'ORD_MP_2026_88910',
+    invoiceNumber: 'INV/2026/MP/00889',
+    razorpayPaymentId: 'pay_PriyaSharma9821',
+    utrNumber: 'UTR-SBIN-2026-9812401',
+    userId: 'usr_student_2',
+    userName: 'प्रिया शर्मा (Priya Sharma)',
+    userEmail: 'priya.sharma99@gmail.com',
+    userPhone: '9752044556',
+    userDistrict: 'इंदौर (Indore)',
+    userState: 'मध्यप्रदेश (MP)',
+    seriesId: 'ts_patwari_2026',
+    seriesTitle: 'MP पटवारी 2026 (20 फुल मॉक टेस्ट सीरीज़)',
+    amount: 399,
+    discount: 50,
+    gstAmount: 63,
+    finalAmount: 412,
+    paymentMethod: 'UPI',
+    status: 'SUCCESS',
+    couponCode: 'MPGOVT50',
+    createdAt: '2026-02-24T08:45:10.000Z',
+    isDummyUser: false
+  },
+  {
+    id: 'ord_success_102',
+    orderId: 'ORD_MP_2026_88911',
+    invoiceNumber: 'INV/2026/MP/00890',
+    razorpayPaymentId: 'pay_AmitKumar9942',
+    utrNumber: 'UTR-HDFC-2026-7731205',
+    userId: 'usr_student_1',
+    userName: 'अमित कुमार (Amit Kumar)',
+    userEmail: 'amit.kumar@gmail.com',
+    userPhone: '9826011223',
+    userDistrict: 'जबलपुर (Jabalpur)',
+    userState: 'मध्यप्रदेश (MP)',
+    seriesId: 'ts_patwari_2026',
+    seriesTitle: 'MP पटवारी 2026 (20 फुल मॉक टेस्ट सीरीज़)',
+    amount: 399,
+    discount: 0,
+    gstAmount: 72,
+    finalAmount: 471,
+    paymentMethod: 'QR',
+    status: 'SUCCESS',
+    createdAt: '2026-02-25T11:20:30.000Z',
+    isDummyUser: false
+  },
+  {
+    id: 'ord_success_103',
+    orderId: 'ORD_MP_2026_88912',
+    invoiceNumber: 'INV/2026/MP/00891',
+    razorpayPaymentId: 'pay_AnitaPatel8831',
+    utrNumber: 'UTR-ICIC-2026-6629104',
+    userId: 'usr_student_4',
+    userName: 'अनिता पटेल (Anita Patel)',
+    userEmail: 'anita.patel@gmail.com',
+    userPhone: '9827033445',
+    userDistrict: 'उज्जैन (Ujjain)',
+    userState: 'मध्यप्रदेश (MP)',
+    seriesId: 'ts_mppsc_pre_2026',
+    seriesTitle: 'MPPSC राज्य सेवा प्रारंभिक परीक्षा 2026 (25 टेस्ट)',
+    amount: 599,
+    discount: 100,
+    gstAmount: 90,
+    finalAmount: 589,
+    paymentMethod: 'CARD',
+    status: 'SUCCESS',
+    couponCode: 'PATWARI100',
+    createdAt: '2026-02-26T14:10:00.000Z',
+    isDummyUser: false
+  },
+  {
+    id: 'ord_success_104',
+    orderId: 'ORD_MP_2026_88913',
+    invoiceNumber: 'INV/2026/MP/00892',
+    razorpayPaymentId: 'pay_RohitVerma4412',
+    utrNumber: 'UTR-PNB-2026-5521940',
+    userId: 'usr_student_3',
+    userName: 'रोहित वर्मा (Rohit Verma)',
+    userEmail: 'rohit.verma@yahoo.com',
+    userPhone: '9425077889',
+    userDistrict: 'ग्वालियर (Gwalior)',
+    userState: 'मध्यप्रदेश (MP)',
+    seriesId: 'ts_police_constable_2026',
+    seriesTitle: 'MP पुलिस आरक्षक 2026 (15 टेस्ट)',
+    amount: 299,
+    discount: 50,
+    gstAmount: 45,
+    finalAmount: 294,
+    paymentMethod: 'UPI',
+    status: 'SUCCESS',
+    couponCode: 'MPGOVT50',
+    createdAt: '2026-02-27T16:30:15.000Z',
+    isDummyUser: false
+  },
+  {
+    id: 'ord_demo_105',
+    orderId: 'ORD_DEMO_2026_0001',
+    invoiceNumber: 'INV/2026/DEMO/00001',
+    razorpayPaymentId: 'pay_test_dummy_9999',
+    utrNumber: 'UTR-TEST-SAMPLE-0001',
+    userId: 'usr_sample_demo_1',
+    userName: 'डेमो छात्र टेस्ट (Demo Aspirant)',
+    userEmail: 'demo.student@mppariksha.in',
+    userPhone: '9000000001',
+    userDistrict: 'भोपाल (Bhopal)',
+    userState: 'मध्यप्रदेश (MP)',
+    seriesId: 'ts_patwari_2026',
+    seriesTitle: 'MP पटवारी 2026 (20 फुल मॉक टेस्ट सीरीज़)',
+    amount: 399,
+    discount: 50,
+    gstAmount: 63,
+    finalAmount: 412,
+    paymentMethod: 'UPI',
+    status: 'SUCCESS',
+    couponCode: 'MPGOVT50',
+    createdAt: '2026-02-28T10:00:00.000Z',
+    isDummyUser: true
+  }
+];
 
 export const INITIAL_COUPONS: Coupon[] = [
   {

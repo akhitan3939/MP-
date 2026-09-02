@@ -61,7 +61,13 @@ import {
   Gift,
   Calendar,
   Activity,
-  Zap
+  Zap,
+  ShieldCheck,
+  FlaskConical,
+  Receipt,
+  UserCheck,
+  UserX,
+  Filter
 } from 'lucide-react';
 import { 
   TestSeries, 
@@ -77,7 +83,8 @@ import {
   MenuPlacement,
   MenuTargetType,
   WebsiteContentConfig,
-  SocialChannelConfig
+  SocialChannelConfig,
+  OrderTransaction
 } from '../types';
 import { INITIAL_WEBSITE_CONTENT, INITIAL_SOCIAL_CHANNELS } from '../utils/storage';
 import { exportToCsv, exportToXls, exportToPdfPrint, ExportColumn } from '../utils/exportReports';
@@ -86,6 +93,7 @@ import { AdminQuestionBankHub } from '../components/admin/AdminQuestionBankHub';
 
 type AdminModuleTab = 
   | 'OVERVIEW'
+  | 'SUCCESSFUL_PAYMENTS'
   | 'WEBSITE_CONTENT'
   | 'REPORTS'
   | 'ATTEMPTS'
@@ -146,6 +154,7 @@ export const AdminDashboardView: React.FC = () => {
     grantAllSeriesToUser,
     revokeAllSeriesFromUser,
     toggleUserRole,
+    toggleUserDummyStatus,
     resetStudentPassword,
     grantStudentXp,
     broadcastPushNotification, 
@@ -266,7 +275,18 @@ export const AdminDashboardView: React.FC = () => {
   // Free Access Grant Modal State
   const [grantModalUser, setGrantModalUser] = useState<UserProfile | null>(null);
   const [grantReasonTag, setGrantReasonTag] = useState<string>('🎁 छात्रवृत्ति (Free Scholarship)');
-  const [studentFilterType, setStudentFilterType] = useState<'all' | 'granted' | 'standard'>('all');
+  const [studentFilterType, setStudentFilterType] = useState<'all' | 'valid' | 'dummy' | 'granted' | 'standard'>('all');
+
+  // Successful Payments Module Dedicated State
+  const [searchSuccessPayments, setSearchSuccessPayments] = useState('');
+  const [filterSuccessUserType, setFilterSuccessUserType] = useState<'all' | 'authentic' | 'dummy'>('all');
+  const [filterSuccessSeries, setFilterSuccessSeries] = useState<string>('all');
+  const [filterSuccessMethod, setFilterSuccessMethod] = useState<string>('all');
+  const [filterSuccessDateRange, setFilterSuccessDateRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [viewingReceiptOrder, setViewingReceiptOrder] = useState<OrderTransaction | null>(null);
+
+  // Orders Tab Filter State
+  const [orderFilterType, setOrderFilterType] = useState<'all' | 'valid' | 'dummy' | 'success' | 'failed'>('all');
 
   // Bonus XP Modal
   const [xpModalUser, setXpModalUser] = useState<UserProfile | null>(null);
@@ -648,6 +668,82 @@ export const AdminDashboardView: React.FC = () => {
     }
   };
 
+  // Dedicated export dispatcher for ONLY Successful Payments
+  const handleExportSuccessfulPayments = (format: 'xls' | 'csv' | 'pdf') => {
+    const successOrders = orders.filter(o => o.status === 'SUCCESS');
+    const filtered = successOrders.filter(o => {
+      const matchSearch = !searchSuccessPayments ||
+        o.orderId.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+        o.invoiceNumber.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+        o.razorpayPaymentId.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+        (o.utrNumber || '').toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+        o.userName.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+        o.userEmail.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+        o.userPhone.includes(searchSuccessPayments) ||
+        o.seriesTitle.toLowerCase().includes(searchSuccessPayments.toLowerCase());
+      
+      const isDummy = o.isDummyUser === true;
+      const matchType = filterSuccessUserType === 'all' 
+        ? true 
+        : filterSuccessUserType === 'authentic' ? !isDummy : isDummy;
+      
+      const matchSeries = filterSuccessSeries === 'all' || o.seriesId === filterSuccessSeries;
+      const matchMethod = filterSuccessMethod === 'all' || o.paymentMethod === filterSuccessMethod;
+
+      let matchDate = true;
+      if (filterSuccessDateRange !== 'all') {
+        const orderDate = new Date(o.createdAt).getTime();
+        const now = Date.now();
+        if (filterSuccessDateRange === 'today') {
+          const startOfToday = new Date().setHours(0, 0, 0, 0);
+          matchDate = orderDate >= startOfToday;
+        } else if (filterSuccessDateRange === 'week') {
+          matchDate = orderDate >= now - 7 * 24 * 60 * 60 * 1000;
+        } else if (filterSuccessDateRange === 'month') {
+          matchDate = orderDate >= now - 30 * 24 * 60 * 60 * 1000;
+        }
+      }
+
+      return matchSearch && matchType && matchSeries && matchMethod && matchDate;
+    });
+
+    const data = filtered.map(o => {
+      const isDummy = o.isDummyUser === true;
+      return {
+        'ऑर्डर ID': o.orderId,
+        'टैक्स इनवॉइस नं.': o.invoiceNumber,
+        'रेज़रपे Payment ID': o.razorpayPaymentId,
+        'UTR / बैंक संदर्भ नं.': o.utrNumber || 'N/A',
+        'छात्र प्रमाणीकरण (Tag)': isDummy ? '🧪 Dummy User (परीक्षण खाता)' : '🟢 Valid User (सत्यापित वास्तविक छात्र)',
+        'परीक्षार्थी नाम': o.userName,
+        'मोबाइल नंबर': o.userPhone,
+        'ईमेल ID': o.userEmail,
+        'गृह जिला (District)': o.userDistrict || users.find(u => u.id === o.userId)?.district || 'N/A',
+        'राज्य (State)': o.userState || users.find(u => u.id === o.userId)?.state || 'मध्यप्रदेश (MP)',
+        'टेस्ट सीरीज़ पैकेज': o.seriesTitle,
+        'मूल मूल्य (₹)': o.amount,
+        'छूट (Discount ₹)': o.discount || 0,
+        'कूपन कोड': o.couponCode || 'N/A',
+        'GST 18% (₹)': o.gstAmount,
+        'सफल कुल भुगतान (Net ₹)': o.finalAmount,
+        'भुगतान माध्यम': o.paymentMethod,
+        'भुगतान स्थिति': 'SUCCESS (सत्यापित सफल)',
+        'सफल भुगतान दिनांक व समय': new Date(o.createdAt).toLocaleString('hi-IN')
+      };
+    });
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'xls') {
+      exportToXls(data, `MP_Pariksha_Setu_Successful_Payments_Report_${dateStr}`);
+      showToast('📊 केवल सफल भुगतान रिपोर्ट Excel (.xls) में डाउनलोड हो गई।');
+    } else if (format === 'csv') {
+      exportToCsv(data, `MP_Pariksha_Setu_Successful_Payments_Report_${dateStr}`);
+      showToast('📄 केवल सफल भुगतान रिपोर्ट CSV में डाउनलोड हो गया।');
+    } else {
+      exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु — अधिकृत सफल भुगतान व राजस्व ऑडिट रिपोर्ट', data);
+    }
+  };
+
   // Generic export dispatcher for Questions
   const handleExportQuestions = (format: 'xls' | 'csv' | 'pdf') => {
     const data = questions.map(q => ({
@@ -731,6 +827,14 @@ export const AdminDashboardView: React.FC = () => {
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
     { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
+    { 
+      id: 'SUCCESSFUL_PAYMENTS', 
+      label: 'सफल भुगतान रिपोर्ट (Success Only)', 
+      subLabel: 'Verified Orders, Receipts & UTR', 
+      icon: CheckCircle2, 
+      count: orders.filter(o => o.status === 'SUCCESS').length, 
+      badgeColor: 'bg-emerald-600' 
+    },
     { id: 'WEBSITE_CONTENT', label: 'वेबसाइट कंटेंट CMS (समस्त टेक्स्ट)', subLabel: 'Hero, Pillars, Footer, Banners', icon: Globe, badgeColor: 'bg-emerald-600' },
     { id: 'MENUS', label: 'शीर्ष व निचला मेन्यू प्रबंधक', subLabel: 'Top & Bottom Navigation', icon: Compass, count: navMenuItems.length, badgeColor: 'bg-amber-600' },
     { id: 'SOCIAL', label: 'सोशल मीडिया लिंक्स CMS', subLabel: 'FB, Insta, TG, YT, WA', icon: Share2, badgeColor: 'bg-rose-600' },
@@ -1116,7 +1220,19 @@ export const AdminDashboardView: React.FC = () => {
                   <Sparkles className="w-5 h-5 text-[#D4A017]" />
                   <span>त्वरित नियंत्रण केंद्र (Quick Access Hub)</span>
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <button
+                    onClick={() => setActiveTab('SUCCESSFUL_PAYMENTS')}
+                    className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-800 hover:border-emerald-600 text-left transition group shadow-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                      <ChevronRight className="w-4 h-4 text-emerald-600 group-hover:translate-x-1 transition" />
+                    </div>
+                    <div className="font-black text-sm text-emerald-900 dark:text-emerald-200 mt-2">✅ केवल सफल भुगतान रिपोर्ट</div>
+                    <div className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">सत्यापित रसीदें, UTR व Valid/Dummy टैग</div>
+                  </button>
+
                   <button
                     onClick={() => setActiveTab('BANNERS')}
                     className="p-4 rounded-2xl bg-[#FDFBF7] dark:bg-stone-800/80 border-2 border-[#EAD8B1] hover:border-[#7A2A1E] text-left transition group"
@@ -1150,7 +1266,7 @@ export const AdminDashboardView: React.FC = () => {
                       <ChevronRight className="w-4 h-4 text-stone-400 group-hover:translate-x-1 transition" />
                     </div>
                     <div className="font-black text-sm mt-2">छात्र एक्सेस व रोल बदलें</div>
-                    <div className="text-[11px] text-stone-500 mt-0.5">1-क्लिक टेस्ट अनलॉक व पासवर्ड रीसेट</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">Valid/Dummy टैग व 1-क्लिक टेस्ट अनलॉक</div>
                   </button>
                 </div>
               </div>
@@ -1160,10 +1276,10 @@ export const AdminDashboardView: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="font-black text-base">हाल के सफल रेज़रपे ट्रांजेक्शन (Recent Purchases)</h3>
                   <button
-                    onClick={() => setActiveTab('ORDERS')}
-                    className="text-xs font-black text-[#7A2A1E] dark:text-[#D4A017] hover:underline"
+                    onClick={() => setActiveTab('SUCCESSFUL_PAYMENTS')}
+                    className="text-xs font-black text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
                   >
-                    सभी {orders.length} ऑर्डर देखें →
+                    <span>सफल भुगतान की अलग विस्तृत रिपोर्ट देखें →</span>
                   </button>
                 </div>
 
@@ -1173,6 +1289,7 @@ export const AdminDashboardView: React.FC = () => {
                       <tr className="border-b-2 border-stone-200 dark:border-stone-800 text-stone-500 uppercase text-[10px] font-black">
                         <th className="py-2.5 px-3">ऑर्डर ID</th>
                         <th className="py-2.5 px-3">परीक्षार्थी</th>
+                        <th className="py-2.5 px-3">प्रमाणीकरण टैग</th>
                         <th className="py-2.5 px-3">टेस्ट सीरीज़</th>
                         <th className="py-2.5 px-3">राशि</th>
                         <th className="py-2.5 px-3">स्थिति</th>
@@ -1180,30 +1297,536 @@ export const AdminDashboardView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
-                      {orders.slice(0, 5).map(o => (
-                        <tr key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40">
-                          <td className="py-2.5 px-3 font-mono font-bold text-[#7A2A1E] dark:text-[#D4A017]">{o.orderId}</td>
-                          <td className="py-2.5 px-3 font-bold">{o.userName} ({o.userPhone})</td>
-                          <td className="py-2.5 px-3">{o.seriesTitle}</td>
-                          <td className="py-2.5 px-3 font-mono font-black text-emerald-600">₹{o.finalAmount}</td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                              o.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {o.status}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-stone-400 font-mono text-[11px]">
-                            {new Date(o.createdAt).toLocaleDateString('hi-IN')}
-                          </td>
-                        </tr>
-                      ))}
+                      {orders.filter(o => o.status === 'SUCCESS').slice(0, 5).map(o => {
+                        const isDummy = o.isDummyUser === true;
+                        return (
+                          <tr key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40">
+                            <td className="py-2.5 px-3 font-mono font-bold text-[#7A2A1E] dark:text-[#D4A017]">{o.orderId}</td>
+                            <td className="py-2.5 px-3 font-bold">{o.userName} ({o.userPhone})</td>
+                            <td className="py-2.5 px-3">
+                              {isDummy ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 text-[9px] font-bold">
+                                  <FlaskConical className="w-2.5 h-2.5 text-amber-600" /> Dummy User
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 text-[9px] font-bold">
+                                  <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Valid User
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3">{o.seriesTitle}</td>
+                            <td className="py-2.5 px-3 font-mono font-black text-emerald-600">₹{o.finalAmount}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800">
+                                {o.status}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-stone-400 font-mono text-[11px]">
+                              {new Date(o.createdAt).toLocaleDateString('hi-IN')}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
           )}
+
+          {/* ========================================================= */}
+          {/* TAB: DEDICATED SUCCESSFUL PAYMENTS REPORT (सफल भुगतान अलग रिपोर्ट) */}
+          {/* ========================================================= */}
+          {activeTab === 'SUCCESSFUL_PAYMENTS' && (() => {
+            const successOnlyOrders = orders.filter(o => o.status === 'SUCCESS');
+            const validSuccessOrders = successOnlyOrders.filter(o => o.isDummyUser !== true);
+            const dummySuccessOrders = successOnlyOrders.filter(o => o.isDummyUser === true);
+            const totalSuccessRevenue = successOnlyOrders.reduce((sum, o) => sum + (o.finalAmount || 0), 0);
+            const validSuccessRevenue = validSuccessOrders.reduce((sum, o) => sum + (o.finalAmount || 0), 0);
+            const dummySuccessRevenue = dummySuccessOrders.reduce((sum, o) => sum + (o.finalAmount || 0), 0);
+            const totalSuccessGst = successOnlyOrders.reduce((sum, o) => sum + (o.gstAmount || 0), 0);
+            const totalSuccessDiscounts = successOnlyOrders.reduce((sum, o) => sum + (o.discount || 0), 0);
+
+            const filteredSuccessOrders = successOnlyOrders.filter(order => {
+              const matchSearch = !searchSuccessPayments ||
+                order.orderId.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                order.invoiceNumber.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                order.razorpayPaymentId.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                (order.utrNumber || '').toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                order.userName.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                order.userEmail.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                order.userPhone.includes(searchSuccessPayments) ||
+                order.seriesTitle.toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                (order.userDistrict || '').toLowerCase().includes(searchSuccessPayments.toLowerCase()) ||
+                (order.userState || '').toLowerCase().includes(searchSuccessPayments.toLowerCase());
+
+              const isDummy = order.isDummyUser === true;
+              const matchType = filterSuccessUserType === 'all'
+                ? true
+                : filterSuccessUserType === 'authentic' ? !isDummy : isDummy;
+
+              const matchSeries = filterSuccessSeries === 'all' || order.seriesId === filterSuccessSeries;
+              const matchMethod = filterSuccessMethod === 'all' || order.paymentMethod === filterSuccessMethod;
+
+              let matchDate = true;
+              if (filterSuccessDateRange !== 'all') {
+                const orderDate = new Date(order.createdAt).getTime();
+                const now = Date.now();
+                if (filterSuccessDateRange === 'today') {
+                  const startOfToday = new Date().setHours(0, 0, 0, 0);
+                  matchDate = orderDate >= startOfToday;
+                } else if (filterSuccessDateRange === 'week') {
+                  matchDate = orderDate >= now - 7 * 24 * 60 * 60 * 1000;
+                } else if (filterSuccessDateRange === 'month') {
+                  matchDate = orderDate >= now - 30 * 24 * 60 * 60 * 1000;
+                }
+              }
+
+              return matchSearch && matchType && matchSeries && matchMethod && matchDate;
+            });
+
+            return (
+              <div className="space-y-6">
+
+                {/* Top Banner with Stats */}
+                <div className="p-6 bg-gradient-to-br from-emerald-50 via-teal-50/40 to-white dark:from-emerald-950/40 dark:via-stone-900 dark:to-stone-950 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-emerald-950 dark:text-emerald-300 font-black text-lg">
+                        <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                        <span>सफल भुगतान मास्टर रिपोर्ट (Exclusive Successful Transactions)</span>
+                      </div>
+                      <p className="text-xs text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed max-w-3xl">
+                        यह रिपोर्ट <strong>केवल और केवल उन सभी छात्रों की है जिनका भुगतान सफलतापूर्वक (SUCCESS) पूर्ण हुआ है</strong>। यह अन्य पेंडिंग या फेल ऑर्डर्स के साथ मिक्स नहीं होती। यहाँ प्रत्येक रसीद, रेज़रपे ID, बैंक UTR, GST ब्रेकडाउन और छात्र का <strong>Valid / Dummy प्रमाणीकरण टैग</strong> स्पष्ट प्रदर्शित होता है।
+                      </p>
+                    </div>
+
+                    {/* Export Buttons */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleExportSuccessfulPayments('xls')}
+                        className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-pointer"
+                        title="Excel में डाउनलोड करें"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Excel (XLS)</span>
+                      </button>
+                      <button
+                        onClick={() => handleExportSuccessfulPayments('csv')}
+                        className="px-3.5 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-pointer"
+                        title="CSV में डाउनलोड करें"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>CSV</span>
+                      </button>
+                      <button
+                        onClick={() => handleExportSuccessfulPayments('pdf')}
+                        className="px-3.5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition hover:scale-105 cursor-pointer"
+                        title="PDF रिपोर्ट प्रिंट करें"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>PDF / Print</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 6 Key Analytics Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+                    
+                    {/* Card 1: Total Success Revenue */}
+                    <div className="p-3.5 bg-white dark:bg-stone-900 border border-emerald-300 dark:border-emerald-800 rounded-2xl shadow-xs">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-stone-500 block">कुल सफल संग्रह</span>
+                      <div className="font-mono font-black text-xl text-emerald-700 dark:text-emerald-400 mt-0.5">
+                        ₹{totalSuccessRevenue.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">{successOnlyOrders.length} सफल रसीदें</span>
+                    </div>
+
+                    {/* Card 2: Authentic / Valid Users Revenue */}
+                    <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-emerald-400 dark:border-emerald-700 rounded-2xl shadow-xs">
+                      <div className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-emerald-800 dark:text-emerald-300">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        <span>Valid Users संग्रह</span>
+                      </div>
+                      <div className="font-mono font-black text-xl text-emerald-800 dark:text-emerald-300 mt-0.5">
+                        ₹{validSuccessRevenue.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">{validSuccessOrders.length} प्रामाणिक छात्र</span>
+                    </div>
+
+                    {/* Card 3: Dummy Users Revenue */}
+                    <div className="p-3.5 bg-white dark:bg-stone-900 border-2 border-amber-300 dark:border-amber-800 rounded-2xl shadow-xs">
+                      <div className="flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-amber-800 dark:text-amber-400">
+                        <FlaskConical className="w-3 h-3 text-amber-600" />
+                        <span>Dummy Users संग्रह</span>
+                      </div>
+                      <div className="font-mono font-black text-xl text-amber-700 dark:text-amber-400 mt-0.5">
+                        ₹{dummySuccessRevenue.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">{dummySuccessOrders.length} परीक्षण रसीदें</span>
+                    </div>
+
+                    {/* Card 4: GST 18% */}
+                    <div className="p-3.5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-xs">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-stone-500 block">कुल 18% GST</span>
+                      <div className="font-mono font-black text-xl text-stone-800 dark:text-stone-200 mt-0.5">
+                        ₹{totalSuccessGst.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-stone-400 font-bold">टैक्स इनवॉइस शामिल</span>
+                    </div>
+
+                    {/* Card 5: Discounts */}
+                    <div className="p-3.5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-xs">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-stone-500 block">कूपन छूट</span>
+                      <div className="font-mono font-black text-xl text-rose-600 dark:text-rose-400 mt-0.5">
+                        ₹{totalSuccessDiscounts.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-stone-400 font-bold">डिस्काउंट बचत</span>
+                    </div>
+
+                    {/* Card 6: Success Rate */}
+                    <div className="p-3.5 bg-white dark:bg-stone-900 border border-teal-300 dark:border-teal-800 rounded-2xl shadow-xs">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-stone-500 block">सत्यापन स्थिति</span>
+                      <div className="font-mono font-black text-xl text-teal-700 dark:text-teal-400 mt-0.5">
+                        100%
+                      </div>
+                      <span className="text-[10px] text-teal-700 dark:text-teal-400 font-bold">Razorpay Verified</span>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
+                  <div className="flex flex-col lg:flex-row gap-3 items-center justify-between">
+                    
+                    {/* Text Search Input */}
+                    <div className="relative w-full lg:w-96">
+                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                      <input 
+                        type="text"
+                        placeholder="छात्र नाम, मोबाइल, ईमेल, UTR, पेमेंट ID, इनवॉइस नं. खोजें..."
+                        value={searchSuccessPayments}
+                        onChange={(e) => setSearchSuccessPayments(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      />
+                      {searchSuccessPayments && (
+                        <button
+                          onClick={() => setSearchSuccessPayments('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-black"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter Dropdowns */}
+                    <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto">
+                      
+                      {/* Series Filter */}
+                      <select
+                        value={filterSuccessSeries}
+                        onChange={(e) => setFilterSuccessSeries(e.target.value)}
+                        className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold text-stone-700 dark:text-stone-200"
+                      >
+                        <option value="all">📚 समस्त टेस्ट सीरीज़</option>
+                        {testSeries.map(s => (
+                          <option key={s.id} value={s.id}>{s.titleHi}</option>
+                        ))}
+                      </select>
+
+                      {/* Payment Method Filter */}
+                      <select
+                        value={filterSuccessMethod}
+                        onChange={(e) => setFilterSuccessMethod(e.target.value)}
+                        className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold text-stone-700 dark:text-stone-200"
+                      >
+                        <option value="all">💳 सभी भुगतान माध्यम</option>
+                        <option value="UPI">⚡ UPI / PhonePe / GPay</option>
+                        <option value="QR">📱 QR Scanner</option>
+                        <option value="CARD">💳 डेबिट / क्रेडिट कार्ड</option>
+                        <option value="NETBANKING">🏦 नेट बैंकिंग</option>
+                        <option value="WALLET">👛 वॉलेट</option>
+                      </select>
+
+                      {/* Date Range Filter */}
+                      <select
+                        value={filterSuccessDateRange}
+                        onChange={(e) => setFilterSuccessDateRange(e.target.value as any)}
+                        className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-xs font-bold text-stone-700 dark:text-stone-200"
+                      >
+                        <option value="all">📅 सभी समय (All Time)</option>
+                        <option value="today">⚡ आज के सफल भुगतान</option>
+                        <option value="week">🗓️ पिछले 7 दिन</option>
+                        <option value="month">📆 पिछले 30 दिन</option>
+                      </select>
+
+                      {/* Reset Filters */}
+                      {(searchSuccessPayments || filterSuccessUserType !== 'all' || filterSuccessSeries !== 'all' || filterSuccessMethod !== 'all' || filterSuccessDateRange !== 'all') && (
+                        <button
+                          onClick={() => {
+                            setSearchSuccessPayments('');
+                            setFilterSuccessUserType('all');
+                            setFilterSuccessSeries('all');
+                            setFilterSuccessMethod('all');
+                            setFilterSuccessDateRange('all');
+                          }}
+                          className="px-2.5 py-2 rounded-xl bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 text-stone-700 dark:text-stone-200 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>रीसेट</span>
+                        </button>
+                      )}
+
+                    </div>
+
+                  </div>
+
+                  {/* Authenticity Filter Tabs Bar */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100 dark:border-stone-800">
+                    <span className="text-xs font-bold text-stone-500 mr-1 flex items-center gap-1">
+                      <Filter className="w-3.5 h-3.5 text-stone-400" />
+                      <span>प्रमाणीकरण फ़िल्टर:</span>
+                    </span>
+
+                    <button
+                      onClick={() => setFilterSuccessUserType('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterSuccessUserType === 'all'
+                          ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                      }`}
+                    >
+                      <span>📋 सभी सफल भुगतान ({successOnlyOrders.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setFilterSuccessUserType('authentic')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterSuccessUserType === 'authentic'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>🟢 केवल Valid Users ({validSuccessOrders.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => setFilterSuccessUserType('dummy')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                        filterSuccessUserType === 'dummy'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 border border-amber-200 dark:border-amber-800'
+                      }`}
+                    >
+                      <FlaskConical className="w-3.5 h-3.5 text-amber-500" />
+                      <span>🧪 केवल Dummy Users ({dummySuccessOrders.length})</span>
+                    </button>
+
+                    <span className="text-xs font-mono text-stone-400 ml-auto">
+                      प्रदर्शित: <strong>{filteredSuccessOrders.length}</strong> / {successOnlyOrders.length} सफल रसीदें
+                    </span>
+                  </div>
+
+                </div>
+
+                {/* Successful Payments Master Table */}
+                <div className="bg-white dark:bg-stone-900 border-2 border-emerald-300/80 dark:border-emerald-900/60 rounded-3xl overflow-hidden shadow-sm">
+                  {filteredSuccessOrders.length === 0 ? (
+                    <div className="p-12 text-center bg-stone-50/50 dark:bg-stone-800/40 space-y-3">
+                      <CheckCircle2 className="w-12 h-12 text-stone-300 dark:text-stone-600 mx-auto" />
+                      <h4 className="font-black text-stone-700 dark:text-stone-300 text-sm">कोई सफल भुगतान रिकॉर्ड नहीं मिला</h4>
+                      <p className="text-xs text-stone-500 max-w-md mx-auto">
+                        दिए गए खोज या फ़िल्टर मानदंड से कोई सफल लेन-देन मेल नहीं खाया। कृपया फ़िल्टर रीसेट करके पुनः प्रयास करें।
+                      </p>
+                      <button
+                        onClick={() => {
+                          setSearchSuccessPayments('');
+                          setFilterSuccessUserType('all');
+                          setFilterSuccessSeries('all');
+                          setFilterSuccessMethod('all');
+                          setFilterSuccessDateRange('all');
+                        }}
+                        className="px-4 py-2 bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm hover:bg-emerald-600 transition"
+                      >
+                        समस्त फ़िल्टर रीसेट करें
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-emerald-50/80 dark:bg-emerald-950/50 border-b-2 border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-300 uppercase text-[10px] font-black">
+                            <th className="py-3 px-4">टैक्स इनवॉइस व ऑर्डर ID</th>
+                            <th className="py-3 px-4">रेज़रपे ID व बैंक UTR</th>
+                            <th className="py-3 px-4">प्रमाणीकरण टैग</th>
+                            <th className="py-3 px-4">परीक्षार्थी व संपर्क विवरण</th>
+                            <th className="py-3 px-4">सीरीज़ पैकेज</th>
+                            <th className="py-3 px-4">भुगतान ब्रेकडाउन (₹)</th>
+                            <th className="py-3 px-4">माध्यम व दिनांक</th>
+                            <th className="py-3 px-4 text-center">कार्रवाई</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
+                          {filteredSuccessOrders.map((order, idx) => {
+                            const isDummy = order.isDummyUser === true;
+                            const studentUser = users.find(u => u.id === order.userId);
+                            const district = order.userDistrict || studentUser?.district || 'मध्यप्रदेश';
+                            const state = order.userState || studentUser?.state || 'मध्यप्रदेश (MP)';
+
+                            return (
+                              <tr key={order.id} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition">
+                                
+                                {/* 1. Invoice & Order ID */}
+                                <td className="py-3.5 px-4">
+                                  <div className="font-mono font-black text-[#7A2A1E] dark:text-[#D4A017] text-xs flex items-center gap-1">
+                                    <span>{order.orderId}</span>
+                                  </div>
+                                  <div className="text-[10px] font-mono font-bold text-stone-500 dark:text-stone-400 mt-0.5">
+                                    📜 {order.invoiceNumber}
+                                  </div>
+                                  <button
+                                    onClick={() => setViewingReceiptOrder(order)}
+                                    className="mt-1 text-[10px] font-black text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                                  >
+                                    <Receipt className="w-3 h-3" />
+                                    <span>रसीद देखें →</span>
+                                  </button>
+                                </td>
+
+                                {/* 2. Razorpay Payment ID & Bank UTR */}
+                                <td className="py-3.5 px-4">
+                                  <div className="font-mono text-[11px] font-bold text-stone-800 dark:text-stone-200">
+                                    {order.razorpayPaymentId}
+                                  </div>
+                                  <div className="text-[10px] font-mono text-stone-500 dark:text-stone-400 mt-0.5">
+                                    UTR: <span className="font-bold text-stone-700 dark:text-stone-300">{order.utrNumber || 'REF' + order.razorpayPaymentId.slice(-8)}</span>
+                                  </div>
+                                  <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                                    ● Razorpay Auto-Captured
+                                  </div>
+                                </td>
+
+                                {/* 3. User Authenticity Tag (Valid User vs Dummy User) */}
+                                <td className="py-3.5 px-4">
+                                  <div className="space-y-1">
+                                    {isDummy ? (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 text-[10px] font-black shadow-xs">
+                                        <FlaskConical className="w-3 h-3 text-amber-600" />
+                                        <span>Dummy User (डमी)</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 text-[10px] font-black shadow-xs">
+                                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                        <span>Valid User (प्रमाणित)</span>
+                                      </span>
+                                    )}
+
+                                    {/* 1-Click Toggle Tag Button */}
+                                    <div>
+                                      <button
+                                        onClick={() => toggleUserDummyStatus(order.userId)}
+                                        className="text-[9px] font-black text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:underline flex items-center gap-0.5"
+                                        title="इस छात्र का प्रमाणीकरण टैग बदलें"
+                                      >
+                                        <RotateCcw className="w-2.5 h-2.5" />
+                                        <span>{isDummy ? 'Valid में बदलें' : 'Dummy में बदलें'}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* 4. Candidate Info */}
+                                <td className="py-3.5 px-4">
+                                  <div className="font-black text-stone-900 dark:text-white text-xs">
+                                    {order.userName}
+                                  </div>
+                                  <div className="text-[11px] font-bold text-stone-600 dark:text-stone-300 flex items-center gap-1">
+                                    <Phone className="w-3 h-3 text-stone-400" />
+                                    <span>{order.userPhone}</span>
+                                  </div>
+                                  <div className="text-[10px] text-stone-400 truncate max-w-[160px]">
+                                    {order.userEmail}
+                                  </div>
+                                  <div className="text-[10px] text-stone-500 font-semibold mt-0.5">
+                                    📍 {district}, {state}
+                                  </div>
+                                </td>
+
+                                {/* 5. Course Series Package */}
+                                <td className="py-3.5 px-4 max-w-xs">
+                                  <div className="font-bold text-stone-800 dark:text-stone-200">
+                                    {order.seriesTitle}
+                                  </div>
+                                  <div className="text-[10px] text-[#7A2A1E] dark:text-[#D4A017] font-bold mt-0.5">
+                                    ID: {order.seriesId}
+                                  </div>
+                                </td>
+
+                                {/* 6. Price & GST Breakdown */}
+                                <td className="py-3.5 px-4 font-mono">
+                                  <div className="font-black text-emerald-700 dark:text-emerald-400 text-sm">
+                                    ₹{order.finalAmount}
+                                  </div>
+                                  <div className="text-[10px] text-stone-400 space-y-0.5">
+                                    <div>मूल: ₹{order.amount}</div>
+                                    {order.discount > 0 && (
+                                      <div className="text-rose-500 font-bold">
+                                        छूट: -₹{order.discount} {order.couponCode ? `(${order.couponCode})` : ''}
+                                      </div>
+                                    )}
+                                    <div className="text-stone-400">GST (18%): ₹{order.gstAmount}</div>
+                                  </div>
+                                </td>
+
+                                {/* 7. Method & Timestamp */}
+                                <td className="py-3.5 px-4">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-black text-[10px] border border-stone-200 dark:border-stone-700">
+                                    {order.paymentMethod}
+                                  </span>
+                                  <div className="text-[10px] font-mono text-stone-400 mt-1">
+                                    {new Date(order.createdAt).toLocaleString('hi-IN')}
+                                  </div>
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 text-[9px] font-black mt-0.5">
+                                    ✓ SUCCESS
+                                  </span>
+                                </td>
+
+                                {/* 8. Actions */}
+                                <td className="py-3.5 px-4 text-center">
+                                  <div className="flex flex-col items-center gap-1.5">
+                                    <button
+                                      onClick={() => setViewingReceiptOrder(order)}
+                                      className="w-full px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center gap-1 shadow-xs transition cursor-pointer"
+                                      title="प्रिंट योग्य इनवॉइस व रसीद खोलें"
+                                    >
+                                      <Receipt className="w-3 h-3" />
+                                      <span>रसीद / इनवॉइस</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => refundOrder(order.id)}
+                                      className="w-full px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 text-[9px] font-bold border border-rose-200 dark:border-rose-800 transition"
+                                      title="रिफंड प्रक्रिया प्रारंभ करें"
+                                    >
+                                      रिफंड करें
+                                    </button>
+                                  </div>
+                                </td>
+
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            );
+          })()}
 
           {/* ========================================================= */}
           {/* TAB: TOP & BOTTOM NAVIGATION MENUS CMS */}
@@ -2425,11 +3048,35 @@ export const AdminDashboardView: React.FC = () => {
                   </button>
 
                   <button
+                    onClick={() => setStudentFilterType('valid')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      studentFilterType === 'valid'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800'
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>🟢 केवल Valid Users ({users.filter(u => !u.isDummyUser).length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setStudentFilterType('dummy')}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      studentFilterType === 'dummy'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 border border-amber-200 dark:border-amber-800'
+                    }`}
+                  >
+                    <FlaskConical className="w-3.5 h-3.5 text-amber-500" />
+                    <span>🧪 केवल Dummy Users ({users.filter(u => u.isDummyUser === true).length})</span>
+                  </button>
+
+                  <button
                     onClick={() => setStudentFilterType('granted')}
                     className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                       studentFilterType === 'granted'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800'
+                        ? 'bg-emerald-700 text-white shadow-sm'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
                     }`}
                   >
                     <Gift className="w-3.5 h-3.5" />
@@ -2440,7 +3087,7 @@ export const AdminDashboardView: React.FC = () => {
                     onClick={() => setStudentFilterType('standard')}
                     className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                       studentFilterType === 'standard'
-                        ? 'bg-amber-600 text-white shadow-sm'
+                        ? 'bg-stone-800 text-white shadow-sm'
                         : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
                     }`}
                   >
@@ -2464,6 +3111,7 @@ export const AdminDashboardView: React.FC = () => {
                       <thead>
                         <tr className="bg-stone-50 dark:bg-stone-800/80 border-b-2 border-stone-200 dark:border-stone-700 text-stone-500 uppercase text-[10px] font-black">
                           <th className="py-3 px-4">छात्र विवरण व ID</th>
+                          <th className="py-3 px-4">प्रमाणीकरण टैग</th>
                           <th className="py-3 px-4">संपर्क (मोबाइल व ईमेल)</th>
                           <th className="py-3 px-4">गृह जिला व परीक्षा</th>
                           <th className="py-3 px-4">रोल (Role)</th>
@@ -2482,6 +3130,10 @@ export const AdminDashboardView: React.FC = () => {
                               u.email.toLowerCase().includes(searchStudents.toLowerCase()) ||
                               u.phone.includes(searchStudents);
                             
+                            const isDummy = u.isDummyUser === true;
+                            if (studentFilterType === 'valid') return matchesSearch && !isDummy;
+                            if (studentFilterType === 'dummy') return matchesSearch && isDummy;
+                            
                             const userGranted = enrolledMap[u.id] || [];
                             if (studentFilterType === 'granted') return matchesSearch && (u.role === 'admin' || userGranted.length > 0);
                             if (studentFilterType === 'standard') return matchesSearch && u.role !== 'admin' && userGranted.length === 0;
@@ -2489,6 +3141,7 @@ export const AdminDashboardView: React.FC = () => {
                           })
                           .map(user => {
                             const isAdmin = user.role === 'admin';
+                            const isDummy = user.isDummyUser === true;
                             const grantedList = enrolledMap[user.id] || [];
                             const isVipAll = grantedList.includes('all_series_vip');
 
@@ -2511,6 +3164,21 @@ export const AdminDashboardView: React.FC = () => {
                                       <div className="text-[10px] font-mono text-stone-400">{user.id}</div>
                                     </div>
                                   </div>
+                                </td>
+
+                                {/* User Authenticity Tag */}
+                                <td className="py-3.5 px-4">
+                                  {isDummy ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 text-[10px] font-black">
+                                      <FlaskConical className="w-3 h-3 text-amber-600" />
+                                      <span>Dummy User</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 text-[10px] font-black">
+                                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                      <span>Valid User</span>
+                                    </span>
+                                  )}
                                 </td>
 
                                 <td className="py-3.5 px-4">
@@ -2584,7 +3252,31 @@ export const AdminDashboardView: React.FC = () => {
                                 </td>
 
                                 <td className="py-3.5 px-4 text-center">
-                                  <div className="flex items-center justify-center gap-1.5">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                    
+                                    {/* Toggle Valid / Dummy Tag Button */}
+                                    <button
+                                      onClick={() => toggleUserDummyStatus(user.id)}
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-black border flex items-center gap-1 transition cursor-pointer ${
+                                        user.isDummyUser
+                                          ? 'bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border-emerald-300'
+                                          : 'bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border-amber-300'
+                                      }`}
+                                      title={user.isDummyUser ? 'Valid User (वास्तविक छात्र) बनाएं' : 'Dummy User (डमी खाता) बनाएं'}
+                                    >
+                                      {user.isDummyUser ? (
+                                        <>
+                                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                          <span>Valid करें</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <FlaskConical className="w-3 h-3 text-amber-600" />
+                                          <span>Dummy करें</span>
+                                        </>
+                                      )}
+                                    </button>
+
                                     {/* Grant Free Access Button */}
                                     <button
                                       onClick={() => setGrantModalUser(user)}
@@ -2592,7 +3284,7 @@ export const AdminDashboardView: React.FC = () => {
                                       title="इस छात्र को मुफ़्त टेस्ट सीरीज़ असाइन करें"
                                     >
                                       <Gift className="w-3.5 h-3.5" />
-                                      <span>मुफ़्त एक्सेस</span>
+                                      <span>मुफ़्त</span>
                                     </button>
 
                                     <button
@@ -3667,6 +4359,7 @@ export const AdminDashboardView: React.FC = () => {
                         <th className="py-3 px-4">ऑर्डर ID व इनवॉइस</th>
                         <th className="py-3 px-4">रेज़रपे Payment ID</th>
                         <th className="py-3 px-4">परीक्षार्थी विवरण</th>
+                        <th className="py-3 px-4">प्रमाणीकरण (Tag)</th>
                         <th className="py-3 px-4">सीरीज़ पैकेज</th>
                         <th className="py-3 px-4">राशि व छूट</th>
                         <th className="py-3 px-4">स्थिति</th>
@@ -3680,45 +4373,71 @@ export const AdminDashboardView: React.FC = () => {
                           o.razorpayPaymentId.toLowerCase().includes(searchOrders.toLowerCase()) ||
                           o.userName.toLowerCase().includes(searchOrders.toLowerCase())
                         )
-                        .map(order => (
-                          <tr key={order.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40">
-                            <td className="py-3.5 px-4">
-                              <div className="font-mono font-bold text-[#7A2A1E] dark:text-[#D4A017]">{order.orderId}</div>
-                              <div className="text-[10px] text-stone-400 font-mono">{order.invoiceNumber}</div>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-[11px] text-stone-600 dark:text-stone-300">
-                              {order.razorpayPaymentId}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-bold">{order.userName}</div>
-                              <div className="text-[10px] text-stone-400">{order.userPhone}</div>
-                            </td>
-                            <td className="py-3.5 px-4 max-w-xs truncate">{order.seriesTitle}</td>
-                            <td className="py-3.5 px-4 font-mono">
-                              <div className="font-black text-emerald-600">₹{order.finalAmount}</div>
-                              {order.discount > 0 && <div className="text-[10px] text-rose-500">-₹{order.discount} छूट</div>}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                                order.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                              }`}>
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              {order.status === 'SUCCESS' ? (
+                        .map(order => {
+                          const isDummy = order.isDummyUser === true;
+                          return (
+                            <tr key={order.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40">
+                              <td className="py-3.5 px-4">
+                                <div className="font-mono font-bold text-[#7A2A1E] dark:text-[#D4A017]">{order.orderId}</div>
+                                <div className="text-[10px] text-stone-400 font-mono">{order.invoiceNumber}</div>
+                              </td>
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-stone-600 dark:text-stone-300">
+                                {order.razorpayPaymentId}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="font-bold">{order.userName}</div>
+                                <div className="text-[10px] text-stone-400">{order.userPhone}</div>
+                              </td>
+                              <td className="py-3.5 px-4">
                                 <button
-                                  onClick={() => refundOrder(order.id)}
-                                  className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-[10px] font-black"
+                                  onClick={() => toggleUserDummyStatus(order.userId)}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-black cursor-pointer transition ${
+                                    isDummy
+                                      ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
+                                      : 'bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-200'
+                                  }`}
+                                  title="क्लिक करके Valid / Dummy स्थिति बदलें"
                                 >
-                                  रिफंड करें
+                                  {isDummy ? (
+                                    <>
+                                      <FlaskConical className="w-3 h-3 text-amber-600" />
+                                      <span>Dummy User</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                                      <span>Valid User</span>
+                                    </>
+                                  )}
                                 </button>
-                              ) : (
-                                <span className="text-[10px] text-stone-400 font-bold">रिफंडेड</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="py-3.5 px-4 max-w-xs truncate">{order.seriesTitle}</td>
+                              <td className="py-3.5 px-4 font-mono">
+                                <div className="font-black text-emerald-600">₹{order.finalAmount}</div>
+                                {order.discount > 0 && <div className="text-[10px] text-rose-500">-₹{order.discount} छूट</div>}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                                  order.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  {order.status}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {order.status === 'SUCCESS' ? (
+                                  <button
+                                    onClick={() => refundOrder(order.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-[10px] font-black cursor-pointer"
+                                  >
+                                    रिफंड करें
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-stone-400 font-bold">रिफंडेड</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>

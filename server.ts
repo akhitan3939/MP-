@@ -4,6 +4,15 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import { 
+  INITIAL_USERS, 
+  INITIAL_TEST_SERIES, 
+  INITIAL_ATTEMPTS, 
+  INITIAL_COUPONS, 
+  INITIAL_ANNOUNCEMENTS, 
+  INITIAL_NOTES 
+} from './src/data/initialData';
+import { INITIAL_NAV_MENUS, INITIAL_BANNERS } from './src/utils/storage';
 
 dotenv.config();
 
@@ -266,7 +275,7 @@ function loadAppStateFromDisk(): ServerAppState {
     try {
       const content = fs.readFileSync(STATE_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(content);
-      return parsed;
+      return parsed && typeof parsed === 'object' ? parsed : {};
     } catch (err) {
       console.warn('Error reading app_state.json from disk:', err);
     }
@@ -277,40 +286,78 @@ function loadAppStateFromDisk(): ServerAppState {
 function saveAppStateToDisk(state: ServerAppState) {
   ensureDataDirExists();
   try {
-    fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+    const serialized = JSON.stringify(state, null, 2);
+    const tempFile = `${STATE_FILE_PATH}.tmp`;
+    fs.writeFileSync(tempFile, serialized, 'utf-8');
+    fs.renameSync(tempFile, STATE_FILE_PATH);
   } catch (err) {
-    console.warn('Error saving app_state.json to disk:', err);
+    try {
+      fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('Error saving app_state.json to disk:', e);
+    }
   }
 }
 
 let inMemoryAppState: ServerAppState = loadAppStateFromDisk();
 
-// Initialize and preserve users seed
+// 1. Initialize and preserve users seed
 if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 0) {
-  inMemoryAppState.users = INITIAL_DEFAULT_USERS;
+  inMemoryAppState.users = INITIAL_USERS;
 } else {
+  // Merge default users with any stored users to ensure no registered user is lost
+  const userMap = new Map<string, any>();
+  INITIAL_USERS.forEach(u => userMap.set(u.id, u));
+  inMemoryAppState.users.forEach(u => {
+    if (u && u.id) userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u });
+  });
+  
   // Ensure default admin is always present and updated
-  const adminIndex = inMemoryAppState.users.findIndex(u => u.role === 'admin' || u.id === 'usr_admin');
-  if (adminIndex >= 0) {
-    inMemoryAppState.users[adminIndex] = {
-      ...inMemoryAppState.users[adminIndex],
-      name: 'प्रशासक (Akhilesh Korsne)',
-      username: 'akhitan_3939',
-      password: 'Tanmayee*1234',
-      email: 'akhitan3939@mppariksha.in',
-      role: 'admin'
-    };
-  } else {
-    inMemoryAppState.users.unshift(INITIAL_DEFAULT_USERS[0]);
-  }
+  const adminEntry = userMap.get('usr_admin') || INITIAL_USERS[0];
+  userMap.set('usr_admin', {
+    ...adminEntry,
+    name: 'प्रशासक (Akhilesh Korsne)',
+    username: 'akhitan_3939',
+    password: 'Tanmayee*1234',
+    email: 'akhitan3939@mppariksha.in',
+    role: 'admin'
+  });
+  inMemoryAppState.users = Array.from(userMap.values());
 }
 
-// Initialize and preserve attempts seed
+// 2. Initialize and preserve attempts seed
 if (!Array.isArray(inMemoryAppState.attempts) || inMemoryAppState.attempts.length === 0) {
-  inMemoryAppState.attempts = INITIAL_DEFAULT_ATTEMPTS;
+  inMemoryAppState.attempts = INITIAL_ATTEMPTS;
 }
 
-// Initialize orders and enrolledMap
+// 3. Initialize and preserve testSeries seed (CRITICAL for test active/inactive persistence across clients)
+if (!Array.isArray(inMemoryAppState.testSeries) || inMemoryAppState.testSeries.length === 0) {
+  inMemoryAppState.testSeries = INITIAL_TEST_SERIES;
+} else {
+  const seriesMap = new Map<string, any>();
+  inMemoryAppState.testSeries.forEach(s => {
+    if (s && s.id) seriesMap.set(s.id, s);
+  });
+
+  // Preserve all default test series with their admin modifications (isActive, disabledSetNumbers, etc.)
+  const mergedSeries = INITIAL_TEST_SERIES.map(base => {
+    if (seriesMap.has(base.id)) {
+      return { ...base, ...seriesMap.get(base.id) };
+    }
+    return base;
+  });
+
+  // Include any extra custom series created by admin
+  seriesMap.forEach((val, id) => {
+    if (!INITIAL_TEST_SERIES.some(base => base.id === id)) {
+      mergedSeries.push(val);
+    }
+  });
+
+  inMemoryAppState.testSeries = mergedSeries;
+}
+
+// 4. Initialize orders and enrolledMap
 if (!Array.isArray(inMemoryAppState.orders)) {
   inMemoryAppState.orders = [];
 }
@@ -318,7 +365,32 @@ if (!inMemoryAppState.enrolledMap || typeof inMemoryAppState.enrolledMap !== 'ob
   inMemoryAppState.enrolledMap = {};
 }
 
-// Initialize default platform settings if not present
+// 5. Initialize site banners
+if (!Array.isArray(inMemoryAppState.siteBanners) || inMemoryAppState.siteBanners.length === 0) {
+  inMemoryAppState.siteBanners = INITIAL_BANNERS;
+}
+
+// 6. Initialize nav menus
+if (!Array.isArray(inMemoryAppState.navMenuItems) || inMemoryAppState.navMenuItems.length === 0) {
+  inMemoryAppState.navMenuItems = INITIAL_NAV_MENUS;
+}
+
+// 7. Initialize coupons
+if (!Array.isArray(inMemoryAppState.coupons) || inMemoryAppState.coupons.length === 0) {
+  inMemoryAppState.coupons = INITIAL_COUPONS;
+}
+
+// 8. Initialize announcements
+if (!Array.isArray(inMemoryAppState.announcements) || inMemoryAppState.announcements.length === 0) {
+  inMemoryAppState.announcements = INITIAL_ANNOUNCEMENTS;
+}
+
+// 9. Initialize notes
+if (!Array.isArray(inMemoryAppState.notes) || inMemoryAppState.notes.length === 0) {
+  inMemoryAppState.notes = INITIAL_NOTES;
+}
+
+// 10. Initialize default platform settings if not present
 if (!inMemoryAppState.platformSettings) {
   inMemoryAppState.platformSettings = {
     siteTitle: 'MP परीक्षा सेतु',
@@ -779,21 +851,34 @@ app.post('/api/test-series/toggle-active', (req: Request, res: Response) => {
 
   let list = inMemoryAppState.testSeries || [];
   let updatedStatus = true;
+  let found = false;
+
   list = list.map(s => {
     if (s.id === seriesId) {
+      found = true;
       updatedStatus = isActive !== undefined ? Boolean(isActive) : !s.isActive;
       return { ...s, isActive: updatedStatus };
     }
     return s;
   });
 
+  if (!found) {
+    const defaultItem = INITIAL_TEST_SERIES.find(s => s.id === seriesId);
+    updatedStatus = isActive !== undefined ? Boolean(isActive) : false;
+    const newEntry = defaultItem ? { ...defaultItem, isActive: updatedStatus } : { id: seriesId, isActive: updatedStatus };
+    list.push(newEntry);
+  }
+
   inMemoryAppState.testSeries = list;
   saveAppStateToDisk(inMemoryAppState);
+
+  console.log(`[MP Setu] Test Series Visibility Toggled: ${seriesId} is now ${updatedStatus ? 'ACTIVE' : 'INACTIVE'}`);
 
   res.json({
     success: true,
     seriesId,
     isActive: updatedStatus,
+    testSeries: inMemoryAppState.testSeries,
     message: `Test series ${seriesId} is now ${updatedStatus ? 'ACTIVE' : 'INACTIVE'}`
   });
 });
@@ -811,7 +896,8 @@ app.post('/api/test-series/toggle-set', (req: Request, res: Response) => {
 
   if (!targetSeries) {
     // create default minimal entry if not yet saved
-    targetSeries = {
+    const defaultItem = INITIAL_TEST_SERIES.find(s => s.id === seriesId);
+    targetSeries = defaultItem ? { ...defaultItem } : {
       id: seriesId,
       totalTests: 20,
       disabledSetNumbers: [],
@@ -864,6 +950,7 @@ app.post('/api/test-series/toggle-set', (req: Request, res: Response) => {
     disabledSetNumbers: disabled,
     activeSetsCount: activeCount,
     totalTests: totalPossible,
+    testSeries: inMemoryAppState.testSeries,
     message: `Set #${num} is now ${willBeActive ? 'ACTIVE (visible to students)' : 'INACTIVE (hidden from students)'}`
   });
 });
@@ -910,6 +997,7 @@ app.post('/api/test-series/save-sets-config', (req: Request, res: Response) => {
   res.json({
     success: true,
     seriesId,
+    testSeries: inMemoryAppState.testSeries,
     message: 'Sets configuration updated globally'
   });
 });
