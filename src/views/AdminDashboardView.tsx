@@ -201,6 +201,18 @@ export const AdminDashboardView: React.FC = () => {
   const [editingCoupon, setEditingCoupon] = useState<Partial<Coupon> | null>(null);
   const [editingNote, setEditingNote] = useState<Partial<OfflineNote> | null>(null);
   const [editingSettings, setEditingSettings] = useState<PlatformSettings>({ ...platformSettings });
+
+  // Dedicated Subject / Syllabus Manager State
+  const [subjectManagerSeries, setSubjectManagerSeries] = useState<TestSeries | null>(null);
+  const [newSubHi, setNewSubHi] = useState<string>('');
+  const [newSubEn, setNewSubEn] = useState<string>('');
+  const [newSubQCount, setNewSubQCount] = useState<number>(25);
+  const [newSubMarks, setNewSubMarks] = useState<number>(25);
+  
+  // Custom Subject input state for Question modal
+  const [isCustomSubjectMode, setIsCustomSubjectMode] = useState<boolean>(false);
+  const [customSubjectInput, setCustomSubjectInput] = useState<string>('');
+
   
   React.useEffect(() => {
     setEditingSettings({ ...platformSettings });
@@ -576,14 +588,22 @@ export const AdminDashboardView: React.FC = () => {
       return;
     }
 
+    const resolvedSubject = isCustomSubjectMode && customSubjectInput.trim() 
+      ? customSubjectInput.trim() 
+      : (editingQuestion.subject || 'म.प्र. सामान्य ज्ञान');
+    
+    const resolvedSection = editingQuestion.section && editingQuestion.section !== 'General Studies'
+      ? editingQuestion.section
+      : resolvedSubject;
+
     const optHi = editingQuestion.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
     const optEn = editingQuestion.optionsEn || ['Option A', 'Option B', 'Option C', 'Option D'];
 
     const newQ: Question = {
       id: editingQuestion.id || `q_custom_${Date.now()}`,
       seriesId: editingQuestion.seriesId || testSeries[0]?.id || 'ts_patwari_2026',
-      section: editingQuestion.section || 'General Studies',
-      subject: editingQuestion.subject || 'म.प्र. सामान्य ज्ञान',
+      section: resolvedSection,
+      subject: resolvedSubject,
       topic: editingQuestion.topic || 'General Topic',
       difficulty: editingQuestion.difficulty || 'medium',
       questionHi: editingQuestion.questionHi || '',
@@ -606,7 +626,36 @@ export const AdminDashboardView: React.FC = () => {
     };
 
     saveQuestion(newQ);
+
+    // If assigned to a test series and subject is not yet in that series syllabus, automatically register it!
+    if (newQ.seriesId && newQ.seriesId !== 'free_mock_40') {
+      const targetSeries = testSeries.find(s => s.id === newQ.seriesId);
+      if (targetSeries) {
+        const alreadyInSyllabus = (targetSeries.syllabus || []).some(
+          s => s.sectionHi?.toLowerCase() === resolvedSubject.toLowerCase() || s.section?.toLowerCase() === resolvedSubject.toLowerCase()
+        );
+        if (!alreadyInSyllabus) {
+          const updatedSeries: TestSeries = {
+            ...targetSeries,
+            syllabus: [
+              ...(targetSeries.syllabus || []),
+              {
+                section: resolvedSection,
+                sectionHi: resolvedSubject,
+                questionsCount: 25,
+                marks: 25
+              }
+            ]
+          };
+          saveTestSeries(updatedSeries);
+          showToast(`✨ प्रश्न सहेजा गया और विषय '${resolvedSubject}' टेस्ट सीरीज़ में शामिल हो गया!`);
+        }
+      }
+    }
+
     setEditingQuestion(null);
+    setIsCustomSubjectMode(false);
+    setCustomSubjectInput('');
   };
 
   // Handler: Save Announcement / News
@@ -3903,8 +3952,23 @@ export const AdminDashboardView: React.FC = () => {
                           </div>
                           <div className="flex items-center justify-between text-stone-500 font-medium">
                             <span>अनुभाग (Sections):</span>
-                            <span className="font-bold">{series.syllabus.length} विषय</span>
+                            <span className="font-bold text-[#7A2A1E] dark:text-[#D4A017]">{series.syllabus?.length || 0} विषय</span>
                           </div>
+                          
+                          {/* Subject Badges Preview */}
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {(series.syllabus || []).slice(0, 4).map((sub, sIdx) => (
+                              <span key={sIdx} className="text-[10px] bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-1.5 py-0.5 rounded-md font-semibold truncate max-w-[120px]">
+                                {sub.sectionHi || sub.section}
+                              </span>
+                            ))}
+                            {(series.syllabus || []).length > 4 && (
+                              <span className="text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded-md font-bold">
+                                +{(series.syllabus || []).length - 4} और
+                              </span>
+                            )}
+                          </div>
+
                           <div className="flex items-center justify-between text-stone-500 font-medium">
                             <span>ई-नोट्स PDF:</span>
                             <span className="font-bold">{series.pdfNotesCount || 10} फाइल्स</span>
@@ -3916,21 +3980,39 @@ export const AdminDashboardView: React.FC = () => {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="p-4 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => setEditingSeries({ ...series })}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold cursor-pointer"
-                        >
-                          <Edit className="w-3.5 h-3.5 text-[#7A2A1E] dark:text-[#D4A017]" />
-                          <span>संपादित करें / विवरण</span>
-                        </button>
-                        <button
-                          onClick={() => deleteTestSeries(series.id)}
-                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 cursor-pointer"
-                          title="हटाएँ"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="p-3.5 border-t border-stone-100 dark:border-stone-800 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSubjectManagerSeries(series);
+                              setNewSubHi('');
+                              setNewSubEn('');
+                              setNewSubQCount(25);
+                              setNewSubMarks(25);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-amber-500/15 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300 hover:bg-amber-500/25 text-xs font-black border border-amber-400/40 transition cursor-pointer"
+                            title="इस टेस्ट सीरीज़ में नए विषय जोड़ें या सिलेबस संपादित करें"
+                          >
+                            <Layers className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>📑 विषय जोड़ें / प्रबंधित करें</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => setEditingSeries({ ...series })}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-xs font-bold cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-[#7A2A1E] dark:text-[#D4A017]" />
+                            <span>संपादित करें</span>
+                          </button>
+
+                          <button
+                            onClick={() => deleteTestSeries(series.id)}
+                            className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 cursor-pointer"
+                            title="सीरीज़ हटाएँ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -7317,6 +7399,136 @@ export const AdminDashboardView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Syllabus / Subject Section Manager inside Series Edit Modal */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-stone-800/80 border border-amber-300 dark:border-stone-700 space-y-3">
+                <div className="flex items-center justify-between border-b border-amber-200 dark:border-stone-700 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                    <span className="font-black text-xs text-stone-900 dark:text-stone-100">
+                      विषय एवं सिलेबस अनुभाग ({(editingSeries.syllabus || []).length} विषय शामिल)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-stone-500">
+                    कुल प्रश्न: {(editingSeries.syllabus || []).reduce((acc, s) => acc + (s.questionsCount || 0), 0)} | कुल अंक: {(editingSeries.syllabus || []).reduce((acc, s) => acc + (s.marks || 0), 0)}
+                  </span>
+                </div>
+
+                {/* List of current subjects */}
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {(editingSeries.syllabus || []).length === 0 ? (
+                    <div className="text-center py-3 text-[11px] text-stone-500">
+                      कोई विषय नहीं जुड़ा है। नीचे से नया विषय जोड़ें।
+                    </div>
+                  ) : (
+                    (editingSeries.syllabus || []).map((sub, sIdx) => (
+                      <div key={sIdx} className="p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 flex items-center justify-between gap-2 shadow-2xs">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">
+                            {sIdx + 1}. {sub.sectionHi || sub.section}
+                          </div>
+                          <div className="text-[10px] text-stone-500 truncate">
+                            {sub.section} • {sub.questionsCount} प्रश्न • {sub.marks} अंक
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = (editingSeries.syllabus || []).filter((_, idx) => idx !== sIdx);
+                            setEditingSeries({ ...editingSeries, syllabus: updated });
+                          }}
+                          className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer"
+                          title="विषय हटाएँ"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Inline add subject row */}
+                <div className="pt-2 border-t border-amber-200 dark:border-stone-700">
+                  <div className="text-[11px] font-black text-amber-900 dark:text-amber-300 mb-1.5 flex items-center gap-1">
+                    <Plus className="w-3 h-3" />
+                    <span>इस टेस्ट सीरीज़ में नया विषय जोड़ें:</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <input 
+                      type="text"
+                      placeholder="विषय का नाम (हिन्दी)"
+                      id="input_inline_sub_hi"
+                      className="p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs font-bold"
+                    />
+                    <input 
+                      type="text"
+                      placeholder="Subject (English)"
+                      id="input_inline_sub_en"
+                      className="p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs"
+                    />
+                    <div className="flex items-center gap-1.5">
+                      <input 
+                        type="number"
+                        placeholder="प्रश्न"
+                        defaultValue={25}
+                        id="input_inline_sub_qc"
+                        className="w-1/2 p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs font-mono text-center"
+                      />
+                      <input 
+                        type="number"
+                        placeholder="अंक"
+                        defaultValue={25}
+                        id="input_inline_sub_marks"
+                        className="w-1/2 p-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs font-mono text-center"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const hiInput = document.getElementById('input_inline_sub_hi') as HTMLInputElement;
+                        const enInput = document.getElementById('input_inline_sub_en') as HTMLInputElement;
+                        const qcInput = document.getElementById('input_inline_sub_qc') as HTMLInputElement;
+                        const mkInput = document.getElementById('input_inline_sub_marks') as HTMLInputElement;
+
+                        const nameHi = hiInput?.value?.trim();
+                        const nameEn = enInput?.value?.trim() || nameHi;
+                        const qc = Number(qcInput?.value || 25);
+                        const mk = Number(mkInput?.value || 25);
+
+                        if (!nameHi) {
+                          showToast('⚠️ कृपया विषय का नाम दर्ज करें');
+                          return;
+                        }
+
+                        const currentSyllabus = editingSeries.syllabus || [];
+                        const updated = [
+                          ...currentSyllabus,
+                          {
+                            section: nameEn,
+                            sectionHi: nameHi,
+                            questionsCount: qc,
+                            marks: mk
+                          }
+                        ];
+
+                        setEditingSeries({
+                          ...editingSeries,
+                          syllabus: updated,
+                          totalQuestions: updated.reduce((acc, s) => acc + (s.questionsCount || 0), 0),
+                          totalMarks: updated.reduce((acc, s) => acc + (s.marks || 0), 0)
+                        });
+
+                        if (hiInput) hiInput.value = '';
+                        if (enInput) enInput.value = '';
+                        showToast(`✅ विषय '${nameHi}' जोड़ा गया!`);
+                      }}
+                      className="py-2 px-3 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black text-xs border border-[#D4A017] hover:bg-[#5E1F16] cursor-pointer"
+                    >
+                      + विषय जोड़ें
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-black uppercase text-stone-500 mb-1">विवरण (Description)</label>
                 <textarea 
@@ -7363,6 +7575,257 @@ export const AdminDashboardView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 2.5: DEDICATED TEST SERIES SUBJECT & SYLLABUS MANAGER */}
+      {/* ========================================================= */}
+      {subjectManagerSeries && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div>
+                <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-amber-600" />
+                  <span>विषय एवं सिलेबस प्रबंधन (Subject & Syllabus Manager)</span>
+                </h3>
+                <p className="text-xs font-bold text-[#7A2A1E] dark:text-[#D4A017] mt-0.5">
+                  📚 {subjectManagerSeries.titleHi}
+                </p>
+              </div>
+              <button 
+                onClick={() => setSubjectManagerSeries(null)} 
+                className="p-1 text-stone-400 hover:text-black dark:hover:text-white cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-center">
+                <span className="text-[10px] font-black uppercase text-stone-500 block">कुल विषय</span>
+                <span className="text-lg font-black text-amber-700 dark:text-amber-300">
+                  {subjectManagerSeries.syllabus?.length || 0}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-center">
+                <span className="text-[10px] font-black uppercase text-stone-500 block">कुल प्रश्न</span>
+                <span className="text-lg font-black text-stone-800 dark:text-stone-200 font-mono">
+                  {(subjectManagerSeries.syllabus || []).reduce((acc, s) => acc + (s.questionsCount || 0), 0)}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-center">
+                <span className="text-[10px] font-black uppercase text-stone-500 block">कुल अंक</span>
+                <span className="text-lg font-black text-emerald-700 dark:text-emerald-300 font-mono">
+                  {(subjectManagerSeries.syllabus || []).reduce((acc, s) => acc + (s.marks || 0), 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Subjects List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-black text-stone-700 dark:text-stone-300">
+                <span>मौजूदा विषय सूची (Current Subjects in Series):</span>
+                <span className="text-[11px] text-stone-500 font-normal">छात्रों को टेस्ट विवरण व विश्लेषण में दिखाई देंगे</span>
+              </div>
+
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {(subjectManagerSeries.syllabus || []).length === 0 ? (
+                  <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800 text-center text-xs text-stone-500">
+                    इस टेस्ट सीरीज़ में कोई विषय नहीं है। नीचे दिए गए फ़ॉर्म से नया विषय जोड़ें।
+                  </div>
+                ) : (
+                  (subjectManagerSeries.syllabus || []).map((sub, sIdx) => {
+                    const qCountInBank = questions.filter(
+                      q => q.seriesId === subjectManagerSeries.id && (q.subject === sub.sectionHi || q.section === sub.section || q.subject === sub.section)
+                    ).length;
+
+                    return (
+                      <div 
+                        key={sIdx}
+                        className="p-3 rounded-2xl bg-white dark:bg-stone-800/90 border border-stone-200 dark:border-stone-700 flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <span className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-black flex items-center justify-center shrink-0">
+                            {sIdx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="font-black text-xs text-stone-900 dark:text-stone-100 truncate">
+                              {sub.sectionHi || sub.section}
+                            </div>
+                            <div className="text-[11px] text-stone-500 truncate flex items-center gap-2 mt-0.5">
+                              <span>{sub.section}</span>
+                              <span>•</span>
+                              <span className="font-semibold text-amber-600 dark:text-amber-400">{sub.questionsCount} Qs</span>
+                              <span>•</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{sub.marks} Marks</span>
+                              <span>•</span>
+                              <span className="text-stone-400 font-mono">({qCountInBank} प्रश्न बैंक में)</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingQuestion({
+                                seriesId: subjectManagerSeries.id,
+                                subject: sub.sectionHi || sub.section,
+                                section: sub.section || sub.sectionHi,
+                                difficulty: 'medium',
+                                marks: 1,
+                                negativeMarks: 0,
+                                optionsHi: ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'],
+                                optionsEn: ['Option A', 'Option B', 'Option C', 'Option D'],
+                                correctOption: 0
+                              });
+                              setIsCustomSubjectMode(false);
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                            title="इस विषय में नया प्रश्न जोड़ें"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>प्रश्न जोड़ें</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedSyllabus = (subjectManagerSeries.syllabus || []).filter((_, idx) => idx !== sIdx);
+                              const updatedSeries: TestSeries = {
+                                ...subjectManagerSeries,
+                                syllabus: updatedSyllabus,
+                                totalQuestions: updatedSyllabus.reduce((acc, s) => acc + (s.questionsCount || 0), 0),
+                                totalMarks: updatedSyllabus.reduce((acc, s) => acc + (s.marks || 0), 0)
+                              };
+                              setSubjectManagerSeries(updatedSeries);
+                              saveTestSeries(updatedSeries);
+                              showToast(`🗑️ विषय '${sub.sectionHi || sub.section}' हटा दिया गया`);
+                            }}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                            title="विषय हटाएँ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Add New Subject Form Box */}
+            <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-stone-800/80 border-2 border-dashed border-amber-300 dark:border-stone-700 space-y-3">
+              <div className="font-black text-xs text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-amber-600" />
+                <span>नया विषय जोड़ें (Add New Subject to {subjectManagerSeries.titleHi}):</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block font-bold text-stone-600 dark:text-stone-300 mb-1">विषय का नाम (हिन्दी) *</label>
+                  <input 
+                    type="text" 
+                    placeholder="उदा: म.प्र. समसामयिकी (Current Affairs)"
+                    value={newSubHi}
+                    onChange={(e) => setNewSubHi(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-stone-600 dark:text-stone-300 mb-1">Subject Name in English</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. MP Current Affairs & GK"
+                    value={newSubEn}
+                    onChange={(e) => setNewSubEn(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="block font-bold text-stone-600 dark:text-stone-300 mb-1">प्रश्नों की संख्या</label>
+                  <input 
+                    type="number" 
+                    value={newSubQCount}
+                    onChange={(e) => setNewSubQCount(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-stone-600 dark:text-stone-300 mb-1">कुल अंक</label>
+                  <input 
+                    type="number" 
+                    value={newSubMarks}
+                    onChange={(e) => setNewSubMarks(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono font-bold text-emerald-600"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-1 flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newSubHi.trim()) {
+                        showToast('⚠️ कृपया विषय का नाम (हिन्दी) दर्ज करें');
+                        return;
+                      }
+
+                      const sectionHi = newSubHi.trim();
+                      const sectionEn = newSubEn.trim() || sectionHi;
+                      const qCount = Number(newSubQCount || 25);
+                      const marks = Number(newSubMarks || 25);
+
+                      const currentSyllabus = subjectManagerSeries.syllabus || [];
+                      const updatedSyllabus = [
+                        ...currentSyllabus,
+                        {
+                          section: sectionEn,
+                          sectionHi: sectionHi,
+                          questionsCount: qCount,
+                          marks: marks
+                        }
+                      ];
+
+                      const updatedSeries: TestSeries = {
+                        ...subjectManagerSeries,
+                        syllabus: updatedSyllabus,
+                        totalQuestions: updatedSyllabus.reduce((acc, s) => acc + (s.questionsCount || 0), 0),
+                        totalMarks: updatedSyllabus.reduce((acc, s) => acc + (s.marks || 0), 0)
+                      };
+
+                      setSubjectManagerSeries(updatedSeries);
+                      saveTestSeries(updatedSeries);
+
+                      setNewSubHi('');
+                      setNewSubEn('');
+                      setNewSubQCount(25);
+                      setNewSubMarks(25);
+                      showToast(`🎉 नया विषय '${sectionHi}' सफलतापूर्वक जोड़ा गया!`);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] shadow-sm hover:bg-[#5E1F16] cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>विषय जोड़ें</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+              <button
+                type="button"
+                onClick={() => setSubjectManagerSeries(null)}
+                className="py-2.5 px-6 rounded-xl bg-[#7A2A1E] text-[#D4A017] font-black border border-[#D4A017] text-xs cursor-pointer"
+              >
+                पूर्ण / बंद करें (Done)
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -7423,23 +7886,94 @@ export const AdminDashboardView: React.FC = () => {
               {/* Subject & Topic */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-black uppercase text-stone-500 mb-1">विषय (Subject / Section)</label>
-                  <select
-                    value={editingQuestion.subject || 'म.प्र. सामान्य ज्ञान'}
-                    onChange={(e) => setEditingQuestion({ ...editingQuestion, subject: e.target.value, section: e.target.value })}
-                    className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
-                  >
-                    <option value="म.प्र. सामान्य ज्ञान">म.प्र. सामान्य ज्ञान (MP GK)</option>
-                    <option value="सामान्य हिन्दी">सामान्य हिन्दी (Hindi)</option>
-                    <option value="सामान्य गणित">सामान्य गणित (Maths)</option>
-                    <option value="कंप्यूटर विज्ञान">कंप्यूटर विज्ञान (Computer)</option>
-                    <option value="सामान्य प्रबंधन">सामान्य प्रबंधन (Management)</option>
-                    <option value="सामान्य विज्ञान">सामान्य विज्ञान (Science)</option>
-                    <option value="सामान्य तार्किक योग्यता">सामान्य तार्किक योग्यता (Reasoning)</option>
-                    <option value="सामान्य अंग्रेजी">सामान्य अंग्रेजी (English)</option>
-                    <option value="कृषि विज्ञान">कृषि विज्ञान (Agriculture / RAEO)</option>
-                    <option value="पंचायती राज">पंचायती राज व ग्रामीण अर्थव्यवस्था</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-black uppercase text-stone-500 text-[11px]">
+                      विषय (Subject / Section)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomSubjectMode(!isCustomSubjectMode);
+                        if (!isCustomSubjectMode) {
+                          setCustomSubjectInput(editingQuestion.subject || '');
+                        }
+                      }}
+                      className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    >
+                      {isCustomSubjectMode ? '← ड्रॉपडाउन से चुनें' : '➕ नया विषय लिखें (Type New)'}
+                    </button>
+                  </div>
+
+                  {isCustomSubjectMode ? (
+                    <div className="space-y-1">
+                      <input 
+                        type="text"
+                        required
+                        placeholder="यहाँ नए विषय का नाम दर्ज करें (उदा: म.प्र. समसामयिकी)"
+                        value={customSubjectInput}
+                        onChange={(e) => {
+                          setCustomSubjectInput(e.target.value);
+                          setEditingQuestion({ ...editingQuestion, subject: e.target.value, section: e.target.value });
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-amber-50 dark:bg-stone-800 border-2 border-amber-400 dark:border-amber-600 font-bold text-stone-900 dark:text-amber-200"
+                      />
+                      <span className="text-[10px] text-stone-500 block">
+                        यह विषय इस प्रश्न के साथ टेस्ट सीरीज़ के सिलेबस में भी जुड़ जाएगा।
+                      </span>
+                    </div>
+                  ) : (
+                    (() => {
+                      const selectedTs = testSeries.find(ts => ts.id === editingQuestion.seriesId);
+                      const tsSubjects = (selectedTs?.syllabus || []).map(s => s.sectionHi || s.section);
+                      const defaultSubjects = [
+                        'म.प्र. सामान्य ज्ञान',
+                        'सामान्य हिन्दी',
+                        'सामान्य गणित',
+                        'कंप्यूटर विज्ञान',
+                        'सामान्य प्रबंधन',
+                        'सामान्य विज्ञान',
+                        'सामान्य तार्किक योग्यता',
+                        'सामान्य अंग्रेजी',
+                        'कृषि विज्ञान',
+                        'पंचायती राज व ग्रामीण अर्थव्यवस्था',
+                        'इतिहास एवं संस्कृति',
+                        'भूगोल एवं पर्यावरण',
+                        'संविधान एवं राजव्यवस्था',
+                        'अर्थव्यवस्था',
+                        'समसामयिकी (Current Affairs)'
+                      ];
+                      const allSubjs = Array.from(new Set([...tsSubjects, ...defaultSubjects]));
+
+                      return (
+                        <select
+                          value={editingQuestion.subject || allSubjs[0] || 'म.प्र. सामान्य ज्ञान'}
+                          onChange={(e) => {
+                            if (e.target.value === '__custom__') {
+                              setIsCustomSubjectMode(true);
+                              setCustomSubjectInput('');
+                            } else {
+                              setEditingQuestion({ ...editingQuestion, subject: e.target.value, section: e.target.value });
+                            }
+                          }}
+                          className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                        >
+                          {selectedTs && tsSubjects.length > 0 && (
+                            <optgroup label={`🎯 ${selectedTs.titleHi} के विषय`}>
+                              {tsSubjects.map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          <optgroup label="📚 सभी मानक विषय">
+                            {defaultSubjects.map(sub => (
+                              <option key={sub} value={sub}>{sub}</option>
+                            ))}
+                          </optgroup>
+                          <option value="__custom__">➕ नया कस्टम विषय दर्ज करें...</option>
+                        </select>
+                      );
+                    })()
+                  )}
                 </div>
                 <div>
                   <label className="block font-black uppercase text-stone-500 mb-1">टॉपिक / अध्याय (Topic)</label>
