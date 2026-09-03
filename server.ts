@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import { 
@@ -16,11 +15,29 @@ import { INITIAL_NAV_MENUS, INITIAL_BANNERS } from './src/utils/storage';
 
 dotenv.config();
 
+// Global process error handlers to prevent unhandled rejections from crashing container
+process.on('uncaughtException', (err) => {
+  console.error('[SERVER UNCAUGHT EXCEPTION]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[SERVER UNHANDLED REJECTION]', reason);
+});
+
 const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Immediate health check routes for deployment liveness & readiness probes
+app.get(['/health', '/api/health'], (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'MP Pariksha Setu API',
+    hasAiKey: Boolean(process.env.GEMINI_API_KEY),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Persistent Server-Side State Storage File
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -29,6 +46,7 @@ const STATE_FILE_PATH = path.join(DATA_DIR, 'app_state.json');
 interface ServerAppState {
   testSeries?: any[];
   deletedSeriesIds?: string[];
+  deletedUserIds?: string[];
   platformSettings?: any;
   siteBanners?: any[];
   announcements?: any[];
@@ -297,27 +315,31 @@ function saveAppStateToDisk(state: ServerAppState) {
 let inMemoryAppState: ServerAppState = loadAppStateFromDisk();
 
 // 1. Initialize and preserve users seed
+if (!Array.isArray(inMemoryAppState.deletedUserIds)) {
+  inMemoryAppState.deletedUserIds = [];
+}
+
 if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 0) {
-  inMemoryAppState.users = INITIAL_USERS;
+  inMemoryAppState.users = INITIAL_USERS.filter(u => !(inMemoryAppState.deletedUserIds || []).includes(u.id));
 } else {
-  // Merge default users with any stored users to ensure no registered user is lost
-  const userMap = new Map<string, any>();
-  INITIAL_USERS.forEach(u => userMap.set(u.id, u));
-  inMemoryAppState.users.forEach(u => {
-    if (u && u.id) userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u });
-  });
+  // Respect deletions: filter out any deleted user ids
+  const activeUsers = inMemoryAppState.users.filter(u => u && u.id && !(inMemoryAppState.deletedUserIds || []).includes(u.id));
   
   // Ensure default admin is always present and updated
-  const adminEntry = userMap.get('usr_admin') || INITIAL_USERS[0];
-  userMap.set('usr_admin', {
-    ...adminEntry,
-    name: 'प्रशासक (Akhilesh Korsne)',
-    username: 'akhitan_3939',
-    password: 'Tanmayee*1234',
-    email: 'akhitan3939@mppariksha.in',
-    role: 'admin'
-  });
-  inMemoryAppState.users = Array.from(userMap.values());
+  const adminEntry = activeUsers.find(u => u.id === 'usr_admin') || INITIAL_USERS[0];
+  const withoutAdmin = activeUsers.filter(u => u.id !== 'usr_admin');
+  
+  inMemoryAppState.users = [
+    {
+      ...adminEntry,
+      name: 'प्रशासक (Akhilesh Korsne)',
+      username: 'akhitan_3939',
+      password: 'Tanmayee*1234',
+      email: 'akhitan3939@mppariksha.in',
+      role: 'admin'
+    },
+    ...withoutAdmin
+  ];
 }
 
 // 2. Initialize and preserve attempts seed
@@ -509,13 +531,111 @@ app.post('/api/app-data/sync', (req: Request, res: Response) => {
 });
 
 // ==========================================
-// USER REGISTRATION & MANAGEMENT ENDPOINTS
+// USER REGISTRATION, LOGIN & MANAGEMENT ENDPOINTS
 // ==========================================
 app.get('/api/users', (req: Request, res: Response) => {
+  const deletedIds = new Set(inMemoryAppState.deletedUserIds || []);
+  const activeUsers = (inMemoryAppState.users || []).filter(u => u && u.id && !deletedIds.has(u.id));
   res.json({
     success: true,
-    users: inMemoryAppState.users || [],
-    totalCount: (inMemoryAppState.users || []).length
+    users: activeUsers,
+    deletedUserIds: inMemoryAppState.deletedUserIds || [],
+    totalCount: activeUsers.length
+  });
+});
+
+app.post('/api/users/login', (req: Request, res: Response) => {
+  const { identifier, password, role = 'student' } = req.body || {};
+  const rawId = String(identifier || '').trim();
+  const cleanId = rawId.toLowerCase();
+  const phoneDigits = rawId.replace(/\D/g, '').slice(-10);
+
+  if (!rawId) {
+    return res.status(400).json({
+      success: false,
+      reason: 'MISSING_CREDENTIALS',
+      message: 'कृपया अपना मोबाइल नंबर, ईमेल या यूज़रनेम दर्ज करें।'
+    });
+  }
+
+  const deletedIds = new Set(inMemoryAppState.deletedUserIds || []);
+  const activeUsers = (inMemoryAppState.users || []).filter(u => u && u.id && !deletedIds.has(u.id));
+
+  // Search active (non-deleted) users by Mobile Number, Email, Username, or ID
+  let found = activeUsers.find(u => {
+    const uEmail = String(u.email || '').toLowerCase().trim();
+    const uUsername = String(u.username || '').toLowerCase().trim();
+    const uPhoneDigits = String(u.phone || '').replace(/\D/g, '').slice(-10);
+
+    // Match 10-digit phone
+    if (phoneDigits.length === 10 && uPhoneDigits === phoneDigits) return true;
+    // Match email
+    if (cleanId && uEmail === cleanId) return true;
+    // Match username
+    if (cleanId && uUsername === cleanId) return true;
+    // Match user id
+    if (rawId && u.id === rawId) return true;
+    return false;
+  });
+
+  // Special fallback for admin credentials
+  if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin')) {
+    found = activeUsers.find(u => u.role === 'admin') || (inMemoryAppState.users || []).find(u => u.role === 'admin');
+  }
+
+  // Quick demo student fallback
+  if (!found && role === 'student' && cleanId === 'aspirant') {
+    found = activeUsers.find(u => u.username === 'aspirant' || u.id === 'usr_sample_demo_1');
+  }
+
+  if (!found) {
+    return res.status(404).json({
+      success: false,
+      reason: 'USER_NOT_FOUND',
+      message: '❌ इस मोबाइल नंबर, ईमेल या यूज़रनेम से कोई सक्रिय खाता नहीं मिला। कृपया नीचे "नया खाता बनाएँ (Sign Up)" पर क्लिक करें।'
+    });
+  }
+
+  // Role verification: if admin login requested, ensure account has admin role
+  if (role === 'admin' && found.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      reason: 'FORBIDDEN_ROLE',
+      message: '❌ यह खाता व्यवस्थापक (Admin) नहीं है।'
+    });
+  }
+
+  // Password verification:
+  const userPassword = String(found.password || '').trim();
+  const inputPassword = String(password || '').trim();
+
+  if (inputPassword) {
+    // If account had no password yet, save the new input password as their password
+    if (!userPassword) {
+      found.password = inputPassword;
+      saveAppStateToDisk(inMemoryAppState);
+    } else if (userPassword !== inputPassword) {
+      // Also allow common default password 'Student@123' or '123456' or 'student123' for dummy/demo users
+      const isAcceptedFallback = (inputPassword === 'Student@123' || inputPassword === 'student123' || inputPassword === '123456') && (found.isDummyUser || !found.password);
+      if (!isAcceptedFallback) {
+        return res.status(401).json({
+          success: false,
+          reason: 'INVALID_PASSWORD',
+          message: '❌ पासवर्ड गलत है। यदि आप पासवर्ड भूल गए हैं तो "पासवर्ड भूल गए?" का उपयोग करें।'
+        });
+      }
+    }
+  }
+
+  const enrolledSeries = (inMemoryAppState.enrolledMap && inMemoryAppState.enrolledMap[found.id]) || [];
+
+  console.log(`[MP Setu] User Logged In via API: ${found.name} (${found.phone || found.email}) Role: ${found.role}`);
+
+  return res.json({
+    success: true,
+    user: found,
+    enrolledSeries,
+    message: `स्वागत है, ${found.name}!`
   });
 });
 
@@ -525,28 +645,45 @@ app.post('/api/users/register', (req: Request, res: Response) => {
     return res.status(400).json({ success: false, message: 'Student profile details are required' });
   }
 
-  let users = inMemoryAppState.users || [];
+  const deletedIds = new Set(inMemoryAppState.deletedUserIds || []);
+  let users = (inMemoryAppState.users || []).filter(u => u && u.id && !deletedIds.has(u.id));
   
-  // Check duplicate phone or email
-  const existingByPhone = newUser.phone ? users.find(u => u.phone === newUser.phone) : null;
-  const existingByEmail = newUser.email ? users.find(u => u.email?.toLowerCase() === newUser.email?.toLowerCase()) : null;
-  const existingByUsername = newUser.username ? users.find(u => u.username?.toLowerCase() === newUser.username?.toLowerCase()) : null;
+  // Check duplicate phone or email against active users only
+  const newCleanPhone = newUser.phone ? String(newUser.phone).replace(/\D/g, '').slice(-10) : '';
+  const newCleanEmail = newUser.email ? String(newUser.email).toLowerCase().trim() : '';
+  const newCleanUsername = newUser.username ? String(newUser.username).toLowerCase().trim() : '';
+
+  const existingByPhone = newCleanPhone.length >= 10 
+    ? users.find(u => String(u.phone || '').replace(/\D/g, '').slice(-10) === newCleanPhone) 
+    : null;
+  const existingByEmail = newCleanEmail 
+    ? users.find(u => String(u.email || '').toLowerCase().trim() === newCleanEmail) 
+    : null;
+  const existingByUsername = newCleanUsername 
+    ? users.find(u => String(u.username || '').toLowerCase().trim() === newCleanUsername) 
+    : null;
 
   if (existingByPhone || existingByEmail || existingByUsername) {
-    // Update existing or return conflict
     const target = existingByPhone || existingByEmail || existingByUsername;
+    if (newUser.password) target.password = newUser.password;
+    if (newUser.name) target.name = newUser.name;
+    if (newUser.district) target.district = newUser.district;
+    if (newUser.targetExam) target.targetExam = newUser.targetExam;
+    if (newUser.customTag) target.customTag = newUser.customTag;
+    if (newUser.grantReason) target.grantReason = newUser.grantReason;
+    saveAppStateToDisk(inMemoryAppState);
     return res.json({
       success: true,
       isExisting: true,
       user: target,
-      message: 'User already registered'
+      message: 'User already registered; credentials and profile updated'
     });
   }
 
   const userWithDefaults = {
     id: newUser.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     name: newUser.name,
-    username: newUser.username || `user_${Date.now()}`,
+    username: newUser.username || (newCleanEmail ? newCleanEmail.split('@')[0] : `user_${newCleanPhone}`),
     email: newUser.email || '',
     phone: newUser.phone || '',
     password: newUser.password || 'Student@123',
@@ -558,6 +695,11 @@ app.post('/api/users/register', (req: Request, res: Response) => {
     streak: typeof newUser.streak === 'number' ? newUser.streak : 1,
     badges: Array.isArray(newUser.badges) ? newUser.badges : ['🌱 New Aspirant']
   };
+
+  // If this ID was previously deleted, remove from deletedUserIds
+  if (Array.isArray(inMemoryAppState.deletedUserIds)) {
+    inMemoryAppState.deletedUserIds = inMemoryAppState.deletedUserIds.filter(id => id !== userWithDefaults.id);
+  }
 
   users = [userWithDefaults, ...users];
   inMemoryAppState.users = users;
@@ -579,17 +721,18 @@ app.post('/api/users/sync', (req: Request, res: Response) => {
     return res.status(400).json({ success: false, message: 'Invalid users array' });
   }
 
-  const existingUsers = inMemoryAppState.users || [];
+  const deletedIds = new Set(inMemoryAppState.deletedUserIds || []);
+  const existingUsers = (inMemoryAppState.users || []).filter(u => u && u.id && !deletedIds.has(u.id));
   const userMap = new Map<string, any>();
 
   // Load existing
   existingUsers.forEach(u => {
-    if (u && u.id) userMap.set(u.id, u);
+    if (u && u.id && !deletedIds.has(u.id)) userMap.set(u.id, u);
   });
 
   // Merge incoming
   users.forEach(u => {
-    if (u && u.id) {
+    if (u && u.id && !deletedIds.has(u.id)) {
       userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u });
     }
   });
@@ -600,6 +743,7 @@ app.post('/api/users/sync', (req: Request, res: Response) => {
   res.json({
     success: true,
     users: inMemoryAppState.users,
+    deletedUserIds: inMemoryAppState.deletedUserIds || [],
     totalCount: inMemoryAppState.users.length,
     message: 'Users synchronized and saved to disk'
   });
@@ -631,14 +775,43 @@ app.post('/api/users/update', (req: Request, res: Response) => {
 
 app.delete('/api/users/:id', (req: Request, res: Response) => {
   const { id } = req.params;
+  if (!id || id === 'usr_admin') {
+    return res.status(400).json({ success: false, message: 'Cannot delete admin account' });
+  }
+
+  if (!Array.isArray(inMemoryAppState.deletedUserIds)) {
+    inMemoryAppState.deletedUserIds = [];
+  }
+  if (!inMemoryAppState.deletedUserIds.includes(id)) {
+    inMemoryAppState.deletedUserIds.push(id);
+  }
+
   let users = inMemoryAppState.users || [];
-  users = users.filter(u => u.id !== id);
+  const targetUser = users.find(u => u.id === id);
+  const targetPhone = targetUser?.phone ? String(targetUser.phone).replace(/\D/g, '').slice(-10) : '';
+  const targetEmail = targetUser?.email ? String(targetUser.email).toLowerCase().trim() : '';
+
+  // Filter out target user and any duplicate matching phone/email
+  users = users.filter(u => {
+    if (u.id === id) return false;
+    if (targetPhone.length === 10 && String(u.phone || '').replace(/\D/g, '').slice(-10) === targetPhone) return false;
+    if (targetEmail && String(u.email || '').toLowerCase().trim() === targetEmail) return false;
+    return true;
+  });
   inMemoryAppState.users = users;
+
+  if (inMemoryAppState.enrolledMap && inMemoryAppState.enrolledMap[id]) {
+    delete inMemoryAppState.enrolledMap[id];
+  }
+
   saveAppStateToDisk(inMemoryAppState);
+  console.log(`[MP Setu] User ${id} (${targetUser?.name || 'Unknown'}) permanently deleted and blacklisted`);
 
   res.json({
     success: true,
-    message: `User ${id} removed successfully`,
+    deletedId: id,
+    deletedUserIds: inMemoryAppState.deletedUserIds,
+    message: `User ${id} permanently removed`,
     totalUsers: users.length
   });
 });
@@ -1728,22 +1901,42 @@ app.post('/api/orders/verify', (req: Request, res: Response) => {
 
 // Vite Middleware Configuration
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+  const distPath = path.join(process.cwd(), 'dist');
+  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+  const isCjsBundle = typeof __filename !== 'undefined' && (__filename.endsWith('.cjs') || __filename.includes('dist'));
+  const isProduction = process.env.NODE_ENV === 'production' || isCjsBundle || (hasDist && process.env.NODE_ENV !== 'development');
+
+  if (!isProduction) {
+    try {
+      const { createServer } = await import('vite');
+      const vite = await createServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr) {
+      console.warn('Vite dev middleware failed to load, falling back to static dist files:', viteErr);
+      if (hasDist) {
+        app.use(express.static(distPath));
+        app.get('*', (req: Request, res: Response) => {
+          res.sendFile(path.join(distPath, 'index.html'));
+        });
+      }
+    }
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(200).send('<!doctype html><html><head><title>MP Pariksha Setu</title></head><body><h1>MP Pariksha Setu API Running</h1></body></html>');
+      }
     });
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[MP परीक्षा सेतु] Server running at http://0.0.0.0:${PORT}`);
+    console.log(`[MP परीक्षा सेतु] Server running at http://0.0.0.0:${PORT} (mode: ${isProduction ? 'production' : 'development'})`);
   });
 }
 

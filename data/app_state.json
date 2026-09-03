@@ -17,7 +17,7 @@
     "telegramUrl": "https://t.me/mpparikshasetu_mp",
     "youtubeUrl": "https://youtube.com/@mpparikshasetu",
     "whatsappCommunityUrl": "https://chat.whatsapp.com/mpparikshasetu",
-    "visitorHitsCount": 50,
+    "visitorHitsCount": 51,
     "lastUpdatedDateHi": "01 सितम्बर 2026",
     "lastUpdatedDateEn": "01 September 2026",
     "showHitCounter": true,
@@ -158,7 +158,8 @@
         "🧪 Demo Sample"
       ],
       "isDummyUser": true,
-      "userType": "dummy"
+      "userType": "dummy",
+      "password": "student123"
     }
   ],
   "attempts": [
@@ -1049,5 +1050,9 @@
       "summaryEn": "Full Hindi Grammar coverage: Sandhi, Samas, Ras, Chhand, Alankar, 200+ Idioms, Synonyms, Antonyms, and standard spelling rules.",
       "sampleContentHi": "१. स्वर संधि के 5 भेद: दीर्घ, गुण, वृद्धि, यण, अयादि।\n- गुण संधि: अ/आ + इ/ई = ए (नर + इन्द्र = नरेन्द्र), अ/आ + उ/ऊ = ओ (महा + उत्सव = महोत्सव)।\n- यण संधि: इ/ई + असमान स्वर = य् (प्रति + एक = प्रत्येक)।\n२. समास: 6 प्रकार (अव्ययीभाव, तत्पुरुष, कर्मधारय, द्विगु, द्वंद्व, बहुव्रीहि)।\n३. रस के 4 अंग: विभाव, अनुभाव, संचारी भाव (33) और स्थायी भाव (9/11)।"
     }
+  ],
+  "deletedUserIds": [
+    "usr_test_123",
+    "usr_test_new_456"
   ]
 }

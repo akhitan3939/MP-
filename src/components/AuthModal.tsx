@@ -24,10 +24,12 @@ import {
   CheckSquare, 
   Square,
   Copy,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { ALL_INDIAN_STATES, getDistrictsForState } from '../data/statesAndDistricts';
 import { MP_DISTRICTS } from '../data/initialData';
+import { StorageService } from '../utils/storage';
 import { RegistrationSlipModal } from './RegistrationSlipModal';
 import { UserProfile } from '../types';
 
@@ -76,6 +78,7 @@ export const AuthModal: React.FC = () => {
     TARGET_EXAMS_LIST.map(e => e.id)
   );
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Admin form fields (Empty by default for manual entry)
   const [adminUsername, setAdminUsername] = useState('');
@@ -131,7 +134,7 @@ export const AuthModal: React.FC = () => {
   if (!isAuthModalOpen && !isSlipModalOpen) return null;
 
   // Handler when user submits the registration form -> verifies duplicates & sends OTP
-  const handleStudentSubmit = (e: React.FormEvent) => {
+  const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -147,19 +150,22 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      // Check if mobile number is already registered
-      if (users.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
+      // Check if mobile number is already registered (ignoring permanently deleted users)
+      const deletedIds = new Set(StorageService.getDeletedUserIds());
+      const activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
+
+      if (activeUsers.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
         setErrorMsg(
           lang === 'hi' 
-            ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया किसी अन्य नंबर का उपयोग करें अथवा सीधे लॉगिन करें।` 
-            : `❌ Mobile number (+91-${cleanPhone}) is already registered! Please login or use another number.`
+            ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया अपना पासवर्ड डालकर लॉगिन करें अथवा नीचे "पासवर्ड भूल गए?" का उपयोग करें।` 
+            : `❌ Mobile number (+91-${cleanPhone}) is already registered! Please login with your password or use Forgot Password.`
         );
         return;
       }
 
       // Check if email already registered
       const cleanEmail = email.trim().toLowerCase();
-      if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
+      if (cleanEmail && activeUsers.some(u => (u.email || '').toLowerCase().trim() === cleanEmail)) {
         setErrorMsg(
           lang === 'hi' 
             ? `❌ यह ईमेल (${cleanEmail}) पहले से पंजीकृत है! कृपया सीधे लॉगिन करें।` 
@@ -170,7 +176,7 @@ export const AuthModal: React.FC = () => {
 
       // Check if username already taken
       const desiredUsername = (username.trim() || cleanEmail.split('@')[0]).toLowerCase();
-      if (users.some(u => u.username && u.username.toLowerCase() === desiredUsername)) {
+      if (activeUsers.some(u => u.username && u.username.toLowerCase() === desiredUsername)) {
         setErrorMsg(
           lang === 'hi' 
             ? `❌ यूज़रनेम '@${desiredUsername}' पहले से लिया जा चुका है। कृपया दूसरा यूज़रनेम चुनें।` 
@@ -199,7 +205,7 @@ export const AuthModal: React.FC = () => {
     } else {
       // Student Login
       if (!emailOrUsername.trim()) {
-        setErrorMsg(lang === 'hi' ? 'कृपया अपना पंजीकृत यूज़रनेम या ईमेल दर्ज करें।' : 'Please enter your username or registered email.');
+        setErrorMsg(lang === 'hi' ? 'कृपया अपना पंजीकृत 10-अंकीय मोबाइल नंबर, ईमेल या यूज़रनेम दर्ज करें।' : 'Please enter your registered 10-digit mobile number, email, or username.');
         return;
       }
       if (!password.trim()) {
@@ -207,13 +213,24 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      const success = login(emailOrUsername.trim().toLowerCase(), password.trim(), 'student');
-      if (!success) {
-        setErrorMsg(
-          lang === 'hi' 
-            ? '❌ अमान्य यूज़रनेम/ईमेल या पासवर्ड। यदि पहली बार आए हैं तो नीचे "नया खाता बनाएँ (Sign Up)" पर क्लिक करें, अथवा पासवर्ड भूल जाने पर "पासवर्ड भूल गए?" लिंक का उपयोग करें।' 
-            : '❌ Invalid username or password. Please check your credentials or use Forgot Password.'
-        );
+      setIsLoggingIn(true);
+      setErrorMsg('');
+
+      try {
+        const result = await login(emailOrUsername.trim(), password.trim(), 'student');
+        if (!result.success) {
+          setErrorMsg(
+            result.message || (
+              lang === 'hi' 
+                ? '❌ अमान्य मोबाइल नंबर/ईमेल/यूज़रनेम या पासवर्ड। यदि आपने अभी तक नया खाता नहीं बनाया है तो नीचे "नया खाता बनाएँ (Sign Up)" पर क्लिक करें, अथवा पासवर्ड भूलने पर "पासवर्ड भूल गए?" का उपयोग करें।' 
+                : '❌ Invalid mobile number, email/username, or password. Please verify credentials or click Forgot Password.'
+            )
+          );
+        }
+      } catch (err) {
+        setErrorMsg(lang === 'hi' ? '❌ लॉगिन में तकनीकी समस्या उत्पन्न हुई।' : '❌ Technical error during login.');
+      } finally {
+        setIsLoggingIn(false);
       }
     }
   };
@@ -279,7 +296,7 @@ export const AuthModal: React.FC = () => {
     setErrorMsg('');
   };
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -288,16 +305,28 @@ export const AuthModal: React.FC = () => {
       return;
     }
 
-    const success = login(adminUsername.trim(), adminPassword.trim(), 'admin');
-    if (!success) {
-      setErrorMsg(lang === 'hi' ? '❌ गलत एडमिन यूज़रनेम या पासवर्ड।' : '❌ Invalid admin credentials.');
+    setIsLoggingIn(true);
+    try {
+      const res = await login(adminUsername.trim(), adminPassword.trim(), 'admin');
+      if (!res.success) {
+        setErrorMsg(res.message || (lang === 'hi' ? '❌ गलत एडमिन यूज़रनेम या पासवर्ड।' : '❌ Invalid admin credentials.'));
+      }
+    } catch (err) {
+      setErrorMsg(lang === 'hi' ? '❌ सर्वर एरर' : '❌ Server error');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  const handleOneClickDemoStudent = () => {
+  const handleOneClickDemoStudent = async () => {
     setEmailOrUsername('aspirant');
     setPassword('student123');
-    login('aspirant', 'student123', 'student');
+    setIsLoggingIn(true);
+    try {
+      await login('aspirant', 'student123', 'student');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   // Forgot Password: Step 1 Submit (Find Account & Generate OTP)
@@ -311,11 +340,16 @@ export const AuthModal: React.FC = () => {
     }
 
     const cleanId = forgotIdentifier.trim().toLowerCase();
-    const matchedUser = users.find(u => 
-      u.email.toLowerCase() === cleanId || 
-      (u.username && u.username.toLowerCase() === cleanId) ||
-      (u.phone && u.phone.trim() === forgotIdentifier.trim())
-    );
+    const phoneDigits = forgotIdentifier.replace(/\D/g, '').slice(-10);
+    const deletedIds = new Set(StorageService.getDeletedUserIds());
+
+    const matchedUser = users.filter(u => u && u.id && !deletedIds.has(u.id)).find(u => {
+      const uPhoneDigits = (u.phone || '').replace(/\D/g, '').slice(-10);
+      if (phoneDigits.length === 10 && uPhoneDigits === phoneDigits) return true;
+      if (cleanId && (u.email || '').toLowerCase().trim() === cleanId) return true;
+      if (cleanId && (u.username || '').toLowerCase().trim() === cleanId) return true;
+      return false;
+    });
 
     if (!matchedUser) {
       setErrorMsg(
@@ -386,12 +420,17 @@ export const AuthModal: React.FC = () => {
   };
 
   // Step 3 Complete & Login
-  const handleCompleteResetAndLogin = () => {
+  const handleCompleteResetAndLogin = async () => {
     if (foundAccount) {
       const loginId = foundAccount.username || foundAccount.email;
       setEmailOrUsername(loginId);
       setPassword(newPassword);
-      login(loginId, newPassword, 'student');
+      setIsLoggingIn(true);
+      try {
+        await login(loginId, newPassword, 'student');
+      } finally {
+        setIsLoggingIn(false);
+      }
     } else {
       setMode('login');
       setForgotStep(1);
@@ -558,9 +597,57 @@ export const AuthModal: React.FC = () => {
 
             {/* Error message banner */}
             {errorMsg && (
-              <div className="mx-4 mt-3 p-3 bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 rounded-xl text-xs font-bold flex items-center gap-2">
-                <span className="shrink-0 text-base">⚠️</span>
-                <span>{errorMsg}</span>
+              <div className="mx-4 mt-3 p-3.5 bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 rounded-xl text-xs font-bold flex flex-col gap-2 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <span className="shrink-0 text-base leading-none mt-0.5">⚠️</span>
+                  <span className="leading-relaxed">{errorMsg}</span>
+                </div>
+                {/* Instant Recovery Actions */}
+                {errorMsg.includes('पहले से पंजीकृत') && mode === 'register' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
+                      setEmailOrUsername(cleanPhone || email.trim());
+                      setPassword('');
+                      setMode('login');
+                      setErrorMsg('');
+                    }}
+                    className="self-start mt-1 px-3 py-1.5 bg-[#7A2A1E] hover:bg-[#963E2F] text-white rounded-lg text-xs font-black transition cursor-pointer shadow flex items-center gap-1.5"
+                  >
+                    <span>👉 सीधे +91-{phone.trim().replace(/\D/g, '').slice(-10)} से लॉगिन करें</span>
+                  </button>
+                )}
+                {errorMsg.includes('पासवर्ड गलत') && mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('forgot');
+                      setForgotStep(1);
+                      setForgotIdentifier(emailOrUsername);
+                      setErrorMsg('');
+                    }}
+                    className="self-start mt-1 px-3 py-1.5 bg-[#7A2A1E] hover:bg-[#963E2F] text-white rounded-lg text-xs font-black transition cursor-pointer shadow flex items-center gap-1.5"
+                  >
+                    <span>🔑 पासवर्ड रीसेट करें (Forgot Password)</span>
+                  </button>
+                )}
+                {errorMsg.includes('खाता नहीं मिला') && mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = emailOrUsername.replace(/\D/g, '').slice(-10);
+                      if (cleanPhone.length === 10) setPhone(cleanPhone);
+                      else if (emailOrUsername.includes('@')) setEmail(emailOrUsername);
+                      setMode('register');
+                      setRegStep('form');
+                      setErrorMsg('');
+                    }}
+                    className="self-start mt-1 px-3 py-1.5 bg-[#7A2A1E] hover:bg-[#963E2F] text-white rounded-lg text-xs font-black transition cursor-pointer shadow flex items-center gap-1.5"
+                  >
+                    <span>✨ नया खाता बनाएँ (Sign Up Now)</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -874,7 +961,7 @@ export const AuthModal: React.FC = () => {
 
                 <div>
                   <label className="block font-black text-stone-700 dark:text-stone-300 mb-1">
-                    यूज़रनेम या ईमेल पता / Username or Email *
+                    मोबाइल नंबर, ईमेल या यूज़रनेम / Mobile No., Email or Username *
                   </label>
                   <div className="relative">
                     <User className="w-4 h-4 absolute left-3 top-2.5 text-stone-400" />
@@ -882,7 +969,7 @@ export const AuthModal: React.FC = () => {
                       type="text"
                       value={emailOrUsername}
                       onChange={(e) => setEmailOrUsername(e.target.value)}
-                      placeholder="उदा. aspirant या yourname@gmail.com"
+                      placeholder="उदा. 9893XXXXXX, yourname@gmail.com या username"
                       required
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-[#D4A017]"
                     />
@@ -930,10 +1017,20 @@ export const AuthModal: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-[#7A2A1E] hover:bg-[#963E2F] text-white font-black uppercase tracking-wider rounded-xl shadow-lg transition text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  disabled={isLoggingIn}
+                  className="w-full py-3.5 bg-[#7A2A1E] hover:bg-[#963E2F] disabled:opacity-60 text-white font-black uppercase tracking-wider rounded-xl shadow-lg transition text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer mt-2"
                 >
-                  <LogIn className="w-4 h-4 text-[#D4A017]" />
-                  <span>{lang === 'hi' ? '🔑 लॉगिन करें' : 'Login Now'}</span>
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="w-4 h-4 text-[#D4A017] animate-spin" />
+                      <span>{lang === 'hi' ? 'सत्यापित किया जा रहा है...' : 'Verifying...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4 text-[#D4A017]" />
+                      <span>{lang === 'hi' ? '🔑 लॉगिन करें' : 'Login Now'}</span>
+                    </>
+                  )}
                 </button>
 
                 {/* Quick Switch to Sign-up */}

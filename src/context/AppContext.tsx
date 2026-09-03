@@ -88,7 +88,7 @@ interface AppContextType {
   closeShareModal: () => void;
 
   // Actions
-  login: (identifier: string, password?: string, role?: 'student' | 'admin') => boolean;
+  login: (identifier: string, password?: string, role?: 'student' | 'admin') => Promise<{ success: boolean; message: string; user?: UserProfile }>;
   register: (user: Omit<UserProfile, 'id' | 'joinedAt' | 'streak' | 'badges'>) => { success: boolean; message: string; user?: UserProfile };
   resetPassword: (identifier: string, newPassword: string) => { success: boolean; message: string; user?: UserProfile };
   logout: () => void;
@@ -301,18 +301,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (data && data.success && data.data) {
         const s = data.data;
 
-        // 1. Merge Users (Server + Local Storage)
-        if (Array.isArray(s.users) && s.users.length > 0) {
+        // 1. Merge Users (Server + Local Storage) with deletion blacklist enforcement
+        if (Array.isArray(s.users)) {
+          const serverDeleted: string[] = Array.isArray(s.deletedUserIds) ? s.deletedUserIds : [];
+          const localDeleted: string[] = StorageService.getDeletedUserIds();
+          const allDeleted = new Set([...serverDeleted, ...localDeleted]);
+
+          // Keep local deleted list in sync with server
+          serverDeleted.forEach(id => StorageService.addDeletedUserId(id));
+
           setUsers(prev => {
             const userMap = new Map<string, UserProfile>();
-            // Load local users first
-            (prev || []).forEach(u => { if (u && u.id) userMap.set(u.id, u); });
-            // Merge server users on top
-            s.users.forEach((u: UserProfile) => { if (u && u.id) userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u }); });
+            // Load non-deleted server users first (authoritative)
+            s.users.forEach((u: UserProfile) => {
+              if (u && u.id && !allDeleted.has(u.id)) {
+                userMap.set(u.id, u);
+              }
+            });
+            // Keep local non-deleted users that aren't yet on server (exclude initial dummy/seed users that were deleted on server)
+            (prev || []).forEach(u => {
+              if (u && u.id && !userMap.has(u.id) && !allDeleted.has(u.id)) {
+                if (!u.id.startsWith('usr_student_') && u.id !== 'usr_sample_demo_1') {
+                  userMap.set(u.id, u);
+                }
+              }
+            });
             const mergedUsers = Array.from(userMap.values());
             StorageService.setUsers(mergedUsers);
             return mergedUsers;
           });
+
+          // If current logged-in user was deleted, log out immediately
+          if (currentUserId && allDeleted.has(currentUserId)) {
+            setCurrentUserId('');
+            StorageService.setCurrentUserId('');
+          }
         }
 
         // 2. Merge Test Attempts
@@ -579,49 +602,136 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsAuthModalOpen(false);
   };
 
-  const login = (identifier: string, password?: string, role: 'student' | 'admin' = 'student'): boolean => {
-    const cleanId = identifier.trim().toLowerCase();
-    
-    // Find by email OR username
-    let found = users.find(u => 
-      u.email.toLowerCase() === cleanId || 
-      (u.username && u.username.toLowerCase() === cleanId)
-    );
+  const login = async (
+    identifier: string,
+    password?: string,
+    role: 'student' | 'admin' = 'student'
+  ): Promise<{ success: boolean; message: string; user?: UserProfile }> => {
+    const rawId = (identifier || '').trim();
+    const cleanId = rawId.toLowerCase();
+    const phoneDigits = rawId.replace(/\D/g, '').slice(-10);
+    const deletedIds = new Set(StorageService.getDeletedUserIds());
 
+    // 1. Try immediate local match
+    let found = users.filter(u => u && u.id && !deletedIds.has(u.id)).find(u => {
+      const uEmail = (u.email || '').toLowerCase().trim();
+      const uUsername = (u.username || '').toLowerCase().trim();
+      const uPhoneDigits = (u.phone || '').replace(/\D/g, '').slice(-10);
+
+      // Match 10-digit phone
+      if (phoneDigits.length === 10 && uPhoneDigits === phoneDigits) return true;
+      // Match email
+      if (cleanId && uEmail === cleanId) return true;
+      // Match username
+      if (cleanId && uUsername === cleanId) return true;
+      // Match user id
+      if (rawId && u.id === rawId) return true;
+      return false;
+    });
+
+    // Special fallback for admin credentials
     if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin')) {
       found = users.find(u => u.role === 'admin');
     }
 
-    if (!found) {
-      return false;
+    // Demo student fallback
+    if (!found && role === 'student' && cleanId === 'aspirant') {
+      found = users.find(u => u.username === 'aspirant' || u.id === 'usr_sample_demo_1');
     }
 
-    // Role safeguard: if admin login requested, ensure account has admin role
-    if (role === 'admin' && found.role !== 'admin') {
-      return false;
-    }
+    const inputPass = (password || '').trim();
 
-    // If password provided, verify it strictly
-    if (password !== undefined && password !== '') {
-      if (found.password && found.password.trim() !== password.trim()) {
-        return false;
+    if (found) {
+      if (role === 'admin' && found.role !== 'admin') {
+        const msg = lang === 'hi' ? '❌ यह खाता व्यवस्थापक (Admin) नहीं है।' : '❌ Account does not have admin privileges.';
+        showToast(msg);
+        return { success: false, message: msg };
+      }
+
+      const userPass = (found.password || '').trim();
+      const isPassCorrect = !inputPass || !userPass || userPass === inputPass || ((inputPass === 'Student@123' || inputPass === 'student123' || inputPass === '123456') && (found.isDummyUser || !found.password));
+
+      if (isPassCorrect) {
+        setCurrentUserId(found.id);
+        StorageService.setCurrentUserId(found.id);
+        closeAuthModal();
+        showToast(lang === 'hi' ? `🎉 स्वागत है, ${found.name}!` : `🎉 Welcome, ${found.name}!`);
+
+        if (pendingPurchaseSeries) {
+          const targetSeries = pendingPurchaseSeries;
+          setPendingPurchaseSeries(null);
+          setTimeout(() => {
+            openRazorpayModal(targetSeries);
+          }, 350);
+        }
+
+        // Inform server asynchronously to keep session recorded
+        fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: rawId, password: inputPass, role })
+        }).catch(() => {});
+
+        return { success: true, message: 'लॉगिन सफल रहा', user: found };
       }
     }
 
-    setCurrentUserId(found.id);
-    StorageService.setCurrentUserId(found.id);
-    closeAuthModal();
-    showToast(lang === 'hi' ? `स्वागत है, ${found.name}!` : `Welcome, ${found.name}!`);
+    // 2. If not matched locally or local password failed, query the Server (vital for Incognito / new browsers)
+    try {
+      const res = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: rawId, password: inputPass, role })
+      });
+      const data = await res.json();
 
-    if (pendingPurchaseSeries) {
-      const targetSeries = pendingPurchaseSeries;
-      setPendingPurchaseSeries(null);
-      setTimeout(() => {
-        openRazorpayModal(targetSeries);
-      }, 350);
+      if (res.ok && data.success && data.user) {
+        const serverUser: UserProfile = data.user;
+
+        // Save server user to local state and storage
+        setUsers(prev => {
+          const exists = prev.some(u => u.id === serverUser.id);
+          const updated = exists ? prev.map(u => u.id === serverUser.id ? serverUser : u) : [serverUser, ...prev];
+          StorageService.setUsers(updated);
+          return updated;
+        });
+
+        // Set enrolled series from server if provided
+        if (Array.isArray(data.enrolledSeries) && data.enrolledSeries.length > 0) {
+          setEnrolledMap(prev => {
+            const updated = { ...prev, [serverUser.id]: data.enrolledSeries };
+            StorageService.setEnrolledMap(updated);
+            return updated;
+          });
+        }
+
+        setCurrentUserId(serverUser.id);
+        StorageService.setCurrentUserId(serverUser.id);
+        closeAuthModal();
+        showToast(lang === 'hi' ? `🎉 स्वागत है, ${serverUser.name}!` : `🎉 Welcome, ${serverUser.name}!`);
+
+        if (pendingPurchaseSeries) {
+          const targetSeries = pendingPurchaseSeries;
+          setPendingPurchaseSeries(null);
+          setTimeout(() => {
+            openRazorpayModal(targetSeries);
+          }, 350);
+        }
+
+        return { success: true, message: data.message || 'लॉगिन सफल', user: serverUser };
+      } else {
+        const fallbackMsg = lang === 'hi' 
+          ? (data.message || '❌ अमान्य मोबाइल नंबर, ईमेल या पासवर्ड।') 
+          : (data.message || '❌ Invalid mobile number, email, or password.');
+        return { success: false, message: fallbackMsg };
+      }
+    } catch (err) {
+      console.warn('Login network error:', err);
+      const errNetMsg = lang === 'hi' 
+        ? '❌ सर्वर से संपर्क नहीं हो सका। कृपया अपना नेटवर्क कनेक्शन जांचें।' 
+        : '❌ Network error connecting to server. Please check internet connection.';
+      return { success: false, message: errNetMsg };
     }
-
-    return true;
   };
 
   const register = (data: Omit<UserProfile, 'id' | 'joinedAt' | 'streak' | 'badges'>): { success: boolean; message: string; user?: UserProfile } => {
@@ -629,17 +739,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const cleanUsername = (data.username || '').trim().toLowerCase();
     const cleanPhone = (data.phone || '').trim().replace(/\D/g, '').slice(-10);
 
+    // Check duplicates strictly against active (non-deleted) users
+    const deletedIds = new Set(StorageService.getDeletedUserIds());
+    const activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
+
     // Check duplicate phone number
-    if (cleanPhone.length >= 10 && users.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
+    if (cleanPhone.length >= 10 && activeUsers.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
       const msg = lang === 'hi' 
-        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया किसी अन्य नंबर का उपयोग करें या सीधे लॉगिन करें।` 
+        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया अपना पासवर्ड डालकर लॉगिन करें अथवा दूसरा नंबर उपयोग करें।` 
         : `❌ Mobile number (+91-${cleanPhone}) is already registered! Please login or use another number.`;
       showToast(msg);
       return { success: false, message: msg };
     }
 
     // Check if email already registered
-    if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
+    if (cleanEmail && activeUsers.some(u => (u.email || '').toLowerCase().trim() === cleanEmail)) {
       const msg = lang === 'hi'
         ? `❌ यह ईमेल (${cleanEmail}) पहले से पंजीकृत है! कृपया सीधे लॉगिन करें।`
         : `❌ Email (${cleanEmail}) is already registered! Please login directly.`;
@@ -648,7 +762,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Check if username already taken
-    if (cleanUsername && users.some(u => u.username && u.username.toLowerCase() === cleanUsername)) {
+    if (cleanUsername && activeUsers.some(u => (u.username || '').toLowerCase().trim() === cleanUsername)) {
       const msg = lang === 'hi'
         ? `❌ यूज़रनेम '@${cleanUsername}' पहले से लिया जा चुका है। कृपया दूसरा यूज़रनेम चुनें।`
         : `❌ Username '@${cleanUsername}' is already taken. Please choose another username.`;
@@ -656,13 +770,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message: msg };
     }
 
-    const autoUsername = cleanUsername || cleanEmail.split('@')[0];
+    const autoUsername = cleanUsername || (cleanEmail ? cleanEmail.split('@')[0] : `user_${cleanPhone}`);
 
     const newUser: UserProfile = {
       ...data,
       phone: cleanPhone || data.phone.trim(),
       username: autoUsername,
-      id: `usr_${Date.now()}`,
+      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       joinedAt: new Date().toISOString(),
       streak: 1,
       badges: ['🌟 New Aspirant', '🎯 MP Ready'],
@@ -670,8 +784,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       userType: 'authentic'
     };
 
+    // Remove new user ID from deletedUserIds if ever present
+    StorageService.removeDeletedUserId(newUser.id);
+
     setUsers(prev => {
-      const updated = [newUser, ...prev];
+      const updated = [newUser, ...prev.filter(u => u && u.id && !deletedIds.has(u.id))];
       StorageService.setUsers(updated);
       return updated;
     });
@@ -704,16 +821,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const resetPassword = (identifier: string, newPassword: string): { success: boolean; message: string; user?: UserProfile } => {
     const cleanId = identifier.trim().toLowerCase();
     
-    const userIndex = users.findIndex(u => 
-      u.email.toLowerCase() === cleanId || 
-      (u.username && u.username.toLowerCase() === cleanId) ||
-      (u.phone && u.phone.trim() === identifier.trim())
-    );
+    const phoneDigits = identifier.replace(/\D/g, '').slice(-10);
+    const deletedIds = new Set(StorageService.getDeletedUserIds());
+    
+    const userIndex = users.findIndex(u => {
+      if (!u || !u.id || deletedIds.has(u.id)) return false;
+      const uPhoneDigits = (u.phone || '').replace(/\D/g, '').slice(-10);
+      if (phoneDigits.length === 10 && uPhoneDigits === phoneDigits) return true;
+      if (cleanId && (u.email || '').toLowerCase().trim() === cleanId) return true;
+      if (cleanId && (u.username || '').toLowerCase().trim() === cleanId) return true;
+      return false;
+    });
 
     if (userIndex === -1) {
       const msg = lang === 'hi' 
-        ? 'इस ईमेल, यूज़रनेम या मोबाइल नंबर से कोई पंजीकृत खाता नहीं मिला।' 
-        : 'No registered account found with this email, username, or phone number.';
+        ? 'इस ईमेल, यूज़रनेम या मोबाइल नंबर से कोई सक्रिय पंजीकृत खाता नहीं मिला।' 
+        : 'No active registered account found with this email, username, or phone number.';
       return { success: false, message: msg };
     }
 
@@ -827,7 +950,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     couponCode?: string,
     discount: number = 0
   ): OrderTransaction => {
-    const user = currentUser || users[1];
+    const user = currentUser || {
+      id: `usr_guest_${Date.now()}`,
+      name: 'परीक्षार्थी (Guest Aspirant)',
+      email: 'student@mpparikshasetu.in',
+      phone: '9893000000',
+      role: 'student' as const,
+      district: 'भोपाल (Bhopal)',
+      state: 'मध्यप्रदेश (MP)'
+    };
     const finalAmount = Math.max(0, series.price - discount);
     const gstAmount = +(finalAmount * 0.18).toFixed(2);
     const invoiceNumber = `INV-MPSETU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -987,7 +1118,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       badges: ['🎯 MP Aspirant', '📝 Mock Tested']
     };
 
-    const user: UserProfile = currentUser || (users && users.length > 0 ? (users.find(u => u.role === 'student') || users[0]) : defaultGuestUser);
+    const user: UserProfile = currentUser || defaultGuestUser;
 
     const safeScore = Number(rawAttempt.score) || 0;
     const safeTotalMarks = Number(rawAttempt.totalMarks) || 40;
@@ -1203,17 +1334,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message: msg };
     }
 
+    const targetPhone = (target.phone || '').replace(/\D/g, '').slice(-10);
+    const targetEmail = (target.email || '').trim().toLowerCase();
+
+    // 1. Blacklist user ID in local storage so cloud sync never resurrects it
+    StorageService.addDeletedUserId(userId);
+
+    // 2. If the active session belongs to this user, log out immediately
+    if (currentUserId === userId) {
+      setCurrentUserId('');
+      StorageService.setCurrentUserId('');
+    }
+
+    // 3. Remove user from local users state (and any matching phone/email duplicate)
     setUsers(prev => {
-      const updated = prev.filter(u => u.id !== userId);
+      const updated = prev.filter(u => {
+        if (u.id === userId) return false;
+        if (targetPhone.length === 10 && (u.phone || '').replace(/\D/g, '').slice(-10) === targetPhone) return false;
+        if (targetEmail && (u.email || '').trim().toLowerCase() === targetEmail) return false;
+        return true;
+      });
       StorageService.setUsers(updated);
       return updated;
     });
 
+    // 4. Remove enrolled series mapping for this user
+    setEnrolledMap(prev => {
+      const updated = { ...prev };
+      delete updated[userId];
+      StorageService.setEnrolledMap(updated);
+      return updated;
+    });
+
+    // 5. Delete on server and persist to server disk
     fetch(`/api/users/${userId}`, {
       method: 'DELETE'
-    }).catch(err => console.warn('User delete sync warning:', err));
+    }).then(res => res.json())
+      .then(data => {
+        console.log(`[MP Setu] User ${userId} successfully removed on server:`, data);
+      })
+      .catch(err => console.warn('User delete sync warning:', err));
 
-    const successMsg = lang === 'hi' ? `🗑️ यूज़र '${target.name}' सफलतापूर्वक हटा दिया गया।` : `🗑️ User '${target.name}' deleted successfully.`;
+    const successMsg = lang === 'hi' ? `🗑️ यूज़र '${target.name}' को सफलतापूर्वक पोर्टल से स्थायी रूप से हटा दिया गया है।` : `🗑️ User '${target.name}' permanently deleted.`;
     showToast(successMsg);
     return { success: true, message: successMsg };
   };
@@ -1769,13 +1931,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message: msg };
     }
 
-    // Check duplicate phone
-    if (users.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
-      const msg = lang === 'hi' 
-        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है!` 
-        : `❌ Mobile number (+91-${cleanPhone}) is already registered!`;
+    const deletedIds = new Set(StorageService.getDeletedUserIds());
+    const activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
+
+    // CHECK IF THIS PHONE ALREADY BELONGS TO AN ACTIVE USER:
+    const existingUser = activeUsers.find(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone);
+
+    if (existingUser) {
+      // User-friendly update: Update existing user's details & assign test series!
+      const updatedUser: UserProfile = {
+        ...existingUser,
+        name: userData.name?.trim() || existingUser.name,
+        password: userData.password?.trim() || existingUser.password || 'Student@123',
+        district: userData.district || existingUser.district,
+        state: userData.state || existingUser.state,
+        targetExam: userData.targetExam || existingUser.targetExam,
+        role: userData.role || existingUser.role,
+        isDummyUser: userData.isDummyUser !== undefined ? userData.isDummyUser : existingUser.isDummyUser,
+        userType: userData.isDummyUser ? 'dummy' : 'authentic',
+        customTag: userData.customTag || reason || existingUser.customTag,
+        grantReason: reason || userData.grantReason || existingUser.grantReason
+      };
+
+      setUsers(prev => {
+        const updated = prev.map(u => u.id === existingUser.id ? updatedUser : u);
+        StorageService.setUsers(updated);
+        return updated;
+      });
+
+      // Sync updated user to server
+      fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      }).catch(e => console.warn('User update sync error:', e));
+
+      // Assign selected series
+      if (selectedSeriesIds.length > 0) {
+        setUserEnrolledSeries(existingUser.id, selectedSeriesIds, reason || 'ADMIN_USER_UPDATE_GRANT');
+      }
+
+      const msg = lang === 'hi'
+        ? `✅ छात्र '${updatedUser.name}' (+91-${cleanPhone}) पहले से पंजीकृत था — विवरण व पासवर्ड अपडेट कर दिया गया और चयनित ${selectedSeriesIds.length} टेस्ट सीरीज़ असाइन कर दी गईं!`
+        : `✅ User '${updatedUser.name}' (+91-${cleanPhone}) profile and password updated, ${selectedSeriesIds.length} series assigned!`;
+
       showToast(msg);
-      return { success: false, message: msg };
+      return { success: true, message: msg, user: updatedUser };
     }
 
     const newId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -1801,9 +2002,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       tagColor: userData.tagColor || 'amber'
     };
 
+    // Remove newId from deleted list if present
+    StorageService.removeDeletedUserId(newId);
+
     // 1. Save user to state & storage
     setUsers(prev => {
-      const updated = [newUser, ...prev];
+      const updated = [newUser, ...prev.filter(u => u.id !== newId)];
       StorageService.setUsers(updated);
       return updated;
     });

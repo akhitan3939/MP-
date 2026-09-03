@@ -383,7 +383,7 @@ export const Header: React.FC = () => {
               className="flex items-center gap-2 p-2 rounded-xl bg-[#7A2A1E] text-white hover:bg-[#963E2F] text-[11px] font-bold border border-[#D4A017]/30 text-left cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5 text-[#D4A017] shrink-0" />
-              <span>{lang === 'hi' ? 'रिफंड नीति' : 'Refund Policy'}</span>
+              <span>{lang === 'hi' ? 'रिफंड व गणना नीति' : 'Refund & Calculation'}</span>
             </button>
           </div>
 

@@ -331,7 +331,7 @@ export const Footer: React.FC = () => {
               onClick={() => navigate('refund', { tab: 'refund' })}
               className="hover:text-[#D4A017] hover:underline transition cursor-pointer text-[11px] sm:text-xs"
             >
-              💳 {lang === 'hi' ? 'रिफंड एवं रद्दीकरण नीति (Refund Policy)' : 'Refund & Cancellation Policy'}
+              💳 {lang === 'hi' ? 'रिफंड एवं गणना नीति (Refund & Calculation Policy)' : 'Refund & Calculation Policy'}
             </button>
           </div>
         </div>

@@ -49,6 +49,7 @@ const STORAGE_KEYS = {
   MOCK_SETS: 'mp_setu_mock_sets_v2',
   NAV_MENUS: 'mp_setu_nav_menus_v2',
   HIT_COUNTER: 'mp_setu_hit_counter_v1',
+  DELETED_USER_IDS: 'mp_setu_deleted_user_ids_v2',
 };
 
 export const INITIAL_NAV_MENUS: NavigationMenuItem[] = [
@@ -549,27 +550,56 @@ function normalizePlatformSettings(s: any): PlatformSettings {
 }
 
 export const StorageService = {
+  getDeletedUserIds: (): string[] => getStorage<string[]>(STORAGE_KEYS.DELETED_USER_IDS, []),
+  setDeletedUserIds: (ids: string[]) => setStorage(STORAGE_KEYS.DELETED_USER_IDS, ids),
+  addDeletedUserId: (id: string) => {
+    if (!id) return;
+    const list = StorageService.getDeletedUserIds();
+    if (!list.includes(id)) {
+      StorageService.setDeletedUserIds([...list, id]);
+    }
+  },
+  removeDeletedUserId: (id: string) => {
+    if (!id) return;
+    const list = StorageService.getDeletedUserIds();
+    StorageService.setDeletedUserIds(list.filter(item => item !== id));
+  },
+
   getUsers: (): UserProfile[] => {
     const raw = getStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
     const list = Array.isArray(raw) ? raw : INITIAL_USERS;
-    return list.map(u => {
-      if (u.role === 'admin' || u.id === 'usr_admin') {
+    const deletedIds = new Set(StorageService.getDeletedUserIds());
+    return list
+      .filter(u => u && u.id && !deletedIds.has(u.id))
+      .map(u => {
+        if (u.role === 'admin' || u.id === 'usr_admin') {
+          return {
+            ...u,
+            name: 'प्रशासक (Akhilesh Korsne)',
+            username: 'akhitan_3939',
+            password: 'Tanmayee*1234',
+            email: 'akhitan3939@mppariksha.in',
+            role: 'admin' as const
+          };
+        }
         return {
           ...u,
-          name: 'प्रशासक (Akhilesh Korsne)',
-          username: 'akhitan_3939',
-          password: 'Tanmayee*1234',
-          email: 'akhitan3939@mppariksha.in',
-          role: 'admin' as const
+          password: u.password || 'Student@123'
         };
-      }
-      return u;
-    });
+      });
   },
   setUsers: (users: UserProfile[]) => setStorage(STORAGE_KEYS.USERS, users),
 
-  getCurrentUserId: (): string => getStorage(STORAGE_KEYS.CURRENT_USER_ID, 'usr_student_1'),
-  setCurrentUserId: (id: string) => setStorage(STORAGE_KEYS.CURRENT_USER_ID, id),
+  getCurrentUserId: (): string => {
+    const stored = getStorage<string>(STORAGE_KEYS.CURRENT_USER_ID, '');
+    // Clean up legacy auto-login as 'usr_student_1' so visitors start as guest
+    if (stored === 'usr_student_1') {
+      setStorage(STORAGE_KEYS.CURRENT_USER_ID, '');
+      return '';
+    }
+    return stored || '';
+  },
+  setCurrentUserId: (id: string) => setStorage(STORAGE_KEYS.CURRENT_USER_ID, id || ''),
 
   getTestSeries: (): TestSeries[] => {
     const raw = getStorage<any[] | null>(STORAGE_KEYS.TEST_SERIES, null);

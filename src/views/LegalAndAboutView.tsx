@@ -128,7 +128,7 @@ export const LegalAndAboutView: React.FC = () => {
             }`}
           >
             <RotateCcw className="w-4 h-4" />
-            <span>{lang === 'hi' ? '4. रिफंड एवं रद्दीकरण (Refund & Cancellation)' : '4. Refund & Cancellation'}</span>
+            <span>{lang === 'hi' ? '4. रिफंड एवं गणना नीति (Refund & Calculation Policy)' : '4. Refund & Calculation Policy'}</span>
           </button>
         </div>
       </div>
@@ -422,10 +422,10 @@ export const LegalAndAboutView: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="font-display font-black text-2xl text-stone-900 dark:text-stone-100">
-                    {lang === 'hi' ? 'रिफंड एवं रद्दीकरण नीति (Refund & Cancellation Policy)' : 'Refund & Cancellation Policy'}
+                    {lang === 'hi' ? 'रिफंड एवं गणना नीति (Refund & Calculation Policy)' : 'Refund & Calculation Policy'}
                   </h2>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    डिजिटल टेस्ट सीरीज़ खरीद, रद्दीकरण व रिफंड मानक
+                    डिजिटल टेस्ट सीरीज़ खरीद, रद्दीकरण, मूल्य, जीएसटी, प्राप्तांक व रिफंड गणना मानक
                   </p>
                 </div>
               </div>
@@ -509,6 +509,79 @@ export const LegalAndAboutView: React.FC = () => {
                   <p className="text-[11px] text-stone-500">
                     हमारी वित्तीय टीम 24-48 घंटे के भीतर अनुरोध की जांच करती है और स्वीकृत होने पर रिफंड राशि मूल भुगतान स्रोत (UPI / Bank Account) में 5 से 7 कार्यदिवसों (Working Days) में क्रेडिट हो जाती है।
                   </p>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h4 className="font-black text-stone-900 dark:text-stone-100 text-base flex items-center gap-2">
+                  <Scale className="w-5 h-5 text-[#D4A017]" />
+                  <span>5. मूल्य, जीएसटी एवं गणना नीति (Pricing, Tax, Score & Refund Calculation Policy)</span>
+                </h4>
+                <div className="p-5 rounded-2xl bg-amber-50/50 dark:bg-stone-800/80 border border-amber-200 dark:border-stone-700 space-y-4">
+                  <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed font-medium">
+                    MP परीक्षा सेतु छात्रों के प्रति 100% वित्तीय और अंकगणितीय पारदर्शिता में विश्वास रखता है। नीचे हमारे सभी मूल्य, कर, छूट, टेस्ट अंक व रिफंड गणना के आधिकारिक फॉर्मूले दिए गए हैं:
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                    {/* Calculation 1: Price & GST Breakdown */}
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 space-y-1.5 shadow-xs">
+                      <div className="font-black text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>मूल्य एवं जीएसटी गणना (Price & 18% GST Formula)</span>
+                      </div>
+                      <p className="text-stone-600 dark:text-stone-300 font-mono text-[11px] bg-stone-100 dark:bg-stone-800 p-2 rounded-lg">
+                        अंतिम देय राशि = (सीरीज़ आधार मूल्य - कूपन छूट) + 18% GST<br />
+                        GST = (शुद्ध मूल्य × 18) ÷ 100 (9% CGST + 9% SGST)
+                      </p>
+                      <p className="text-[11px] text-stone-500">
+                        उदाहरण: ₹99 की सीरीज़ पर ₹83.90 बेस प्राइस + ₹15.10 GST शामिल होता है। छात्र से कोई छिपा हुआ अतिरिक्त शुल्क नहीं लिया जाता।
+                      </p>
+                    </div>
+
+                    {/* Calculation 2: 100% Zero-Deduction Refund */}
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 space-y-1.5 shadow-xs">
+                      <div className="font-black text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>रिफंड गणना नियम (Full Refund Calculation)</span>
+                      </div>
+                      <p className="text-stone-600 dark:text-stone-300 font-mono text-[11px] bg-stone-100 dark:bg-stone-800 p-2 rounded-lg">
+                        स्वीकृत रिफंड राशि = छात्र द्वारा भुगतान की गई कुल राशि × 100%<br />
+                        (कटौती: ₹0 शून्य गेटवे या कन्वीनियंस चार्ज)
+                      </p>
+                      <p className="text-[11px] text-stone-500">
+                        दोहरा भुगतान या तकनीकी विफलता के मामले में कोई भी रद्दीकरण शुल्क नहीं काटा जाता, पूरी राशि उसी माध्यम में लौटाई जाती है।
+                      </p>
+                    </div>
+
+                    {/* Calculation 3: Test CBT Scoring & Negative Marking */}
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 space-y-1.5 shadow-xs">
+                      <div className="font-black text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>मॉक टेस्ट प्राप्तांक गणना (CBT Score Formula)</span>
+                      </div>
+                      <p className="text-stone-600 dark:text-stone-300 font-mono text-[11px] bg-stone-100 dark:bg-stone-800 p-2 rounded-lg">
+                        कुल प्राप्तांक = (सही उत्तर × 1.0) - (गलत उत्तर × नेगेटिव मार्किंग)<br />
+                        अनुत्तरित प्रश्न (Unattempted) = 0 अंक (कोई पेनल्टी नहीं)
+                      </p>
+                      <p className="text-[11px] text-stone-500">
+                        MP पटवारी/वनरक्षक में नेगेटिव मार्किंग 0 होती है, जबकि MP पुलिस SI या MPPSC में परीक्षा नियमावली अनुसार कटौती लागू होती है।
+                      </p>
+                    </div>
+
+                    {/* Calculation 4: Rank & Percentile Formula */}
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 space-y-1.5 shadow-xs">
+                      <div className="font-black text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>रैंक व पर्सेंटाइल गणना (Percentile Formula)</span>
+                      </div>
+                      <p className="text-stone-600 dark:text-stone-300 font-mono text-[11px] bg-stone-100 dark:bg-stone-800 p-2 rounded-lg">
+                        पर्सेंटाइल = [ (कुल प्रतिभागी - आपकी रैंक) ÷ कुल प्रतिभागी ] × 100
+                      </p>
+                      <p className="text-[11px] text-stone-500">
+                        यह फॉर्मूला दर्शाता है कि राज्य के कितने प्रतिशत छात्र आपके प्राप्तांक से नीचे रहे, जिससे वास्तविक प्रतिस्पर्धा का सटीक आकलन होता है।
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>
