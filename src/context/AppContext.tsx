@@ -118,6 +118,12 @@ interface AppContextType {
   toggleMockSetActive: (seriesId: string, setNumber: number) => void;
   updateSeriesSetsConfig: (seriesId: string, config: { totalTests?: number; disabledSetNumbers?: number[]; activeSetsCount?: number }) => void;
   saveQuestion: (question: Question) => void;
+  saveBulkQuestions: (
+    questionsToSave: Question[],
+    mode?: 'append' | 'replace',
+    targetSeriesId?: string,
+    targetSetNumber?: number
+  ) => Promise<{ success: boolean; count: number }>;
   deleteQuestion: (questionId: string) => void;
   saveAnnouncement: (announcement: Announcement) => void;
   deleteAnnouncement: (id: string) => void;
@@ -1538,9 +1544,56 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const exists = prev.some(q => q.id === question.id);
       const updated = exists ? prev.map(q => q.id === question.id ? question : q) : [question, ...prev];
       StorageService.setQuestions(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions: updated })
+      }).catch(e => console.warn('Server sync error for questions:', e));
       return updated;
     });
     showToast(lang === 'hi' ? 'प्रश्न सहेजा गया' : 'Question saved');
+  };
+
+  const saveBulkQuestions = async (
+    newQuestions: Question[],
+    mode: 'append' | 'replace' = 'append',
+    targetSeriesId?: string,
+    targetSetNumber?: number
+  ): Promise<{ success: boolean; count: number }> => {
+    if (!Array.isArray(newQuestions) || newQuestions.length === 0) {
+      return { success: false, count: 0 };
+    }
+
+    return new Promise<{ success: boolean; count: number }>((resolve) => {
+      setQuestions(prev => {
+        let updated: Question[];
+
+        if (mode === 'replace' && targetSeriesId && targetSetNumber) {
+          const retained = prev.filter(q => {
+            if (q.seriesId !== targetSeriesId) return true;
+            const qSet = q.setNumber || (q.id.includes(`set_${targetSetNumber}_`) ? targetSetNumber : 1);
+            return qSet !== targetSetNumber;
+          });
+          updated = [...newQuestions, ...retained];
+        } else {
+          const newMap = new Map<string, Question>();
+          newQuestions.forEach(q => newMap.set(q.id, q));
+          const existingUpdated = prev.map(q => newMap.has(q.id) ? newMap.get(q.id)! : q);
+          const brandNew = newQuestions.filter(q => !prev.some(p => p.id === q.id));
+          updated = [...brandNew, ...existingUpdated];
+        }
+
+        StorageService.setQuestions(updated);
+        fetch('/api/app-data/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questions: updated })
+        }).catch(e => console.warn('Server sync error for bulk questions:', e));
+
+        resolve({ success: true, count: newQuestions.length });
+        return updated;
+      });
+    });
   };
 
   const deleteQuestion = (questionId: string) => {
@@ -2294,6 +2347,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleMockSetActive,
         updateSeriesSetsConfig,
         saveQuestion,
+        saveBulkQuestions,
         deleteQuestion,
         saveAnnouncement,
         deleteAnnouncement,

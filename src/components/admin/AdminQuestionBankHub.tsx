@@ -32,15 +32,23 @@ import {
   UploadCloud,
   Save,
   Lock,
-  ChevronRight
+  Target,
+  ChevronRight,
+  Gauge,
+  TrendingUp,
+  BarChart2,
+  Table
 } from 'lucide-react';
 import { Question, TestSeries } from '../../types';
 import { 
   MOCK_CATEGORY_OPTIONS, 
   MockCategoryOption, 
-  getResolvedMockQuestions 
+  getResolvedMockQuestions,
+  getAllQuestionsForSeries,
+  getSeriesAndSetInfo 
 } from '../../utils/questionBankHelper';
 import { exportToCsv, exportToXls, exportToPdfPrint } from '../../utils/exportReports';
+import { BulkQuestionUploadModal } from './BulkQuestionUploadModal';
 
 interface AdminQuestionBankHubProps {
   questions: Question[];
@@ -51,6 +59,12 @@ interface AdminQuestionBankHubProps {
   navigate: (view: string, params?: any) => void;
   onEditQuestion: (q: Question) => void;
   onAddNewQuestion: (seriesId: string, setNumber: number) => void;
+  onSaveBulk?: (
+    questions: Question[],
+    mode: 'append' | 'replace',
+    seriesId: string,
+    setNumber: number
+  ) => Promise<{ success: boolean; count: number }>;
 }
 
 export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
@@ -62,6 +76,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   navigate,
   onEditQuestion,
   onAddNewQuestion,
+  onSaveBulk,
 }) => {
   // Selected mock type & set number
   const [selectedMockId, setSelectedMockId] = useState<string>('free_mock_40');
@@ -71,6 +86,9 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
+
+  // Bulk Upload Modal state
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState<boolean>(false);
 
   // AI Question Generator Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
@@ -83,10 +101,28 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
     return MOCK_CATEGORY_OPTIONS.find(c => c.id === selectedMockId) || MOCK_CATEGORY_OPTIONS[0];
   }, [selectedMockId]);
 
+  // Selected TestSeries object from AppContext
+  const activeSeriesObj = useMemo(() => {
+    return testSeries.find(ts => ts.id === selectedMockId);
+  }, [testSeries, selectedMockId]);
+
   // Resolved questions for current Mock and Set
   const currentMockQuestions = useMemo(() => {
     return getResolvedMockQuestions(selectedMockId, selectedSetNumber, questions);
   }, [selectedMockId, selectedSetNumber, questions]);
+
+  // Capacity & Question Limit Tracker (Limit, Current, Remaining)
+  const setLimit = useMemo(() => {
+    if (selectedMockId === 'all_questions') return questions.length;
+    if (selectedMockId === 'free_mock_40') return 40;
+    if (activeSeriesObj?.totalQuestions) return activeSeriesObj.totalQuestions;
+    if (activeCategory.totalQuestionsPerSet) return activeCategory.totalQuestionsPerSet;
+    return 100;
+  }, [selectedMockId, activeSeriesObj, activeCategory, questions.length]);
+
+  const currentCount = currentMockQuestions.length;
+  const remainingQuestions = Math.max(0, setLimit - currentCount);
+  const completionPercentage = setLimit > 0 ? Math.min(100, Math.round((currentCount / setLimit) * 100)) : 100;
 
   // Unique subjects in the current mock set
   const availableSubjects = useMemo(() => {
@@ -156,6 +192,95 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
       showToast('📄 प्रश्न बैंक CSV में डाउनलोड हो गया।');
     } else {
       exportToPdfPrint(`${activeCategory.nameHi} — प्रश्न बैंक एवं समाधान पुस्तिका`, data);
+    }
+  };
+
+  // Export ALL questions across all sets for the selected series (or entire platform)
+  const handleExportAllSeriesQuestions = (format: 'xls' | 'csv') => {
+    const allSeriesQs = getAllQuestionsForSeries(selectedMockId, questions, activeCategory.totalSets || 20);
+    
+    if (!allSeriesQs || allSeriesQs.length === 0) {
+      showToast('⚠️ इस सीरीज़ में कोई प्रश्न उपलब्ध नहीं है।');
+      return;
+    }
+
+    const data = allSeriesQs.map((q, idx) => {
+      const sInfo = getSeriesAndSetInfo(q, testSeries);
+      return {
+        'क्र.सं. (Q#)': idx + 1,
+        'प्रश्न ID': q.id,
+        'मॉक सीरीज़': sInfo.seriesNameHi,
+        'सेट नं.': sInfo.setNameHi,
+        'विषय (Subject)': q.subject || q.section || 'सामान्य अध्ययन',
+        'टॉपिक': q.topic || 'सामान्य',
+        'कठिनाई (Difficulty)': q.difficulty || 'medium',
+        'प्रश्न (हिन्दी)': q.questionHi,
+        'प्रश्न (English)': q.questionEn || '',
+        'विकल्प A': q.optionsHi?.[0] || q.options?.[0]?.textHi || '',
+        'विकल्प B': q.optionsHi?.[1] || q.options?.[1]?.textHi || '',
+        'विकल्प C': q.optionsHi?.[2] || q.options?.[2]?.textHi || '',
+        'विकल्प D': q.optionsHi?.[3] || q.options?.[3]?.textHi || '',
+        'सही उत्तर विकल्प': String.fromCharCode(65 + (q.correctOption ?? q.correctOptionIndex ?? 0)),
+        'व्याख्या (Solution)': q.explanationHi || ''
+      };
+    });
+
+    const filename = `MP_Setu_${selectedMockId}_ALL_QUESTIONS_${new Date().toISOString().split('T')[0]}`;
+    if (format === 'xls') {
+      exportToXls(data, filename);
+      showToast(`📦 ${allSeriesQs.length} प्रश्न (.xls) में सफलतापूर्वक डाउनलोड हुए!`);
+    } else {
+      exportToCsv(data, filename);
+      showToast(`📦 ${allSeriesQs.length} प्रश्न CSV में सफलतापूर्वक डाउनलोड हुए!`);
+    }
+  };
+
+  // Instant Sample Upload Format Downloader
+  const handleDownloadBulkSampleFormat = (format: 'xls' | 'csv') => {
+    const sampleData = [
+      {
+        'क्र.सं. (Q#)': 1,
+        'प्रश्न ID': `q_sample_1`,
+        'मॉक सीरीज़': activeSeriesObj?.titleHi || activeCategory.nameHi,
+        'सेट नं.': activeCategory.isMultiSet ? `सेट #${selectedSetNumber}` : 'मुख्य',
+        'विषय (Subject)': 'सामान्य ज्ञान (General Knowledge)',
+        'टॉपिक': 'मध्यप्रदेश के राष्ट्रीय उद्यान',
+        'कठिनाई (Difficulty)': 'medium',
+        'प्रश्न (हिन्दी)': 'मध्यप्रदेश का सबसे पहला एवं सबसे बड़ा राष्ट्रीय उद्यान कौन सा है?',
+        'प्रश्न (English)': 'Which is the first and largest national park in Madhya Pradesh?',
+        'विकल्प A': 'कान्हा किसली राष्ट्रीय उद्यान (मण्डला)',
+        'विकल्प B': 'बांधवगढ़ राष्ट्रीय उद्यान (उमरिया)',
+        'विकल्प C': 'पेंच राष्ट्रीय उद्यान (सिवनी-छिंदवाड़ा)',
+        'विकल्प D': 'पन्ना राष्ट्रीय उद्यान (पन्ना-छतरपुर)',
+        'सही उत्तर विकल्प': 'A',
+        'व्याख्या (Solution)': 'कान्हा किसली म.प्र. का सबसे बड़ा राष्ट्रीय उद्यान है (940 वर्ग किमी)। इसे 1955 में नेशनल पार्क तथा 1973 में प्रोजेक्ट टाइगर में शामिल किया गया।'
+      },
+      {
+        'क्र.सं. (Q#)': 2,
+        'प्रश्न ID': `q_sample_2`,
+        'मॉक सीरीज़': activeSeriesObj?.titleHi || activeCategory.nameHi,
+        'सेट नं.': activeCategory.isMultiSet ? `सेट #${selectedSetNumber}` : 'मुख्य',
+        'विषय (Subject)': 'म.प्र. इतिहास (MP History)',
+        'टॉपिक': 'चंदेल कालीन स्थापत्य',
+        'कठिनाई (Difficulty)': 'easy',
+        'प्रश्न (हिन्दी)': "'खजुराहो के विश्वप्रसिद्ध मंदिर' किस राजवंश के शासकों द्वारा निर्मित करवाए गए थे?",
+        'प्रश्न (English)': 'The world famous temples of Khajuraho were built by rulers of which dynasty?',
+        'विकल्प A': 'परमार वंश (धार)',
+        'विकल्प B': 'चंदेल वंश (बुंदेलखंड)',
+        'विकल्प C': 'गुप्त राजवंश',
+        'विकल्प D': 'मौर्य राजवंश',
+        'सही उत्तर विकल्प': 'B',
+        'व्याख्या (Solution)': 'खजुराहो के मंदिर चंदेल राजाओं द्वारा 950 से 1050 ईस्वी के मध्य निर्मित कराए गए थे। यह यूनेस्को विश्व धरोहर स्थल है।'
+      }
+    ];
+
+    const filename = `MP_Setu_Bulk_Upload_Sample_Format_${format.toUpperCase()}`;
+    if (format === 'xls') {
+      exportToXls(sampleData, filename);
+      showToast('📥 एक्सेल बल्क अपलोड सैंपल फॉर्मेट (.xls) डाउनलोड हो गया!');
+    } else {
+      exportToCsv(sampleData, filename);
+      showToast('📥 CSV बल्क अपलोड सैंपल फॉर्मेट (.csv) डाउनलोड हो गया!');
     }
   };
 
@@ -263,7 +388,28 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Download Sample Format Button */}
+            <div className="flex items-center bg-stone-100 dark:bg-stone-800 rounded-xl p-0.5 border border-stone-300 dark:border-stone-700">
+              <button
+                type="button"
+                onClick={() => handleDownloadBulkSampleFormat('xls')}
+                className="px-2.5 py-1.5 hover:bg-white dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 rounded-lg text-xs font-black flex items-center gap-1 transition cursor-pointer"
+                title="प्रश्नों को एक साथ अपलोड करने के लिए एक्सेल टेम्पलेट डाउनलोड करें"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-600" />
+                <span>फॉर्मेट डाउनलोड (.xls)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadBulkSampleFormat('csv')}
+                className="px-2 py-1.5 hover:bg-white dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-lg text-xs font-bold transition cursor-pointer"
+                title="CSV टेम्पलेट डाउनलोड करें"
+              >
+                <span>.CSV</span>
+              </button>
+            </div>
+
             <button
               onClick={() => onAddNewQuestion(selectedMockId, selectedSetNumber)}
               className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
@@ -273,11 +419,20 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             </button>
 
             <button
+              onClick={() => setIsBulkUploadOpen(true)}
+              className="px-3.5 py-2 bg-[#7A2A1E] hover:bg-[#963E2F] text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
+              title="एक्सेल (.xlsx, .xls) या .CSV फ़ाइल से प्रश्न एक साथ अपलोड करें एवं फॉर्मेट देखें"
+            >
+              <UploadCloud className="w-4 h-4 text-amber-300" />
+              <span>बल्क अपलोड / फॉर्मेट</span>
+            </button>
+
+            <button
               onClick={() => setIsAiModalOpen(true)}
               className="px-3.5 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>AI से प्रश्न बनाएँ</span>
+              <span>AI से प्रश्न बनाएं</span>
             </button>
           </div>
         </div>
@@ -308,6 +463,15 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                     }`}>
                       {cat.badge}
                     </span>
+                    {cat.id !== 'all_questions' && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                        cat.isMultiSet 
+                          ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300/80' 
+                          : 'bg-sky-100 text-sky-900 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300/80'
+                      }`}>
+                        {cat.isMultiSet ? '📚 20 सेट्स सीरीज़' : '🎯 एकल मॉक'}
+                      </span>
+                    )}
                     {isSelected && (
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     )}
@@ -321,9 +485,11 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold mt-2 pt-2 border-t border-stone-200/60 dark:border-stone-700/60">
-                  <span>{cat.isMultiSet ? `20 फुल सेट्स` : 'स्टैंडअलोन मॉक'}</span>
+                  <span className={cat.isMultiSet ? 'text-amber-700 dark:text-amber-400 font-black' : 'text-sky-700 dark:text-sky-400 font-black'}>
+                    {cat.isMultiSet ? `20 फुल मॉक सेट्स` : (cat.id === 'all_questions' ? 'मास्टर रिपॉजिटरी' : 'स्टैंडअलोन एकल मॉक')}
+                  </span>
                   <span className="font-mono text-[#7A2A1E] dark:text-[#D4A017]">
-                    {cat.id === 'all_questions' ? `${questions.length} कुल प्रश्न` : `${cat.totalQuestionsPerSet} प्रश्न`}
+                    {cat.id === 'all_questions' ? `${questions.length} कुल प्रश्न` : `${cat.totalQuestionsPerSet} प्रश्न / सेट`}
                   </span>
                 </div>
               </button>
@@ -426,51 +592,134 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
               <option value="hard">कठिन (Hard)</option>
             </select>
 
-            {/* Export Dispatchers */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => handleExportCurrentMock('xls')}
-                className="px-2.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
-                title="Excel (.xls) में डाउनलोड करें"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>XLS</span>
-              </button>
-              <button
-                onClick={() => handleExportCurrentMock('csv')}
-                className="px-2.5 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
-                title="CSV में डाउनलोड करें"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>CSV</span>
-              </button>
-              <button
-                onClick={() => handleExportCurrentMock('pdf')}
-                className="px-2.5 py-2 bg-rose-700 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow cursor-pointer transition"
-                title="PDF प्रिंट / डाउनलोड करें"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>PDF</span>
-              </button>
+            {/* Export Dispatchers: Set-wise + All Questions */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Current Set Export */}
+              <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-800/80 p-1 rounded-xl border border-stone-200 dark:border-stone-700">
+                <span className="text-[10px] font-black text-stone-500 uppercase px-1.5 hidden sm:inline">
+                  {activeCategory.isMultiSet ? `सेट #${selectedSetNumber}` : 'मॉक'}:
+                </span>
+                <button
+                  onClick={() => handleExportCurrentMock('xls')}
+                  className="px-2 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer transition"
+                  title={`वर्तमान ${activeCategory.isMultiSet ? `सेट #${selectedSetNumber}` : 'मॉक'} के प्रश्न Excel (.xls) में डाउनलोड करें`}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>सेट XLS</span>
+                </button>
+                <button
+                  onClick={() => handleExportCurrentMock('csv')}
+                  className="px-2 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer transition"
+                  title="CSV में डाउनलोड करें"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>CSV</span>
+                </button>
+                <button
+                  onClick={() => handleExportCurrentMock('pdf')}
+                  className="px-2 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer transition"
+                  title="PDF प्रिंट / डाउनलोड करें"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>PDF</span>
+                </button>
+              </div>
+
+              {/* All Series Questions Export (All sets combined) */}
+              <div className="flex items-center gap-1 bg-amber-50 dark:bg-stone-800 p-1 rounded-xl border border-amber-300 dark:border-amber-700/60">
+                <span className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase px-1.5 flex items-center gap-1">
+                  <span>📦</span>
+                  <span className="hidden sm:inline">सीरीज़ के सभी प्रश्न:</span>
+                </span>
+                <button
+                  onClick={() => handleExportAllSeriesQuestions('xls')}
+                  className="px-2.5 py-1.5 bg-[#7A2A1E] hover:bg-[#963E2F] text-[#D4A017] hover:text-white rounded-lg text-xs font-black flex items-center gap-1 shadow-xs cursor-pointer transition"
+                  title="इस सीरीज़ के सभी सेट्स (Sets 1-20) के समस्त प्रश्न एक साथ Excel (.xls) में डाउनलोड करें"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>सभी प्रश्न XLS</span>
+                </button>
+                <button
+                  onClick={() => handleExportAllSeriesQuestions('csv')}
+                  className="px-2 py-1.5 bg-stone-700 hover:bg-stone-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer transition"
+                  title="इस सीरीज़ के सभी प्रश्न CSV में डाउनलोड करें"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>CSV</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Selected Mock Summary Badge */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100 dark:border-stone-800 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-stone-600 dark:text-stone-300">
-              प्रदर्शित प्रश्न: <span className="font-mono font-black text-[#7A2A1E] dark:text-[#D4A017]">{filteredQuestions.length}</span> / {currentMockQuestions.length}
-            </span>
-            {subjectFilter !== 'all' && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
-                विषय: {subjectFilter}
+        {/* Selected Mock Capacity, Limit & Progress Tracker */}
+        <div className="pt-3 border-t border-[#EAD8B1]/70 dark:border-stone-800 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+            {/* Left: Current Category/Set and Capacity Details */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-black text-stone-900 dark:text-amber-300 flex items-center gap-1.5">
+                <Gauge className="w-4 h-4 text-[#7A2A1E] dark:text-[#D4A017]" />
+                <span>इस टेस्ट सेट क्षमता स्थिति (Series Capacity Tracker):</span>
               </span>
-            )}
+
+              {/* Status Badges */}
+              <div className="flex items-center gap-1.5 font-mono">
+                {/* 1. Limit */}
+                <span className="px-2.5 py-0.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-bold border border-stone-200 dark:border-stone-700">
+                  कुल सीमा (Limit): <strong className="text-stone-900 dark:text-white">{setLimit}</strong>
+                </span>
+
+                {/* 2. Current available */}
+                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
+                  उपलब्ध (Current): <strong className="text-emerald-700 dark:text-emerald-400">{currentCount}</strong>
+                </span>
+
+                {/* 3. Remaining */}
+                <span className={`px-2.5 py-0.5 rounded-lg font-bold border ${
+                  remainingQuestions === 0 
+                    ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 border-emerald-400' 
+                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                }`}>
+                  {remainingQuestions === 0 ? (
+                    <span>✓ 0 शेष (पूर्ण / 100%)</span>
+                  ) : (
+                    <span>⏳ {remainingQuestions} प्रश्न शेष (Remaining)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Quick action / Status */}
+            <div className="flex items-center gap-3 text-xs">
+              <span className="font-bold text-stone-600 dark:text-stone-400">
+                प्रदर्शित: <span className="font-mono font-black text-[#7A2A1E] dark:text-[#D4A017]">{filteredQuestions.length}</span> / {currentCount}
+              </span>
+              {subjectFilter !== 'all' && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
+                  विषय: {subjectFilter}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="text-[11px] text-stone-400 font-medium">
-            💡 किसी भी प्रश्न को संपादित (Edit) करने पर वह तुरंत सेव होता है और छात्र परीक्षा में अपडेटेड दिखेगा।
+          {/* Progress bar */}
+          <div className="w-full bg-stone-200 dark:bg-stone-800 h-2 rounded-full overflow-hidden flex">
+            <div 
+              className={`h-full transition-all duration-300 ${
+                completionPercentage >= 100 ? 'bg-emerald-600' : 'bg-gradient-to-r from-amber-500 to-[#7A2A1E]'
+              }`}
+              style={{ width: `${completionPercentage}%` }}
+              title={`सेट पूर्णता: ${currentCount} / ${setLimit} (${completionPercentage}%)`}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-stone-400">
+            <span>
+              {completionPercentage >= 100 
+                ? `🎉 यह सेट पूरे ${setLimit} प्रश्नों के साथ पूरी तरह तैयार है!` 
+                : `सेट पूर्ण करने के लिए अभी ${remainingQuestions} प्रश्न और जोड़ने की आवश्यकता है।`}
+            </span>
+            <span>{completionPercentage}% पूर्ण</span>
           </div>
         </div>
       </div>
@@ -501,12 +750,33 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             const correctIdx = q.correctOption ?? q.correctOptionIndex ?? 0;
             const optionsList = q.optionsHi || q.options?.map(o => o.textHi) || ['A', 'B', 'C', 'D'];
             const optionsEnList = q.optionsEn || q.options?.map(o => o.textEn) || [];
+            const seriesInfo = getSeriesAndSetInfo(q, testSeries);
 
             return (
               <div 
                 key={q.id}
                 className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-xs hover:shadow-md transition space-y-3 relative group"
               >
+                {/* Visual Exam & Set Context Badge - Live CBT Display */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-amber-50/80 dark:bg-stone-850 border border-amber-300/80 dark:border-stone-700 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-stone-200">
+                    <span className="text-[#7A2A1E] dark:text-[#D4A017] font-black flex items-center gap-1">
+                      <Target className="w-3.5 h-3.5" />
+                      <span>छात्र परीक्षा में दिखेगा:</span>
+                    </span>
+                    <span className="font-extrabold text-[#2D2424] dark:text-white underline decoration-amber-400">
+                      {seriesInfo.seriesNameHi}
+                    </span>
+                    <span className="text-stone-400 font-bold">➔</span>
+                    <span className="px-2 py-0.5 rounded-lg bg-[#7A2A1E] text-[#D4A017] font-mono font-black text-[11px] shadow-2xs">
+                      {seriesInfo.setNameHi}
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-mono text-stone-500 dark:text-stone-400 bg-stone-200/60 dark:bg-stone-800 px-2 py-0.5 rounded">
+                    ID: {q.id}
+                  </div>
+                </div>
+
                 {/* Card Top Header */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -545,7 +815,11 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                       <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => onEditQuestion(q)}
+                      onClick={() => onEditQuestion({
+                        ...q,
+                        seriesId: q.seriesId || selectedMockId,
+                        setNumber: q.setNumber || (activeCategory.isMultiSet ? selectedSetNumber : 1)
+                      })}
                       className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950 text-[#7A2A1E] dark:text-[#D4A017] hover:bg-amber-100 transition"
                       title="संपादित करें (Edit)"
                     >
@@ -732,6 +1006,28 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Bulk Question Upload Modal */}
+      {isBulkUploadOpen && (
+        <BulkQuestionUploadModal
+          isOpen={isBulkUploadOpen}
+          onClose={() => setIsBulkUploadOpen(false)}
+          testSeries={testSeries}
+          questions={questions}
+          initialSeriesId={selectedMockId}
+          initialSetNumber={selectedSetNumber}
+          onSaveBulk={async (uploadedQuestions, mode, seriesId, setNumber) => {
+            if (onSaveBulk) {
+              return await onSaveBulk(uploadedQuestions, mode, seriesId, setNumber);
+            } else {
+              uploadedQuestions.forEach(q => saveQuestion(q));
+              showToast(`✅ ${uploadedQuestions.length} प्रश्न सफलतापूर्वक अपलोड हो गए!`);
+              return { success: true, count: uploadedQuestions.length };
+            }
+          }}
+          showToast={showToast}
+        />
       )}
 
     </div>

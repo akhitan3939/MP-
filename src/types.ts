@@ -63,6 +63,7 @@ export interface Question {
   negativeMarks: number;
   difficulty: 'easy' | 'medium' | 'hard';
   topic: string;
+  setNumber?: number;
 }
 
 export interface TestSeriesSyllabusSection {

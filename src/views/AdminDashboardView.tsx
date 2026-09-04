@@ -94,6 +94,7 @@ import { INITIAL_WEBSITE_CONTENT, INITIAL_SOCIAL_CHANNELS } from '../utils/stora
 import { exportToCsv, exportToXls, exportToPdfPrint, ExportColumn } from '../utils/exportReports';
 import { DynamicNavIcon, NAV_ICON_MAP, NavIconKey } from '../utils/navIcons';
 import { AdminQuestionBankHub } from '../components/admin/AdminQuestionBankHub';
+import { getAllQuestionsForSeries, getSeriesAndSetInfo, getResolvedMockQuestions } from '../utils/questionBankHelper';
 
 type AdminModuleTab = 
   | 'OVERVIEW'
@@ -142,6 +143,7 @@ export const AdminDashboardView: React.FC = () => {
     toggleMockSetActive,
     updateSeriesSetsConfig,
     saveQuestion, 
+    saveBulkQuestions,
     deleteQuestion, 
     saveAnnouncement, 
     deleteAnnouncement, 
@@ -602,6 +604,7 @@ export const AdminDashboardView: React.FC = () => {
     const newQ: Question = {
       id: editingQuestion.id || `q_custom_${Date.now()}`,
       seriesId: editingQuestion.seriesId || testSeries[0]?.id || 'ts_patwari_2026',
+      setNumber: Number(editingQuestion.setNumber || 1),
       section: resolvedSection,
       subject: resolvedSubject,
       topic: editingQuestion.topic || 'General Topic',
@@ -4083,6 +4086,51 @@ export const AdminDashboardView: React.FC = () => {
 
                     <div className="flex flex-wrap items-center gap-3">
                       <button
+                        onClick={() => {
+                          const allSeriesQs = getAllQuestionsForSeries(currentMockSeries.id, questions, totalAttachedSets);
+                          if (!allSeriesQs.length) {
+                            showToast('⚠️ इस सीरीज़ में कोई प्रश्न उपलब्ध नहीं है।');
+                            return;
+                          }
+                          const data = allSeriesQs.map((q, idx) => {
+                            const sInfo = getSeriesAndSetInfo(q, testSeries);
+                            return {
+                              'क्र.सं. (Q#)': idx + 1,
+                              'प्रश्न ID': q.id,
+                              'मॉक सीरीज़': sInfo.seriesNameHi,
+                              'सेट नं.': sInfo.setNameHi,
+                              'विषय (Subject)': q.subject || q.section || 'सामान्य अध्ययन',
+                              'टॉपिक': q.topic || 'सामान्य',
+                              'कठिनाई (Difficulty)': q.difficulty || 'medium',
+                              'प्रश्न (हिन्दी)': q.questionHi,
+                              'प्रश्न (English)': q.questionEn || '',
+                              'विकल्प A': q.optionsHi?.[0] || q.options?.[0]?.textHi || '',
+                              'विकल्प B': q.optionsHi?.[1] || q.options?.[1]?.textHi || '',
+                              'विकल्प C': q.optionsHi?.[2] || q.options?.[2]?.textHi || '',
+                              'विकल्प D': q.optionsHi?.[3] || q.options?.[3]?.textHi || '',
+                              'सही उत्तर विकल्प': String.fromCharCode(65 + (q.correctOption ?? q.correctOptionIndex ?? 0)),
+                              'व्याख्या (Solution)': q.explanationHi || ''
+                            };
+                          });
+                          exportToXls(data, `MP_Setu_${currentMockSeries.id}_ALL_SETS_QUESTIONS_${new Date().toISOString().split('T')[0]}`);
+                          showToast(`📦 ${allSeriesQs.length} प्रश्न Excel (.xls) में डाउनलोड हुए!`);
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-black shadow transition flex items-center gap-1.5 cursor-pointer"
+                        title="इस सीरीज़ के सभी सेट्स के प्रश्न Excel (.xls) में डाउनलोड करें"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+                        <span>सीरीज़ के सभी प्रश्न (.xls)</span>
+                      </button>
+
+                      <button
+                        onClick={() => setActiveTab('QUESTIONS')}
+                        className="px-4 py-2.5 rounded-xl bg-[#7A2A1E] hover:bg-[#963E2F] text-amber-300 text-xs font-black shadow transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <FileQuestion className="w-4 h-4" />
+                        <span>प्रश्न बैंक CMS खोलें</span>
+                      </button>
+
+                      <button
                         onClick={() => navigate('testDetail', { id: currentMockSeries?.id })}
                         className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black shadow transition flex items-center gap-1.5 cursor-pointer"
                       >
@@ -4090,6 +4138,21 @@ export const AdminDashboardView: React.FC = () => {
                         <span>छात्र व्यू देखें (Student View)</span>
                       </button>
                     </div>
+                  </div>
+
+                  {/* System Architecture Clarification Guide */}
+                  <div className="p-4 bg-amber-950/40 border border-amber-500/40 rounded-2xl text-xs space-y-1.5 text-amber-200">
+                    <div className="font-black text-amber-300 flex items-center gap-1.5 text-sm">
+                      <span>💡</span>
+                      <span>मॉक सेट्स एवं प्रश्न बैंक संरचना स्पष्टीकरण (Clear System Guide):</span>
+                    </div>
+                    <p className="text-stone-300 leading-relaxed text-[11px]">
+                      • <strong>20 फुल मॉक सेट्स सीरीज़ (जैसे पटवारी, कृषि विस्तार):</strong> इनमें 20 अलग-अलग फुल प्रश्न पत्र (Sets 1 to 20) होते हैं। छात्र 1 से 20 तक के सेट्स अलग-अलग हल कर सकते हैं।
+                      <br />
+                      • <strong>एकल परीक्षा मॉक (Single Exam Mocks जैसे MPPSC, MP पुलिस, वनरक्षक आदि):</strong> इनमें 1 मुख्य फुल टेस्ट (100–150 प्रश्न) होता है।
+                      <br />
+                      • <strong>प्रश्न बैंक CMS:</strong> आप किसी भी प्रश्न को एडिट या बल्क अपलोड करते समय यह तय कर सकते हैं कि वह किस परीक्षा के किस सेट नंबर (Set #1 से #20) में दिखाई देगा।
+                    </p>
                   </div>
 
                   {/* Realtime Stats & Sets Count Configurator */}
@@ -4290,6 +4353,17 @@ export const AdminDashboardView: React.FC = () => {
                             >
                               👁️ टेस्ट का पूर्वावलोकन (Preview)
                             </button>
+
+                            {/* Jump to Question Bank CMS for this set */}
+                            <button
+                              onClick={() => {
+                                setActiveTab('QUESTIONS');
+                              }}
+                              className="w-full py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-[#7A2A1E] dark:text-[#D4A017] text-[11px] font-bold text-center transition cursor-pointer border border-amber-200 dark:border-amber-800/60 flex items-center justify-center gap-1"
+                            >
+                              <FileQuestion className="w-3.5 h-3.5" />
+                              <span>प्रश्न बैंक CMS में देखें/एडिट करें</span>
+                            </button>
                           </div>
                         </div>
                       );
@@ -4318,9 +4392,10 @@ export const AdminDashboardView: React.FC = () => {
               showToast={showToast}
               navigate={navigate}
               onEditQuestion={(q) => setEditingQuestion({ ...q })}
-              onAddNewQuestion={(seriesId) => setEditingQuestion({
+              onAddNewQuestion={(seriesId, setNumber) => setEditingQuestion({
                 id: `q_custom_${Date.now()}`,
                 seriesId: seriesId || 'free_mock_40',
+                setNumber: setNumber || 1,
                 subject: 'म.प्र. सामान्य ज्ञान',
                 section: 'म.प्र. सामान्य ज्ञान',
                 topic: '',
@@ -4336,6 +4411,7 @@ export const AdminDashboardView: React.FC = () => {
                 marks: 1,
                 negativeMarks: 0
               })}
+              onSaveBulk={saveBulkQuestions}
             />
           )}
 
@@ -7850,18 +7926,62 @@ export const AdminDashboardView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveQuestion} className="space-y-4 text-xs max-h-[75vh] overflow-y-auto pr-2">
-              {/* Series & Category Assignment */}
+              {/* Prominent Live Exam & Set Context Banner */}
+              {(() => {
+                const currentSeries = testSeries.find(s => s.id === (editingQuestion.seriesId || 'free_mock_40'));
+                const seriesTitle = editingQuestion.seriesId === 'free_mock_40'
+                  ? '40-प्रश्न फ्री डेमो मॉक टेस्ट (All Exams Free Demo)'
+                  : (currentSeries?.titleHi || currentSeries?.titleEn || 'मॉक टेस्ट सीरीज़');
+                const isMultiSet = editingQuestion.seriesId === 'ts_patwari_2026' || 
+                                  editingQuestion.seriesId === 'ts_agri_ext_2026' || 
+                                  (currentSeries && (currentSeries.totalTests || 0) > 1);
+                const currentSetNum = editingQuestion.setNumber || 1;
+                const setLabel = isMultiSet ? `मॉक टेस्ट सेट #${currentSetNum}` : 'मुख्य टेस्ट सेट (Set #1)';
+
+                return (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/60 dark:from-stone-850 dark:to-stone-800 border-2 border-amber-400/80 dark:border-amber-700 space-y-1.5 shadow-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-lg bg-[#7A2A1E] text-[#D4A017] font-black text-xs flex items-center gap-1 shadow-xs">
+                          <Target className="w-3.5 h-3.5" />
+                          <span>छात्र परीक्षा प्रदर्शन स्थिति</span>
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
+                          ● लाइव CBT पोर्टल में दृश्यमान
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400">
+                        प्रश्न ID: {editingQuestion.id || 'New'}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-bold text-stone-900 dark:text-white leading-relaxed pt-1">
+                      यह प्रश्न <span className="font-black text-[#7A2A1E] dark:text-[#D4A017] underline underline-offset-2">{seriesTitle}</span> के <span className="px-2.5 py-0.5 rounded-lg bg-[#7A2A1E] text-[#D4A017] font-mono font-black">{setLabel}</span> में विद्यार्थियों को हल करने के लिए दिखेगा।
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Series, Set Number & Difficulty Assignment */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
+                {/* 1. Exam Series Selector */}
+                <div>
                   <label className="block font-black uppercase text-stone-500 mb-1">
-                    🎯 संबद्ध टेस्ट सीरीज़ / मॉक सेट (Assign to Series / Free Mock)
+                    🎯 संबद्ध परीक्षा / टेस्ट सीरीज़ (Exam Series)
                   </label>
                   <select
                     value={editingQuestion.seriesId || 'free_mock_40'}
-                    onChange={(e) => setEditingQuestion({ ...editingQuestion, seriesId: e.target.value })}
-                    className="w-full p-2.5 rounded-xl bg-amber-50/50 dark:bg-stone-800 border border-amber-300 dark:border-amber-700 font-bold text-stone-900 dark:text-amber-300"
+                    onChange={(e) => {
+                      const newSeriesId = e.target.value;
+                      setEditingQuestion({ 
+                        ...editingQuestion, 
+                        seriesId: newSeriesId,
+                        setNumber: editingQuestion.setNumber || 1
+                      });
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-amber-50/60 dark:bg-stone-800 border border-amber-300 dark:border-amber-700 font-bold text-stone-900 dark:text-amber-300"
                   >
-                    <option value="free_mock_40">🎁 40-प्रश्न फ्री डेमो मॉक टेस्ट (All Exams Demo)</option>
+                    <option value="free_mock_40">🎁 40-प्रश्न फ्री डेमो मॉक टेस्ट</option>
                     {testSeries.map(ts => (
                       <option key={ts.id} value={ts.id}>
                         📚 {ts.titleHi} (₹{ts.price})
@@ -7869,6 +7989,38 @@ export const AdminDashboardView: React.FC = () => {
                     ))}
                   </select>
                 </div>
+
+                {/* 2. Set Number Selector */}
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    🎯 परीक्षा सेट नंबर (Set #1–20)
+                  </label>
+                  {(() => {
+                    const currentSeries = testSeries.find(s => s.id === (editingQuestion.seriesId || 'free_mock_40'));
+                    const totalSets = (editingQuestion.seriesId === 'free_mock_40') 
+                      ? 1 
+                      : (currentSeries?.totalTests || (editingQuestion.seriesId === 'ts_patwari_2026' || editingQuestion.seriesId === 'ts_agri_ext_2026' ? 20 : 1));
+
+                    return (
+                      <select
+                        value={editingQuestion.setNumber || 1}
+                        onChange={(e) => setEditingQuestion({ ...editingQuestion, setNumber: Number(e.target.value) })}
+                        className="w-full p-2.5 rounded-xl bg-amber-50/60 dark:bg-stone-800 border border-amber-300 dark:border-amber-700 font-bold text-stone-900 dark:text-amber-300 font-mono"
+                      >
+                        {Array.from({ length: Math.max(1, totalSets) }, (_, idx) => {
+                          const sNum = idx + 1;
+                          return (
+                            <option key={sNum} value={sNum}>
+                              सेट #{sNum} {sNum === 1 ? '(फ्री डेमो / मुख्य पेपर)' : `(फुल मॉक सेट #${sNum})`}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    );
+                  })()}
+                </div>
+
+                {/* 3. Difficulty Level */}
                 <div>
                   <label className="block font-black uppercase text-stone-500 mb-1">कठिनाई स्तर (Difficulty)</label>
                   <select
