@@ -426,6 +426,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setNotes(s.notes);
           StorageService.setNotes(s.notes);
         }
+
+        // 8. Sync server-persisted Questions Master Repository
+        if (Array.isArray(s.questions) && s.questions.length > 0) {
+          setQuestions(prev => {
+            const questionMap = new Map<string, Question>();
+            // Start with current local questions
+            (prev || []).forEach(q => { if (q && q.id) questionMap.set(q.id, q); });
+            // Merge in server-persisted questions
+            s.questions.forEach((q: Question) => {
+              if (q && q.id) {
+                questionMap.set(q.id, { ...(questionMap.get(q.id) || {}), ...q });
+              }
+            });
+            const mergedQuestions = Array.from(questionMap.values());
+            StorageService.setQuestions(mergedQuestions);
+            return mergedQuestions;
+          });
+        }
       }
     } catch (err) {
       console.log('App running in offline/local storage fallback:', err);
@@ -1759,16 +1777,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const saveNote = (note: OfflineNote) => {
     setNotes(prev => {
       const exists = prev.some(n => n.id === note.id);
-      if (exists) {
-        return prev.map(n => n.id === note.id ? note : n);
-      }
-      return [note, ...prev];
+      const updated = exists ? prev.map(n => n.id === note.id ? note : n) : [note, ...prev];
+      StorageService.setNotes(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: updated })
+      }).catch(e => console.warn('Server sync error for notes:', e));
+      return updated;
     });
     showToast(lang === 'hi' ? 'पीडीएफ / ई-नोट सहेजा गया' : 'Study note saved');
   };
 
   const deleteNote = (id: string) => {
-    setNotes(prev => prev.filter(n => n.id !== id));
+    setNotes(prev => {
+      const updated = prev.filter(n => n.id !== id);
+      StorageService.setNotes(updated);
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: updated })
+      }).catch(e => console.warn('Server sync error for notes deletion:', e));
+      return updated;
+    });
     showToast(lang === 'hi' ? 'नोट हटाया गया' : 'Study note deleted');
   };
 

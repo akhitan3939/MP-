@@ -9,7 +9,8 @@ import {
   INITIAL_ATTEMPTS, 
   INITIAL_COUPONS, 
   INITIAL_ANNOUNCEMENTS, 
-  INITIAL_NOTES 
+  INITIAL_NOTES,
+  INITIAL_QUESTIONS
 } from './src/data/initialData';
 import { INITIAL_NAV_MENUS, INITIAL_BANNERS } from './src/utils/storage';
 
@@ -42,6 +43,19 @@ app.get(['/health', '/api/health'], (req: Request, res: Response) => {
 // Persistent Server-Side State Storage File
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STATE_FILE_PATH = path.join(DATA_DIR, 'app_state.json');
+
+// Dedicated persistent uploads directory for uploaded PDFs, docs, & assets
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const PDF_DIR = path.join(UPLOADS_DIR, 'pdf_notes');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+if (!fs.existsSync(PDF_DIR)) {
+  fs.mkdirSync(PDF_DIR, { recursive: true });
+}
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 interface ServerAppState {
   testSeries?: any[];
@@ -390,6 +404,11 @@ if (!Array.isArray(inMemoryAppState.notes) || inMemoryAppState.notes.length === 
   inMemoryAppState.notes = INITIAL_NOTES;
 }
 
+// 9b. Initialize and preserve questions repository
+if (!Array.isArray(inMemoryAppState.questions) || inMemoryAppState.questions.length === 0) {
+  inMemoryAppState.questions = INITIAL_QUESTIONS;
+}
+
 // 10. Initialize default platform settings if not present
 if (!inMemoryAppState.platformSettings) {
   inMemoryAppState.platformSettings = {
@@ -528,6 +547,117 @@ app.post('/api/app-data/sync', (req: Request, res: Response) => {
     message: 'Global app state synced successfully across all clients',
     data: inMemoryAppState
   });
+});
+
+// ==========================================
+// PDF & NOTES FILE STORAGE ENDPOINTS
+// ==========================================
+
+// 1. Upload PDF / Document File (base64)
+app.post('/api/notes/upload-pdf', (req: Request, res: Response) => {
+  try {
+    const { fileName, fileBase64, fileSize, mimeType = 'application/pdf' } = req.body || {};
+
+    if (!fileName || !fileBase64) {
+      return res.status(400).json({
+        success: false,
+        message: 'फ़ाइल का नाम (fileName) और डेटा (fileBase64) अनिवार्य है।'
+      });
+    }
+
+    // Clean base64 header if present
+    const base64Data = fileBase64.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Generate safe unique filename
+    const ext = path.extname(fileName) || '.pdf';
+    const cleanBaseName = path.basename(fileName, ext).replace(/[^a-zA-Z0-9_\-\u0900-\u097F]/g, '_');
+    const uniqueFileName = `${Date.now()}_${cleanBaseName}${ext}`;
+    const filePath = path.join(PDF_DIR, uniqueFileName);
+
+    fs.writeFileSync(filePath, buffer);
+
+    const publicUrl = `/uploads/pdf_notes/${uniqueFileName}`;
+    const formattedSize = fileSize || `${(buffer.length / (1024 * 1024)).toFixed(2)} MB`;
+
+    console.log(`[STORAGE] PDF saved: ${filePath} (${formattedSize})`);
+
+    res.json({
+      success: true,
+      message: 'PDF फ़ाइल सफलतापूर्वक अपलोड एवं सर्वर पर सहेज ली गई है!',
+      url: publicUrl,
+      fileName: uniqueFileName,
+      originalName: fileName,
+      fileSize: formattedSize,
+      bytes: buffer.length,
+      uploadedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error('[STORAGE ERROR] Failed to upload PDF:', err);
+    res.status(500).json({
+      success: false,
+      message: 'सर्वर पर PDF अपलोड करने में त्रुटि आई: ' + (err.message || 'Unknown error')
+    });
+  }
+});
+
+// 2. List all files currently in Storage folder
+app.get('/api/notes/storage-files', (req: Request, res: Response) => {
+  try {
+    if (!fs.existsSync(PDF_DIR)) {
+      return res.json({ success: true, files: [], totalSizeMb: 0 });
+    }
+
+    const fileNames = fs.readdirSync(PDF_DIR);
+    let totalBytes = 0;
+
+    const files = fileNames.map(fName => {
+      const fullPath = path.join(PDF_DIR, fName);
+      const stat = fs.statSync(fullPath);
+      totalBytes += stat.size;
+
+      return {
+        fileName: fName,
+        url: `/uploads/pdf_notes/${fName}`,
+        sizeBytes: stat.size,
+        sizeFormatted: `${(stat.size / (1024 * 1024)).toFixed(2)} MB`,
+        createdAt: stat.birthtime || stat.mtime,
+        modifiedAt: stat.mtime
+      };
+    }).sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+
+    res.json({
+      success: true,
+      files,
+      count: files.length,
+      totalSizeMb: (totalBytes / (1024 * 1024)).toFixed(2),
+      storageFolder: PDF_DIR
+    });
+  } catch (err: any) {
+    console.error('[STORAGE ERROR] Failed to list storage files:', err);
+    res.status(500).json({ success: false, message: 'स्टोरेज फ़ाइलों की सूची प्राप्त करने में त्रुटि' });
+  }
+});
+
+// 3. Delete a file from Storage folder
+app.delete('/api/notes/storage-files/:fileName', (req: Request, res: Response) => {
+  try {
+    const { fileName } = req.params;
+    // Prevent directory traversal
+    const safeFileName = path.basename(fileName);
+    const filePath = path.join(PDF_DIR, safeFileName);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`[STORAGE] Deleted file: ${filePath}`);
+      res.json({ success: true, message: 'फ़ाइल सफलतापूर्वक स्टोरेज से हटा दी गई।' });
+    } else {
+      res.status(404).json({ success: false, message: 'फ़ाइल नहीं मिली।' });
+    }
+  } catch (err: any) {
+    console.error('[STORAGE ERROR] Failed to delete file:', err);
+    res.status(500).json({ success: false, message: 'फ़ाइल हटाने में त्रुटि' });
+  }
 });
 
 // ==========================================

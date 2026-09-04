@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Download, FileText, CheckCircle2, BookOpen, Sparkles, Printer } from 'lucide-react';
+import { X, Download, FileText, CheckCircle2, BookOpen, Sparkles, Printer, ExternalLink, Eye } from 'lucide-react';
 import { exportNoteToPdfPrint } from '../utils/exportReports';
 
 export const NotesModal: React.FC = () => {
@@ -17,8 +17,22 @@ export const NotesModal: React.FC = () => {
     if (!downloadedIds.includes(note.id)) {
       setDownloadedIds(prev => [...prev, note.id]);
     }
-    exportNoteToPdfPrint(note);
-    showToast(lang === 'hi' ? '📥 ई-नोट्स PDF डाउनलोड व प्रिंट विंडो खुल गई।' : '📥 E-Notes PDF ready for download/print.');
+
+    if (note.pdfUrl) {
+      // Direct downloaded/uploaded file link
+      const a = document.createElement('a');
+      a.href = note.pdfUrl;
+      a.download = note.fileName || `${note.titleHi || 'MP_Pariksha_Note'}.pdf`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast(lang === 'hi' ? '📥 ओरिजिनल PDF डाउनलोड हो रही है।' : '📥 Original PDF download started.');
+    } else {
+      // Generate clean high-yield printable PDF
+      exportNoteToPdfPrint(note);
+      showToast(lang === 'hi' ? '📥 ई-नोट्स PDF डाउनलोड व प्रिंट विंडो खुल गई।' : '📥 E-Notes PDF ready for download/print.');
+    }
   };
 
   return (
@@ -86,12 +100,33 @@ export const NotesModal: React.FC = () => {
               {/* Sample Content Viewer Box */}
               <div className="bg-stone-100 dark:bg-stone-950 p-4 rounded-xl border border-stone-200 dark:border-stone-800">
                 <div className="flex items-center justify-between text-xs font-bold text-stone-500 mb-2 border-b border-stone-200 dark:border-stone-800 pb-1.5">
-                  <span>📖 {lang === 'hi' ? 'हस्तलिखित सारांश पूर्वावलोकन' : 'Handwritten Preview'}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span>📖 {lang === 'hi' ? 'हस्तलिखित सारांश पूर्वावलोकन' : 'Handwritten Preview'}</span>
+                    {current.pdfUrl && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                        📄 Original PDF Attached
+                      </span>
+                    )}
+                  </div>
                   <span>{current.pages} Pages • High Yield</span>
                 </div>
                 <pre className="font-sans text-xs text-stone-800 dark:text-stone-200 whitespace-pre-wrap leading-relaxed max-h-52 overflow-y-auto">
                   {current.sampleContentHi}
                 </pre>
+                {current.pdfUrl && (
+                  <div className="mt-3 pt-2.5 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between text-[11px]">
+                    <span className="text-stone-500 truncate max-w-[200px]">📎 {current.fileName || 'संलग्न PDF फ़ाइल'}</span>
+                    <a
+                      href={current.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                    >
+                      <span>{lang === 'hi' ? 'नई विंडो में PDF खोलें' : 'Open PDF in New Window'}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 

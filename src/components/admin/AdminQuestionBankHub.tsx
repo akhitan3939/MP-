@@ -37,6 +37,7 @@ import {
   Gauge,
   TrendingUp,
   BarChart2,
+  BarChart3,
   Table
 } from 'lucide-react';
 import { Question, TestSeries } from '../../types';
@@ -49,6 +50,7 @@ import {
 } from '../../utils/questionBankHelper';
 import { exportToCsv, exportToXls, exportToPdfPrint } from '../../utils/exportReports';
 import { BulkQuestionUploadModal } from './BulkQuestionUploadModal';
+import { QuestionAnalyticsDashboard } from './QuestionAnalyticsDashboard';
 
 interface AdminQuestionBankHubProps {
   questions: Question[];
@@ -86,6 +88,9 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
+
+  // Hub Tab: 'dashboard' (PowerBI Analytics) vs 'questions' (Manage & Edit)
+  const [hubTab, setHubTab] = useState<'dashboard' | 'questions'>('dashboard');
 
   // Bulk Upload Modal state
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState<boolean>(false);
@@ -375,6 +380,72 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   return (
     <div className="space-y-6">
       
+      {/* TOP VIEW SWITCHER: POWERBI QUESTION DASHBOARD VS QUESTIONS CMS */}
+      <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2 p-1 bg-stone-100 dark:bg-stone-800 rounded-2xl w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setHubTab('dashboard')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              hubTab === 'dashboard'
+                ? 'bg-[#7A2A1E] text-white shadow-md border-b-2 border-[#D4A017]'
+                : 'text-stone-700 dark:text-stone-300 hover:text-black dark:hover:text-white hover:bg-white/60'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 text-[#D4A017]" />
+            <span>📊 प्रश्न इंटेलिजेंस डैशबोर्ड (PowerBI Analytics)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setHubTab('questions')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              hubTab === 'questions'
+                ? 'bg-[#7A2A1E] text-white shadow-md border-b-2 border-[#D4A017]'
+                : 'text-stone-700 dark:text-stone-300 hover:text-black dark:hover:text-white hover:bg-white/60'
+            }`}
+          >
+            <Table className="w-4 h-4 text-amber-300" />
+            <span>📝 प्रश्न बैंक प्रबंधक व संपादक (CMS & Editor)</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="px-3.5 py-2 bg-[#7A2A1E] hover:bg-[#963E2F] text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
+            title="एक्सेल (.xlsx, .xls) या .CSV फ़ाइल से प्रश्न एक साथ अपलोड करें एवं फॉर्मेट देखें"
+          >
+            <UploadCloud className="w-4 h-4 text-amber-300" />
+            <span>बल्क अपलोड / फॉर्मेट</span>
+          </button>
+
+          <button
+            onClick={() => onAddNewQuestion(selectedMockId, selectedSetNumber)}
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ नया प्रश्न जोड़ें</span>
+          </button>
+        </div>
+      </div>
+
+      {/* RENDER POWERBI DASHBOARD OR QUESTION BANK CMS */}
+      {hubTab === 'dashboard' ? (
+        <QuestionAnalyticsDashboard
+          questions={questions}
+          testSeries={testSeries}
+          onSelectExamAndSet={(examId, setNumber) => {
+            setSelectedMockId(examId);
+            setSelectedSetNumber(setNumber);
+            setHubTab('questions');
+          }}
+          onOpenBulkUpload={() => setIsBulkUploadOpen(true)}
+          onAddNewQuestion={(examId, setNumber) => onAddNewQuestion(examId, setNumber)}
+          showToast={showToast}
+        />
+      ) : (
+        <>
       {/* 1. MOCK & TEST SERIES SELECTOR (TOP TABS) */}
       <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100 dark:border-stone-800">
@@ -1006,6 +1077,8 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             </form>
           </div>
         </div>
+      )}
+      </>
       )}
 
       {/* Bulk Question Upload Modal */}

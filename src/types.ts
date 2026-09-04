@@ -470,6 +470,11 @@ export interface OfflineNote {
   summaryHi: string;
   summaryEn: string;
   sampleContentHi: string;
+  pdfUrl?: string;
+  fileName?: string;
+  uploadedAt?: string;
+  author?: string;
+  isPublished?: boolean;
 }
 
 export type MenuPlacement = 'top' | 'bottom' | 'footer' | 'both' | 'all';

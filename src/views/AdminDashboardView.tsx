@@ -94,6 +94,7 @@ import { INITIAL_WEBSITE_CONTENT, INITIAL_SOCIAL_CHANNELS } from '../utils/stora
 import { exportToCsv, exportToXls, exportToPdfPrint, ExportColumn } from '../utils/exportReports';
 import { DynamicNavIcon, NAV_ICON_MAP, NavIconKey } from '../utils/navIcons';
 import { AdminQuestionBankHub } from '../components/admin/AdminQuestionBankHub';
+import { AdminNotesPdfManager } from '../components/admin/AdminNotesPdfManager';
 import { getAllQuestionsForSeries, getSeriesAndSetInfo, getResolvedMockQuestions } from '../utils/questionBankHelper';
 
 type AdminModuleTab = 
@@ -169,6 +170,7 @@ export const AdminDashboardView: React.FC = () => {
     broadcastPushNotification, 
     enrolledSeriesIds, 
     enrolledMap,
+    openNotesModal,
     lang, 
     showToast,
     navigate
@@ -1004,13 +1006,13 @@ export const AdminDashboardView: React.FC = () => {
     { id: 'BANNERS', label: 'बैनर व थंबनेल प्रबंधक', subLabel: 'Hero Banners & Posters', icon: ImageIcon, count: siteBanners.length, badgeColor: 'bg-indigo-600' },
     { id: 'SERIES', label: 'टेस्ट सीरीज़ व पैकेज', subLabel: 'Packages & Pricing', icon: BookPlus, count: testSeries.length, badgeColor: 'bg-[#7A2A1E]' },
     { id: 'MOCK_SETS', label: '20 मॉक सेट्स CMS', subLabel: 'Sets 1-20 Controller', icon: Target, count: 20, badgeColor: 'bg-emerald-700' },
-    { id: 'QUESTIONS', label: 'प्रश्न बैंक CMS', subLabel: 'Questions & Solutions', icon: FileQuestion, count: questions.length, badgeColor: 'bg-amber-600' },
+    { id: 'QUESTIONS', label: 'प्रश्न बैंक व PowerBI डैशबोर्ड', subLabel: 'Analytics, Sets & Editor', icon: FileQuestion, count: questions.length, badgeColor: 'bg-amber-600' },
     { id: 'STUDENTS', label: 'छात्र व एक्सेस नियंत्रण', subLabel: 'Students & Role Access', icon: Users, count: users.length, badgeColor: 'bg-blue-600' },
     { id: 'ORDERS', label: 'रेज़रपे ऑर्डर्स व लेन-देन', subLabel: 'Transactions & Refunds', icon: CreditCard, count: orders.length, badgeColor: 'bg-teal-600' },
     { id: 'COUPONS', label: 'कूपन व डिस्काउंट कोड्स', subLabel: 'Promo Codes & Offers', icon: Ticket, count: coupons.length, badgeColor: 'bg-purple-600' },
     { id: 'ANNOUNCEMENTS', label: 'नवीनतम समाचार व सूचनाएँ (Latest News & Bulletins)', subLabel: 'News & Vacancy Alerts CMS', icon: BellRing, count: announcements.length, badgeColor: 'bg-rose-600' },
     { id: 'BROADCAST', label: 'लाइव पुश ब्रॉडकास्ट', subLabel: 'Instant Student Alerts', icon: Send },
-    { id: 'NOTES', label: 'ई-नोट्स व पीडीएफ CMS', subLabel: 'Handwritten PDF Material', icon: FileText, count: notes.length, badgeColor: 'bg-cyan-700' },
+    { id: 'NOTES', label: 'ई-नोट्स व पीडीएफ CMS', subLabel: 'PDF Uploader & Disk Storage', icon: FileText, count: notes.length, badgeColor: 'bg-cyan-700' },
     { id: 'SETTINGS', label: 'प्लेटफ़ॉर्म सेटिंग्स', subLabel: 'Site Branding & Gateway', icon: Settings },
   ];
 
@@ -1168,7 +1170,7 @@ export const AdminDashboardView: React.FC = () => {
                 {activeTab === 'BANNERS' && '🖼️ होमपेज बैनर, पोस्टर्स व थंबनेल प्रबंधक (CMS)'}
                 {activeTab === 'SERIES' && '📚 टेस्ट सीरीज़, पैकेज व पाठ्यक्रम नियंत्रण'}
                 {activeTab === 'MOCK_SETS' && '🎯 20 फुल मॉक सेट्स प्रबंधक (Set 1–20)'}
-                {activeTab === 'QUESTIONS' && '📝 प्रश्न बैंक CMS (द्विभाषी प्रश्न व व्याख्या)'}
+                {activeTab === 'QUESTIONS' && '📊 प्रश्न बैंक व PowerBI एनालिटिक्स डैशबोर्ड (Question Bank & Intelligence)'}
                 {activeTab === 'STUDENTS' && '👥 छात्र विवरण, रोल स्विच व एक्सेस नियंत्रण'}
                 {activeTab === 'ORDERS' && '💳 रेज़रपे ऑर्डर्स, जीएसटी व रिफंड प्रबंधन'}
                 {activeTab === 'COUPONS' && '🏷️ डिस्काउंट कूपन्स व प्रोमो कोड्स'}
@@ -1314,24 +1316,6 @@ export const AdminDashboardView: React.FC = () => {
                   <span>नई भर्ती सूचना जोड़ें</span>
                 </button>
               )}
-
-              {activeTab === 'NOTES' && (
-                <button
-                  onClick={() => setEditingNote({
-                    titleHi: '',
-                    titleEn: '',
-                    category: 'मध्यप्रदेश सामान्य ज्ञान',
-                    fileSize: '4.2 MB',
-                    pages: 32,
-                    summaryHi: '',
-                    sampleContentHi: ''
-                  })}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#7A2A1E] text-[#D4A017] hover:bg-[#5E1F16] border-2 border-[#D4A017] text-xs font-black uppercase tracking-wider shadow-sm transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>नया ई-नोट / PDF जोड़ें</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -1416,6 +1400,30 @@ export const AdminDashboardView: React.FC = () => {
                     </div>
                     <div className="font-black text-sm mt-2">20 मॉक सेट्स मैनेज करें</div>
                     <div className="text-[11px] text-stone-500 mt-0.5">Set #1 डेमो व Set #2-20 लॉकिंग</div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('QUESTIONS')}
+                    className="p-4 rounded-2xl bg-[#FDFBF7] dark:bg-stone-800/80 border-2 border-[#EAD8B1] hover:border-[#7A2A1E] text-left transition group shadow-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <FileQuestion className="w-6 h-6 text-amber-600" />
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:translate-x-1 transition" />
+                    </div>
+                    <div className="font-black text-sm mt-2">📊 प्रश्न बैंक व PowerBI डैशबोर्ड</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">परीक्षावार सेट्स, एक्टिव/इनएक्टिव स्थिति व इंटेलिजेंस</div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('NOTES')}
+                    className="p-4 rounded-2xl bg-[#FDFBF7] dark:bg-stone-800/80 border-2 border-[#EAD8B1] hover:border-[#7A2A1E] text-left transition group shadow-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <FileText className="w-6 h-6 text-cyan-600" />
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:translate-x-1 transition" />
+                    </div>
+                    <div className="font-black text-sm mt-2">📄 ई-नोट्स व PDF CMS / स्टोरेज</div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">PDF अपलोड, ऑनलाइन कंटेंट लेखन व डिस्क फ़ोल्डर</div>
                   </button>
 
                   <button
@@ -5343,48 +5351,13 @@ export const AdminDashboardView: React.FC = () => {
           {/* TAB 11: STUDY NOTES & PDF CMS */}
           {/* ========================================================= */}
           {activeTab === 'NOTES' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {notes.map(note => (
-                  <div 
-                    key={note.id}
-                    className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm flex flex-col justify-between space-y-4"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300">
-                          {note.category}
-                        </span>
-                        <span className="text-[10px] font-mono text-stone-400">{note.fileSize}</span>
-                      </div>
-
-                      <h4 className="font-bold text-sm text-[#2D2424] dark:text-white mt-2">
-                        {note.titleHi}
-                      </h4>
-                      <p className="text-[11px] text-stone-500 mt-1 line-clamp-2">{note.summaryHi}</p>
-                    </div>
-
-                    <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-stone-400">{note.pages} पृष्ठ • {note.downloadCount} डाउनलोड</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setEditingNote({ ...note })}
-                          className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200"
-                        >
-                          <Edit className="w-3.5 h-3.5 text-stone-700 dark:text-stone-300" />
-                        </button>
-                        <button
-                          onClick={() => deleteNote(note.id)}
-                          className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <AdminNotesPdfManager
+              notes={notes}
+              saveNote={saveNote}
+              deleteNote={deleteNote}
+              showToast={showToast}
+              onPreviewStudentModal={openNotesModal}
+            />
           )}
 
           {/* ========================================================= */}
