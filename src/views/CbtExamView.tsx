@@ -36,6 +36,7 @@ import { Question, SectionScore, TestSeries } from '../types';
 import { getPatwariQuestionsForSet, ALL_20_PATWARI_SETS } from '../data/patwariSetsData';
 import { getAgriQuestionsForSet, ALL_20_AGRI_SETS } from '../data/agriSetsData';
 import { EXCLUSIVE_FREE_MOCK_QUESTIONS } from '../data/freeMockQuestions';
+import { getResolvedMockQuestions } from '../utils/questionBankHelper';
 
 export const CbtExamView: React.FC = () => {
   const { 
@@ -155,15 +156,19 @@ export const CbtExamView: React.FC = () => {
     }
   }, [disabledNumbers, chosenSetNumber, currentUser, isFreeMock40, availableSetsList]);
   
-  // Filter questions for this series and chosen set
-  const examQuestions = isFreeMock40
-    ? EXCLUSIVE_FREE_MOCK_QUESTIONS
-    : series.id === 'ts_agri_ext_2026'
-    ? getAgriQuestionsForSet(chosenSetNumber)
-    : series.id === 'ts_patwari_2026'
-    ? getPatwariQuestionsForSet(chosenSetNumber)
-    : allQuestions.filter(q => q.seriesId === series.id);
-  const questionsList = examQuestions.length > 0 ? examQuestions : allQuestions.slice(0, 10);
+  // Filter questions for this series and chosen set, using central resolver
+  const rawExamQuestions = isFreeMock40
+    ? getResolvedMockQuestions('free_mock_40', 1, allQuestions)
+    : getResolvedMockQuestions(series.id, chosenSetNumber, allQuestions);
+
+  // In live test series, only show locked (finalized) questions to students, while admins can preview all
+  const filteredExamQuestions = currentUser?.role === 'admin'
+    ? rawExamQuestions
+    : rawExamQuestions.filter(q => q.isLocked === true);
+
+  const questionsList = filteredExamQuestions.length > 0 
+    ? filteredExamQuestions 
+    : (rawExamQuestions.length > 0 ? rawExamQuestions : allQuestions.slice(0, 10));
 
   // Helper to extract question subject / section consistently
   const getQuestionSubject = (q: Question | undefined): string => {

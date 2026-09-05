@@ -9,6 +9,7 @@ import {
   Users,
   CreditCard,
   Ticket,
+  Bell,
   BellRing,
   Send,
   FileText,
@@ -6928,6 +6929,258 @@ export const AdminDashboardView: React.FC = () => {
                   </label>
                 </div>
 
+                {/* ========================================================= */}
+                {/* HOMEPAGE POPUP & LAUNCH NOTIFICATION CMS */}
+                {/* ========================================================= */}
+                <div className="p-5 sm:p-6 rounded-3xl bg-amber-50/70 dark:bg-amber-950/30 border-2 border-[#D4A017] space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/80 dark:border-amber-900/60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#7A2A1E] text-[#D4A017] flex items-center justify-center font-black shadow-xs shrink-0">
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
+                          <span>वेबसाइट होमपेज पॉपअप / सूचना प्रबंधक (Front Page Popup Notification)</span>
+                        </h4>
+                        <p className="text-[11px] text-stone-600 dark:text-stone-400">
+                          नया बैच लॉन्च, स्पेशल टेस्ट ऑफर, या कोई ज़रूरी सूचना होमपेज पर आने वाले हर छात्र को पॉपअप के रूप में दिखाएँ।
+                        </p>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-stone-900 px-3.5 py-2 rounded-xl border border-amber-300 dark:border-amber-800 shadow-2xs shrink-0">
+                      <input 
+                        type="checkbox"
+                        checked={editingSettings.popupConfig?.isActive !== false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setEditingSettings(prev => ({
+                            ...prev,
+                            popupConfig: {
+                              ...(prev.popupConfig || {
+                                isActive: true,
+                                titleHi: 'विशेष परीक्षा सूचना व नया बैच लॉन्च',
+                                messageHi: 'नवीनतम मॉक टेस्ट सेट्स लाइव हो चुके हैं। अभी फ्री डेमो टेस्ट दें!',
+                                buttonTextHi: 'अभी टेस्ट दें',
+                                buttonLink: '/test/free_mock_40'
+                              }),
+                              isActive: val
+                            }
+                          }));
+                        }}
+                        className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                      />
+                      <span className="font-black text-xs text-stone-800 dark:text-stone-200">
+                        {editingSettings.popupConfig?.isActive !== false ? '🟢 पॉपअप सक्रिय (ON)' : '⚪ पॉपअप बंद (OFF)'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {editingSettings.popupConfig?.isActive !== false && (
+                    <div className="space-y-4 pt-1 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            पॉपअप मुख्य शीर्षक (Hindi Headline / Title) *
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.titleHi || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, messageHi: '' }), titleHi: val }
+                              }));
+                            }}
+                            placeholder="उदा: 🎉 MP पटवारी एवं कृषि विस्तार अधिकारी 2026 स्पेशल अपडेट"
+                            className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            बैज लेबल (Badge Pill Text)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.badgeText || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), badgeText: val }
+                              }));
+                            }}
+                            placeholder="उदा: 🔥 NEW LAUNCH या ⚡ SPECIAL OFFER"
+                            className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                          पॉपअप संदेश / विवरण (Message / Body Text) *
+                        </label>
+                        <textarea 
+                          rows={3}
+                          value={editingSettings.popupConfig?.messageHi || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditingSettings(prev => ({
+                              ...prev,
+                              popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '' }), messageHi: val }
+                            }));
+                          }}
+                          placeholder="उदा: सभी 20 मॉक टेस्ट सेट्स लाइव हो चुके हैं! सेट #1 फ्री डेमो टेस्ट अभी हल करें और ऑल-एमपी रैंक व तुरंत AI विस्तृत हल पाएँ।"
+                          className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 leading-relaxed font-medium"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            हाइलाइट पट्टी टेक्स्ट (Highlight Promo Ribbon)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.highlightText || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), highlightText: val }
+                              }));
+                            }}
+                            placeholder="उदा: विशेष कूपन कोड: SETU50 से ₹50 की अतिरिक्त छूट"
+                            className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            पॉपअप इमेज URL (वैकल्पिक फोटो/पोस्टर लिंक)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.imageUrl || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), imageUrl: val }
+                              }));
+                            }}
+                            placeholder="https://... या खाली छोड़ें"
+                            className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white/80 dark:bg-stone-900/80 rounded-2xl border border-stone-200 dark:border-stone-700">
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            मुख्य बटन टेक्स्ट (Primary CTA Text)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.buttonTextHi || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), buttonTextHi: val }
+                              }));
+                            }}
+                            placeholder="उदा: 🎯 अभी फ्री डेमो टेस्ट दें (Start Free Demo)"
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            मुख्य बटन लिंक / रूट (Link Target)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.buttonLink || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), buttonLink: val }
+                              }));
+                            }}
+                            placeholder="उदा: /test/free_mock_40 या #catalog या https://..."
+                            className="w-full p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            द्वितीयक बटन टेक्स्ट (Secondary Button Text)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.secondaryButtonTextHi || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), secondaryButtonTextHi: val }
+                              }));
+                            }}
+                            placeholder="उदा: 📚 सभी टेस्ट सीरीज़ देखें"
+                            className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-black uppercase text-stone-600 dark:text-stone-400 mb-1">
+                            द्वितीयक बटन लिंक (Secondary Button Target)
+                          </label>
+                          <input 
+                            type="text"
+                            value={editingSettings.popupConfig?.secondaryButtonLink || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), secondaryButtonLink: val }
+                              }));
+                            }}
+                            placeholder="उदा: #catalog"
+                            className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Display Behaviour Options */}
+                      <div className="flex flex-wrap items-center gap-4 pt-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={editingSettings.popupConfig?.showOnlyOncePerSession || false}
+                            onChange={(e) => {
+                              const val = e.target.checked;
+                              setEditingSettings(prev => ({
+                                ...prev,
+                                popupConfig: { ...(prev.popupConfig || { isActive: true, titleHi: '', messageHi: '' }), showOnlyOncePerSession: val }
+                              }));
+                            }}
+                            className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-0"
+                          />
+                          <span className="font-bold">एक विज़िट सत्र में केवल एक बार दिखाएँ (Once Per Session)</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   type="submit"
                   className="w-full py-3.5 rounded-2xl bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] font-black text-sm uppercase tracking-wider border-2 border-[#D4A017] shadow-md transition"
@@ -8172,54 +8425,102 @@ export const AdminDashboardView: React.FC = () => {
               </div>
 
               {/* 4 Options */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block font-black uppercase text-stone-500">
-                    4 बहुविकल्पीय उत्तर (Click letter to mark as Correct)
-                  </label>
-                  <span className="text-[11px] text-emerald-600 font-bold">
-                    ✓ सही उत्तर: विकल्प {String.fromCharCode(65 + (editingQuestion.correctOption ?? 0))}
-                  </span>
+              <div className="space-y-3 p-4 rounded-2xl bg-amber-50/50 dark:bg-stone-800/60 border border-amber-300 dark:border-amber-700/60">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-200 dark:border-stone-700">
+                  <div>
+                    <label className="block font-black uppercase text-stone-700 dark:text-stone-300 text-xs">
+                      🎯 सही उत्तर का चयन करें (Select Correct Answer) *
+                    </label>
+                    <p className="text-[11px] text-stone-500">
+                      नीचे दिए गए बटनों A, B, C, D पर क्लिक करें या सीधे सही विकल्प के रेडियो बटन को चुनें।
+                    </p>
+                  </div>
+                  
+                  {/* Quick Select Buttons */}
+                  <div className="flex items-center gap-1.5 bg-white dark:bg-stone-900 p-1 rounded-xl border border-stone-200 dark:border-stone-700">
+                    <span className="text-[10px] font-black uppercase text-stone-500 px-1">सही उत्तर:</span>
+                    {['A', 'B', 'C', 'D'].map((ltr, i) => {
+                      const isSel = (editingQuestion.correctOption ?? 0) === i;
+                      return (
+                        <button
+                          key={ltr}
+                          type="button"
+                          onClick={() => setEditingQuestion({ ...editingQuestion, correctOption: i, correctOptionIndex: i })}
+                          className={`w-7 h-7 rounded-lg font-black text-xs transition cursor-pointer flex items-center justify-center ${
+                            isSel
+                              ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400'
+                              : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
+                          }`}
+                        >
+                          {ltr}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
+                <div className="space-y-2.5">
                 {['A', 'B', 'C', 'D'].map((letter, idx) => {
                   const optsHi = editingQuestion.optionsHi || ['विकल्प A', 'विकल्प B', 'विकल्प C', 'विकल्प D'];
                   const optsEn = editingQuestion.optionsEn || ['', '', '', ''];
                   const isCorrect = (editingQuestion.correctOption ?? 0) === idx;
 
                   return (
-                    <div key={idx} className="p-2.5 rounded-2xl border transition-all space-y-2 bg-stone-50/70 dark:bg-stone-800/40">
-                      <div className="flex items-center gap-2">
+                    <div key={idx} className={`p-3 rounded-2xl border-2 transition-all space-y-2 ${
+                      isCorrect 
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-xs' 
+                        : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900'
+                    }`}>
+                      <div className="flex items-center gap-2.5">
                         <button
                           type="button"
                           onClick={() => setEditingQuestion({ ...editingQuestion, correctOption: idx, correctOptionIndex: idx })}
-                          className={`w-8 h-8 rounded-xl font-black text-xs shrink-0 transition-all ${
-                            isCorrect ? 'bg-emerald-600 text-white shadow' : 'bg-stone-200 dark:bg-stone-700 text-stone-600 hover:bg-stone-300'
+                          className={`w-9 h-9 rounded-xl font-black text-sm shrink-0 transition-all cursor-pointer flex items-center justify-center ${
+                            isCorrect ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300' : 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-300'
                           }`}
-                          title="इस विकल्प को सही उत्तर के रूप में सेट करें"
+                          title="इस विकल्प को सही उत्तर के रूप में सेट करें (Click to set as Correct)"
                         >
                           {letter}
                         </button>
-                        <input 
-                          type="text"
-                          required
-                          placeholder={`विकल्प ${letter} (हिन्दी)`}
-                          value={optsHi[idx] || ''}
-                          onChange={(e) => {
-                            const updated = [...optsHi];
-                            updated[idx] = e.target.value;
-                            setEditingQuestion({ ...editingQuestion, optionsHi: updated });
-                          }}
-                          className={`flex-1 p-2 rounded-xl border text-xs font-bold ${
-                            isCorrect ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-200' : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900'
+
+                        <div className="flex items-center gap-2 flex-1">
+                          <input 
+                            type="text"
+                            required
+                            placeholder={`विकल्प ${letter} का उत्तर (हिन्दी) *`}
+                            value={optsHi[idx] || ''}
+                            onChange={(e) => {
+                              const updated = [...optsHi];
+                              updated[idx] = e.target.value;
+                              setEditingQuestion({ ...editingQuestion, optionsHi: updated });
+                            }}
+                            className={`w-full p-2.5 rounded-xl border text-xs font-bold ${
+                              isCorrect 
+                                ? 'border-emerald-500 bg-white dark:bg-stone-900 text-emerald-950 dark:text-emerald-200 font-black' 
+                                : 'border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800'
+                            }`}
+                          />
+                        </div>
+
+                        <label 
+                          onClick={() => setEditingQuestion({ ...editingQuestion, correctOption: idx, correctOptionIndex: idx })}
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-black shrink-0 flex items-center gap-1.5 cursor-pointer transition ${
+                            isCorrect 
+                              ? 'bg-emerald-600 text-white shadow-xs' 
+                              : 'bg-stone-100 dark:bg-stone-800 text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-700'
                           }`}
-                        />
-                        {isCorrect && (
-                          <span className="px-2 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-lg text-[10px] font-black shrink-0">
-                            ✓ सही उत्तर
-                          </span>
-                        )}
+                        >
+                          <input
+                            type="radio"
+                            name="modalCorrectOptionRadio"
+                            checked={isCorrect}
+                            onChange={() => setEditingQuestion({ ...editingQuestion, correctOption: idx, correctOptionIndex: idx })}
+                            className="w-3.5 h-3.5 text-emerald-600 focus:ring-0"
+                          />
+                          <span className="hidden sm:inline">{isCorrect ? '✓ सही उत्तर' : 'सही बनाएँ'}</span>
+                        </label>
                       </div>
+
                       <input 
                         type="text"
                         placeholder={`Option ${letter} in English (optional)`}
@@ -8229,11 +8530,12 @@ export const AdminDashboardView: React.FC = () => {
                           updated[idx] = e.target.value;
                           setEditingQuestion({ ...editingQuestion, optionsEn: updated });
                         }}
-                        className="w-full pl-10 pr-2 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-[11px] font-mono text-stone-600 dark:text-stone-300"
+                        className="w-full pl-11 pr-2 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50/50 dark:bg-stone-800/50 text-[11px] font-mono text-stone-600 dark:text-stone-300"
                       />
                     </div>
                   );
                 })}
+                </div>
               </div>
 
               {/* Explanations */}

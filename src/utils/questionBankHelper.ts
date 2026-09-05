@@ -205,16 +205,8 @@ export function getResolvedMockQuestions(
       setNumber: setNumber
     }));
   } else if (mockType === 'all_questions') {
-    // Return all questions across everything
-    const free = EXCLUSIVE_FREE_MOCK_QUESTIONS.map(q => ({ ...q, seriesId: 'free_mock_40', setNumber: 1 }));
-    const patwariSet1 = getPatwariQuestionsForSet(1).map(q => ({ ...q, seriesId: 'ts_patwari_2026', setNumber: 1 }));
-    const agriSet1 = getAgriQuestionsForSet(1).map(q => ({ ...q, seriesId: 'ts_agri_ext_2026', setNumber: 1 }));
-    const otherCustom = appContextQuestions.filter(q => 
-      q.seriesId !== 'free_mock_40' && 
-      !q.id.startsWith('pat_set_') && 
-      !q.id.startsWith('agri_set_')
-    );
-    baseQuestions = [...free, ...patwariSet1, ...agriSet1, ...otherCustom];
+    // Return all questions across the entire platform in a single Master Sheet
+    return getAllQuestionsForSeries('all_questions', appContextQuestions, 20);
   } else {
     // Other series: check AppContext questions or provide standard questions
     const matching = appContextQuestions.filter(q => q.seriesId === mockType);

@@ -5,6 +5,7 @@ import { BannerCarousel } from '../components/BannerCarousel';
 import { LatestNewsSection } from '../components/LatestNewsSection';
 import { SocialMediaSection } from '../components/SocialMediaSection';
 import { SocialLiveTicker } from '../components/SocialLiveTicker';
+import { HomeNotificationPopup } from '../components/HomeNotificationPopup';
 import { 
   Sparkles, 
   Trophy, 
@@ -57,6 +58,13 @@ export const HomeView: React.FC = () => {
   return (
     <div className="space-y-12 sm:space-y-16 pb-16">
       
+      {/* Front Page Announcement & Launch Notification Popup */}
+      <HomeNotificationPopup 
+        popupConfig={platformSettings?.popupConfig}
+        lang={lang}
+        navigate={navigate}
+      />
+
       {/* 1. Hero Section with MP Cultural Motifs and Prominent Official Logo */}
       <section className="relative overflow-hidden bg-[#7A2A1E] text-white pt-8 sm:pt-14 pb-14 sm:pb-20 border-b-4 border-[#D4A017]">
         

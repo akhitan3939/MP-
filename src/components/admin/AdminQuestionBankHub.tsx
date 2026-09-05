@@ -32,6 +32,7 @@ import {
   UploadCloud,
   Save,
   Lock,
+  Unlock,
   Target,
   ChevronRight,
   Gauge,
@@ -51,6 +52,7 @@ import {
 import { exportToCsv, exportToXls, exportToPdfPrint } from '../../utils/exportReports';
 import { BulkQuestionUploadModal } from './BulkQuestionUploadModal';
 import { QuestionAnalyticsDashboard } from './QuestionAnalyticsDashboard';
+import { StorageService } from '../../utils/storage';
 
 interface AdminQuestionBankHubProps {
   questions: Question[];
@@ -88,6 +90,10 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
+  const [lockFilter, setLockFilter] = useState<'all' | 'locked' | 'unlocked'>('all');
+
+  // Multi-selection for bulk locking/unlocking
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
 
   // Hub Tab: 'dashboard' (PowerBI Analytics) vs 'questions' (Manage & Edit)
   const [hubTab, setHubTab] = useState<'dashboard' | 'questions'>('dashboard');
@@ -151,9 +157,124 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
       const matchesDifficulty = difficultyFilter === 'all' || q.difficulty === difficultyFilter;
 
-      return matchesSearch && matchesSubject && matchesDifficulty;
+      const isLockedVal = q.isLocked === true;
+      const matchesLock = lockFilter === 'all' 
+        ? true 
+        : lockFilter === 'locked' 
+        ? isLockedVal 
+        : !isLockedVal;
+
+      return matchesSearch && matchesSubject && matchesDifficulty && matchesLock;
     });
-  }, [currentMockQuestions, searchQuery, subjectFilter, difficultyFilter]);
+  }, [currentMockQuestions, searchQuery, subjectFilter, difficultyFilter, lockFilter]);
+
+  // Locked questions counts for current mock
+  const lockedCount = useMemo(() => {
+    return currentMockQuestions.filter(q => q.isLocked === true).length;
+  }, [currentMockQuestions]);
+
+  const unlockedCount = useMemo(() => {
+    return currentMockQuestions.length - lockedCount;
+  }, [currentMockQuestions, lockedCount]);
+
+  // Single Question Lock/Unlock Toggle
+  const handleToggleLock = (q: Question) => {
+    const nextLockedState = q.isLocked === true ? false : true;
+    const updatedQ: Question = {
+      ...q,
+      isLocked: nextLockedState,
+      lockedAt: nextLockedState ? new Date().toISOString() : undefined,
+    };
+    saveQuestion(updatedQ);
+    showToast(
+      nextLockedState 
+        ? '🔒 प्रश्न लॉक (Finalized) कर दिया गया — अब यह छात्र टेस्ट सीरीज़ में लाइव रहेगा!' 
+        : '🔓 प्रश्न अनलॉक (Draft) कर दिया गया — समीक्षा हेतु रखा गया।'
+    );
+  };
+
+  // Bulk Lock/Unlock Selected
+  const handleBulkSetLock = (lockStatus: boolean) => {
+    if (selectedQuestionIds.length === 0) {
+      showToast('⚠️ कृपया पहले चेकबॉक्स द्वारा प्रश्न चुनें!');
+      return;
+    }
+    const targetMap = new Set(selectedQuestionIds);
+    const questionsToUpdate = currentMockQuestions
+      .filter(q => targetMap.has(q.id))
+      .map(q => ({
+        ...q,
+        isLocked: lockStatus,
+        lockedAt: lockStatus ? new Date().toISOString() : undefined,
+      }));
+
+    if (onSaveBulk && questionsToUpdate.length > 0) {
+      onSaveBulk(questionsToUpdate, 'append', selectedMockId, selectedSetNumber);
+    } else {
+      questionsToUpdate.forEach(q => saveQuestion(q));
+    }
+
+    setSelectedQuestionIds([]);
+    showToast(
+      lockStatus 
+        ? `🔒 चयनित ${questionsToUpdate.length} प्रश्न सफलतापूर्वक लॉक (Finalize) कर दिए गए!` 
+        : `🔓 चयनित ${questionsToUpdate.length} प्रश्न अनलॉक कर दिए गए!`
+    );
+  };
+
+  // Lock ALL in Current View
+  const handleLockAllInCurrentView = (lockStatus: boolean) => {
+    const questionsToUpdate = filteredQuestions.map(q => ({
+      ...q,
+      isLocked: lockStatus,
+      lockedAt: lockStatus ? new Date().toISOString() : undefined,
+    }));
+
+    if (onSaveBulk && questionsToUpdate.length > 0) {
+      onSaveBulk(questionsToUpdate, 'append', selectedMockId, selectedSetNumber);
+    } else {
+      questionsToUpdate.forEach(q => saveQuestion(q));
+    }
+
+    showToast(
+      lockStatus 
+        ? `🔒 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न लॉक व टेस्ट हेतु फाइनल कर दिए गए!` 
+        : `🔓 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न अनलॉक कर दिए गए!`
+    );
+  };
+
+  // Master Unlock All Questions Platform-Wide (One-click)
+  const handleUnlockAllEverywhere = () => {
+    // 1. Reset stored questions
+    StorageService.unlockAllQuestions();
+
+    // 2. Update custom / appContext questions
+    const unlockedQuestions = (questions || []).map(q => ({
+      ...q,
+      isLocked: false,
+      lockedAt: undefined,
+    }));
+
+    if (onSaveBulk && unlockedQuestions.length > 0) {
+      onSaveBulk(unlockedQuestions, 'append');
+    } else {
+      unlockedQuestions.forEach(q => saveQuestion(q));
+    }
+
+    // 3. Update any currently loaded questions
+    currentMockQuestions.forEach(q => {
+      if (q.isLocked === true) {
+        saveQuestion({
+          ...q,
+          isLocked: false,
+          lockedAt: undefined,
+        });
+      }
+    });
+
+    setSelectedQuestionIds([]);
+    showToast('🔓 सभी 15,000+ प्रश्न एक ही बार में अनलॉक कर दिए गए हैं! अब आप अपनी इच्छानुसार प्रश्नों को लॉक कर सकते हैं।');
+  };
 
   // Duplicate Question Handler
   const handleDuplicateQuestion = (q: Question) => {
@@ -663,6 +784,17 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
               <option value="hard">कठिन (Hard)</option>
             </select>
 
+            {/* Lock Status Filter */}
+            <select
+              value={lockFilter}
+              onChange={(e) => setLockFilter(e.target.value as 'all' | 'locked' | 'unlocked')}
+              className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-stone-800 border border-amber-300 dark:border-stone-700 text-xs font-black text-[#7A2A1E] dark:text-[#D4A017] cursor-pointer"
+            >
+              <option value="all">🔒 स्थिति: सभी ({currentMockQuestions.length})</option>
+              <option value="locked">🔒 लॉक (फाइनल) ({lockedCount})</option>
+              <option value="unlocked">🔓 अनलॉक (ड्राफ्ट) ({unlockedCount})</option>
+            </select>
+
             {/* Export Dispatchers: Set-wise + All Questions */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Current Set Export */}
@@ -795,8 +927,101 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
         </div>
       </div>
 
-      {/* 4. QUESTIONS LIST */}
+      {/* 4. QUESTIONS LIST & BULK LOCK CONTROLS */}
       <div className="space-y-4">
+        {/* Bulk Lock & Action Bar */}
+        {filteredQuestions.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-white dark:bg-stone-900 border-2 border-amber-200/80 dark:border-stone-800 rounded-2xl shadow-xs">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs font-black text-stone-700 dark:text-stone-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={
+                    filteredQuestions.length > 0 && 
+                    filteredQuestions.every(q => selectedQuestionIds.includes(q.id))
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      const allIds = Array.from(new Set([...selectedQuestionIds, ...filteredQuestions.map(q => q.id)]));
+                      setSelectedQuestionIds(allIds);
+                    } else {
+                      const currentSetIds = new Set(filteredQuestions.map(q => q.id));
+                      setSelectedQuestionIds(selectedQuestionIds.filter(id => !currentSetIds.has(id)));
+                    }
+                  }}
+                  className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-[#7A2A1E] cursor-pointer"
+                />
+                <span>सभी चुनें ({filteredQuestions.length})</span>
+              </label>
+
+              {selectedQuestionIds.length > 0 && (
+                <span className="text-[11px] font-bold text-[#7A2A1E] dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2.5 py-0.5 rounded-lg">
+                  {selectedQuestionIds.length} चयनित
+                </span>
+              )}
+            </div>
+
+            {/* Bulk Lock / Unlock & Master Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedQuestionIds.length > 0 ? (
+                <>
+                  <button
+                    onClick={() => handleBulkSetLock(true)}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+                    title="चयनित प्रश्नों को लॉक करें (छात्रों हेतु फाइनल)"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>चयनित लॉक करें ({selectedQuestionIds.length})</span>
+                  </button>
+                  <button
+                    onClick={() => handleBulkSetLock(false)}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+                    title="चयनित प्रश्नों को अनलॉक करें"
+                  >
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>चयनित अनलॉक करें ({selectedQuestionIds.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedQuestionIds([])}
+                    className="px-2 py-1 text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
+                  >
+                    रद्द करें
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleLockAllInCurrentView(true)}
+                    className="px-3 py-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-emerald-50 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition"
+                    title="वर्तमान फ़िल्टर किए गए सभी प्रश्नों को फाइनल / लॉक करें"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>इस व्यू के सभी प्रश्न लॉक करें ({filteredQuestions.length})</span>
+                  </button>
+                  <button
+                    onClick={() => handleLockAllInCurrentView(false)}
+                    className="px-3 py-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-amber-50 text-stone-700 dark:text-stone-300 border border-stone-300 dark:border-stone-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
+                    title="इस व्यू के सभी प्रश्नों को अनलॉक (ड्राफ्ट) करें"
+                  >
+                    <Unlock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>इस व्यू के अनलॉक</span>
+                  </button>
+
+                  {/* Master 1-Click Platform-Wide Unlock (User directive) */}
+                  <button
+                    onClick={handleUnlockAllEverywhere}
+                    className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+                    title="एक ही बार में पूरे पोर्टल के सभी 15,000+ प्रश्न अनलॉक करें (ड्राफ्ट बनाएं)"
+                  >
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>💥 सभी प्रश्न अनलॉक करें (1-क्लिक)</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {filteredQuestions.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-stone-900 border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-3xl space-y-3">
             <div className="w-12 h-12 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-400 flex items-center justify-center mx-auto text-xl font-black">
@@ -823,25 +1048,90 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             const optionsEnList = q.optionsEn || q.options?.map(o => o.textEn) || [];
             const seriesInfo = getSeriesAndSetInfo(q, testSeries);
 
+            const isLocked = q.isLocked === true;
+            const isSelected = selectedQuestionIds.includes(q.id);
+
             return (
               <div 
                 key={q.id}
-                className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-xs hover:shadow-md transition space-y-3 relative group"
+                className={`p-5 bg-white dark:bg-stone-900 border-2 rounded-3xl shadow-xs hover:shadow-md transition space-y-3 relative group ${
+                  isSelected 
+                    ? 'border-[#7A2A1E] dark:border-[#D4A017] ring-2 ring-[#7A2A1E]/20' 
+                    : isLocked 
+                    ? 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/15' 
+                    : 'border-[#EAD8B1] dark:border-stone-800'
+                }`}
               >
-                {/* Visual Exam & Set Context Badge - Live CBT Display */}
+                {/* Visual Exam & Set Context Badge - Live CBT Display with Quick Re-assign */}
                 <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-amber-50/80 dark:bg-stone-850 border border-amber-300/80 dark:border-stone-700 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-stone-200">
+                  <div className="flex flex-wrap items-center gap-1.5 font-bold text-stone-800 dark:text-stone-200">
+                    {/* Item Selection Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedQuestionIds([...selectedQuestionIds, q.id]);
+                        } else {
+                          setSelectedQuestionIds(selectedQuestionIds.filter(id => id !== q.id));
+                        }
+                      }}
+                      className="w-4 h-4 rounded text-[#7A2A1E] focus:ring-[#7A2A1E] cursor-pointer mr-1"
+                      title="इस प्रश्न को चुनें"
+                    />
+
                     <span className="text-[#7A2A1E] dark:text-[#D4A017] font-black flex items-center gap-1">
                       <Target className="w-3.5 h-3.5" />
-                      <span>छात्र परीक्षा में दिखेगा:</span>
+                      <span>मैपिंग (Mapping):</span>
                     </span>
-                    <span className="font-extrabold text-[#2D2424] dark:text-white underline decoration-amber-400">
-                      {seriesInfo.seriesNameHi}
-                    </span>
+                    
+                    {/* Quick Re-assign Series Selector */}
+                    <select
+                      value={q.seriesId || selectedMockId}
+                      onChange={(e) => {
+                        const newSeriesId = e.target.value;
+                        const updatedQ = {
+                          ...q,
+                          seriesId: newSeriesId,
+                          setNumber: q.setNumber || 1
+                        };
+                        saveQuestion(updatedQ);
+                        showToast(`✅ प्रश्न #${idx + 1} को सीरीज़ में ट्रांसफर किया गया`);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-white dark:bg-stone-800 border border-amber-300 dark:border-stone-600 text-[11px] font-bold text-[#7A2A1E] dark:text-amber-300 cursor-pointer"
+                      title="इस प्रश्न को दूसरी टेस्ट सीरीज़ में बदलें"
+                    >
+                      <option value="free_mock_40">🎯 40-प्रश्न फ्री डेमो मॉक</option>
+                      {testSeries.map(ts => (
+                        <option key={ts.id} value={ts.id}>
+                          📚 {ts.titleHi}
+                        </option>
+                      ))}
+                    </select>
+
                     <span className="text-stone-400 font-bold">➔</span>
-                    <span className="px-2 py-0.5 rounded-lg bg-[#7A2A1E] text-[#D4A017] font-mono font-black text-[11px] shadow-2xs">
-                      {seriesInfo.setNameHi}
-                    </span>
+
+                    {/* Quick Re-assign Set Selector */}
+                    <select
+                      value={q.setNumber || (activeCategory.isMultiSet ? selectedSetNumber : 1)}
+                      onChange={(e) => {
+                        const newSetNum = Number(e.target.value);
+                        const updatedQ = {
+                          ...q,
+                          setNumber: newSetNum
+                        };
+                        saveQuestion(updatedQ);
+                        showToast(`✅ प्रश्न #${idx + 1} को सेट #${newSetNum} में मैप किया गया`);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-[#7A2A1E] text-[#D4A017] font-mono font-black text-[11px] shadow-2xs border-0 cursor-pointer"
+                      title="इस प्रश्न का सेट नंबर बदलें"
+                    >
+                      {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                        <option key={num} value={num}>
+                          सेट #{num}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="text-[10px] font-mono text-stone-500 dark:text-stone-400 bg-stone-200/60 dark:bg-stone-800 px-2 py-0.5 rounded">
                     ID: {q.id}
@@ -871,6 +1161,29 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                         {q.difficulty}
                       </span>
                     )}
+
+                    {/* Lock Status Pill */}
+                    <span 
+                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 border ${
+                        isLocked 
+                          ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800' 
+                          : 'bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                      }`}
+                      title={isLocked ? "यह प्रश्न लॉक एवं फाइनल है (छात्रों को टेस्ट में दिखेगा)" : "यह प्रश्न ड्राफ्ट में है (समीक्षा बाकी)"}
+                    >
+                      {isLocked ? (
+                        <>
+                          <Lock className="w-3 h-3 text-emerald-600" />
+                          <span>फाइनल (Locked)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-3 h-3 text-amber-600" />
+                          <span>ड्राफ्ट (Unlocked)</span>
+                        </>
+                      )}
+                    </span>
+
                     <span className="text-[10px] text-stone-400 font-mono">
                       +1 अंक / 0 नेगेटिव
                     </span>
@@ -878,6 +1191,29 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Lock/Unlock Toggle Button */}
+                    <button
+                      onClick={() => handleToggleLock(q)}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition shadow-xs cursor-pointer ${
+                        isLocked 
+                          ? 'bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800' 
+                          : 'bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800'
+                      }`}
+                      title={isLocked ? "प्रश्न अनलॉक करने के लिए क्लिक करें (Draft बनाएं)" : "प्रश्न लॉक करने के लिए क्लिक करें (छात्रों हेतु फाइनल)"}
+                    >
+                      {isLocked ? (
+                        <>
+                          <Lock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                          <span className="hidden sm:inline">लॉक है</span>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                          <span className="hidden sm:inline">अनलॉक (लॉक करें)</span>
+                        </>
+                      )}
+                    </button>
+
                     <button
                       onClick={() => handleDuplicateQuestion(q)}
                       className="p-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 text-stone-700 dark:text-stone-300 transition"
@@ -938,40 +1274,65 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                 )}
 
                 {/* 4 Options Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
-                  {optionsList.map((optText, oIdx) => {
-                    const isCorrect = correctIdx === oIdx;
-                    const optEnText = optionsEnList[oIdx];
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold px-1">
+                    <span>विकल्प (उत्तर बदलने के लिए किसी भी विकल्प पर क्लिक करें):</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-black">
+                      ✓ सही विकल्प: ({String.fromCharCode(65 + correctIdx)})
+                    </span>
+                  </div>
 
-                    return (
-                      <div 
-                        key={oIdx}
-                        className={`p-2.5 rounded-xl border flex items-start gap-2.5 transition ${
-                          isCorrect 
-                            ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-950 dark:text-emerald-200 ring-1 ring-emerald-500/30' 
-                            : 'bg-stone-50 dark:bg-stone-800/40 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300'
-                        }`}
-                      >
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5 ${
-                          isCorrect ? 'bg-emerald-600 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300'
-                        }`}>
-                          {String.fromCharCode(65 + oIdx)}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="leading-snug">{optText}</div>
-                          {optEnText && optEnText !== optText && (
-                            <div className="text-[10px] text-stone-400 italic">{optEnText}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {optionsList.map((optText, oIdx) => {
+                      const isCorrect = correctIdx === oIdx;
+                      const optEnText = optionsEnList[oIdx];
+
+                      return (
+                        <div 
+                          key={oIdx}
+                          onClick={() => {
+                            if (!isCorrect) {
+                              const updatedQ = {
+                                ...q,
+                                correctOption: oIdx,
+                                correctOptionIndex: oIdx
+                              };
+                              saveQuestion(updatedQ);
+                              showToast(`✅ प्रश्न #${idx + 1} का सही उत्तर विकल्प (${String.fromCharCode(65 + oIdx)}) सेट कर दिया गया`);
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border-2 flex items-start gap-2.5 transition-all cursor-pointer select-none ${
+                            isCorrect 
+                              ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-500 font-bold text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/20 shadow-xs' 
+                              : 'bg-stone-50 hover:bg-amber-50/60 dark:bg-stone-800/40 dark:hover:bg-stone-800 border-stone-200 hover:border-amber-400 dark:border-stone-700 text-stone-700 dark:text-stone-300'
+                          }`}
+                          title={isCorrect ? 'यह वर्तमान में सही उत्तर है' : `क्लिक करके विकल्प (${String.fromCharCode(65 + oIdx)}) को सही उत्तर बनाएं`}
+                        >
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5 transition ${
+                            isCorrect ? 'bg-emerald-600 text-white shadow-xs' : 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300 group-hover:bg-amber-200'
+                          }`}>
+                            {String.fromCharCode(65 + oIdx)}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="leading-snug">{optText}</div>
+                            {optEnText && optEnText !== optText && (
+                              <div className="text-[10px] text-stone-400 italic mt-0.5">{optEnText}</div>
+                            )}
+                          </div>
+                          {isCorrect ? (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black shrink-0 flex items-center gap-1 shadow-2xs">
+                              <Check className="w-3 h-3 stroke-[3]" />
+                              <span>सही उत्तर</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-stone-400 hover:text-amber-700 dark:hover:text-amber-300 shrink-0">
+                              क्लिक करें
+                            </span>
                           )}
                         </div>
-                        {isCorrect && (
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-black shrink-0 flex items-center gap-0.5">
-                            <Check className="w-3 h-3" />
-                            <span>सही उत्तर</span>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Explanation Box */}

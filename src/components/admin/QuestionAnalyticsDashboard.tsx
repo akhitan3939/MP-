@@ -22,11 +22,14 @@ import {
   PieChart, 
   Activity,
   Award,
-  Zap
+  Zap,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { Question, TestSeries } from '../../types';
 import { MOCK_CATEGORY_OPTIONS, getResolvedMockQuestions } from '../../utils/questionBankHelper';
 import { exportToXls, exportToCsv } from '../../utils/exportReports';
+import { StorageService } from '../../utils/storage';
 
 interface QuestionAnalyticsDashboardProps {
   questions: Question[];
@@ -49,6 +52,8 @@ export interface ExamStatItem {
   targetQuestionsPerSet: number;
   totalCapacityTarget: number;
   totalQuestionsUploaded: number;
+  lockedQuestionsCount: number;
+  unlockedQuestionsCount: number;
   remainingToTarget: number;
   completionRate: number;
   disabledSetNumbers: number[];
@@ -56,6 +61,8 @@ export interface ExamStatItem {
     setNumber: number;
     isActive: boolean;
     questionsCount: number;
+    lockedCount: number;
+    unlockedCount: number;
     targetCount: number;
     completionRate: number;
     status: 'full' | 'in_progress' | 'empty';
@@ -104,6 +111,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
       // Calculate sets breakdown
       const setsBreakdown = [];
       let totalQuestionsUploaded = 0;
+      let lockedQuestionsCount = 0;
+      let unlockedQuestionsCount = 0;
       const subjectsBreakdown: Record<string, number> = {};
       const difficultyBreakdown = { easy: 0, medium: 0, hard: 0 };
 
@@ -112,8 +121,19 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
         const count = setQuestions.length;
         totalQuestionsUploaded += count;
 
+        let setLockedCount = 0;
+        let setUnlockedCount = 0;
+
         const setSubjects: Record<string, number> = {};
         setQuestions.forEach(q => {
+          if (q.isLocked === true) {
+            setLockedCount++;
+            lockedQuestionsCount++;
+          } else {
+            setUnlockedCount++;
+            unlockedQuestionsCount++;
+          }
+
           const subj = q.subject || q.section || 'General Studies';
           setSubjects[subj] = (setSubjects[subj] || 0) + 1;
           subjectsBreakdown[subj] = (subjectsBreakdown[subj] || 0) + 1;
@@ -132,6 +152,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
           setNumber: s,
           isActive: !disabledSets.includes(s),
           questionsCount: count,
+          lockedCount: setLockedCount,
+          unlockedCount: setUnlockedCount,
           targetCount: targetPerSet,
           completionRate: rate,
           status,
@@ -156,6 +178,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
         targetQuestionsPerSet: targetPerSet,
         totalCapacityTarget,
         totalQuestionsUploaded,
+        lockedQuestionsCount,
+        unlockedQuestionsCount,
         remainingToTarget,
         completionRate,
         disabledSetNumbers: disabledSets,
@@ -169,6 +193,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
   // Overall Totals
   const totalSummary = useMemo(() => {
     let totalQuestions = 0;
+    let totalLocked = 0;
+    let totalUnlocked = 0;
     let totalTarget = 0;
     let totalSets = 0;
     let activeSets = 0;
@@ -177,6 +203,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
 
     examStats.forEach(item => {
       totalQuestions += item.totalQuestionsUploaded;
+      totalLocked += item.lockedQuestionsCount;
+      totalUnlocked += item.unlockedQuestionsCount;
       totalTarget += item.totalCapacityTarget;
       totalSets += item.totalSetsConfigured;
       activeSets += item.activeSetsCount;
@@ -190,6 +218,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
     return {
       totalExamsCount: examStats.length,
       totalQuestions,
+      totalLocked,
+      totalUnlocked,
       totalTarget,
       remainingTotal,
       overallProgress,
@@ -230,6 +260,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
           'सेट संख्या (Set #)': s.setNumber,
           'स्थिति (Status)': s.isActive ? 'सक्रिय (ACTIVE)' : 'निष्क्रिय (INACTIVE)',
           'मौजूदा प्रश्न (Uploaded)': s.questionsCount,
+          'लॉक प्रश्न (Final)': s.lockedCount,
+          'अनलॉक प्रश्न (Draft)': s.unlockedCount,
           'लक्ष्य प्रश्न (Target)': s.targetCount,
           'शेष प्रश्न (Remaining)': Math.max(0, s.targetCount - s.questionsCount),
           'तैयारी प्रतिशत (Completion %)': `${s.completionRate}%`,
@@ -346,7 +378,7 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
       </div>
 
       {/* KPI PowerBI Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
         {/* Card 1: Total Questions */}
         <div className="bg-white dark:bg-stone-900 border-2 border-amber-200 dark:border-stone-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-1">
@@ -365,6 +397,51 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
               style={{ width: `${totalSummary.overallProgress}%` }}
             />
           </div>
+        </div>
+
+        {/* Card 1b: Locked / Finalized Questions (User Request) */}
+        <div className="bg-white dark:bg-stone-900 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl p-4 shadow-sm relative overflow-hidden bg-emerald-50/20">
+          <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300 mb-1">
+            <span className="text-xs font-bold">लॉक / फाइनल प्रश्न</span>
+            <Lock className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-700 dark:text-emerald-400">
+            {totalSummary.totalLocked.toLocaleString()}
+          </div>
+          <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1 font-bold">
+            छात्र टेस्ट हेतु लाइव स्वीकृत
+          </div>
+          <div className="text-[10px] text-stone-500 mt-0.5">
+            {totalSummary.totalQuestions > 0 ? Math.round((totalSummary.totalLocked / totalSummary.totalQuestions) * 100) : 0}% फाइनल हो चुके हैं
+          </div>
+        </div>
+
+        {/* Card 1c: Unlocked / Draft Questions */}
+        <div className="bg-white dark:bg-stone-900 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-4 shadow-sm relative overflow-hidden bg-amber-50/20 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 mb-1">
+              <span className="text-xs font-bold">अनलॉक / ड्राफ्ट</span>
+              <Unlock className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-black font-mono text-amber-700 dark:text-amber-400">
+              {totalSummary.totalUnlocked.toLocaleString()}
+            </div>
+            <div className="text-[10px] text-amber-800 dark:text-amber-400 mt-1 font-bold">
+              समीक्षा बाकी (एडमिन ड्राफ्ट)
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              StorageService.unlockAllQuestions();
+              showToast?.('🔓 सभी प्रश्न एक साथ अनलॉक कर दिए गए हैं!');
+              window.location.reload();
+            }}
+            className="mt-2 w-full py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center gap-1 cursor-pointer transition shadow-xs"
+            title="सभी प्रश्न एक ही बार में अनलॉक करें"
+          >
+            <Unlock className="w-3 h-3" />
+            <span>सभी अनलॉक करें</span>
+          </button>
         </div>
 
         {/* Card 2: Total Sets Configured */}
@@ -431,7 +508,7 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
             100% क्षमता पूर्ण करने हेतु
           </div>
           <div className="text-[10px] text-emerald-600 mt-0.5 font-black">
-            {totalSummary.fullyPreparedSets} सेट्स 100% तैयार हैं
+            {totalSummary.fullyPreparedSets} सेट्स तैयार हैं
           </div>
         </div>
 
@@ -552,22 +629,26 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
                     </div>
 
                     {/* Stats Grid inside Card */}
-                    <div className="grid grid-cols-4 gap-1.5 py-2 my-2 border-y border-stone-200/60 dark:border-stone-700/60 text-center text-[10px]">
+                    <div className="grid grid-cols-5 gap-1 py-2 my-2 border-y border-stone-200/60 dark:border-stone-700/60 text-center text-[10px]">
                       <div>
                         <span className="text-stone-400 block text-[9px]">कुल सेट्स</span>
                         <span className="font-black font-mono">{exam.totalSetsConfigured}</span>
                       </div>
                       <div>
-                        <span className="text-emerald-600 block text-[9px]">सक्रिय (Active)</span>
+                        <span className="text-emerald-600 block text-[9px]">सक्रिय</span>
                         <span className="font-black font-mono text-emerald-700 dark:text-emerald-400">{exam.activeSetsCount}</span>
                       </div>
                       <div>
-                        <span className="text-rose-600 block text-[9px]">इनएक्टिव</span>
-                        <span className="font-black font-mono text-rose-700 dark:text-rose-400">{exam.inactiveSetsCount}</span>
+                        <span className="text-stone-400 block text-[9px]">अपलोड</span>
+                        <span className="font-black font-mono text-[#7A2A1E] dark:text-[#D4A017]">{exam.totalQuestionsUploaded}</span>
                       </div>
                       <div>
-                        <span className="text-stone-400 block text-[9px]">प्रश्न अपलोड</span>
-                        <span className="font-black font-mono text-[#7A2A1E] dark:text-[#D4A017]">{exam.totalQuestionsUploaded}</span>
+                        <span className="text-emerald-600 block text-[9px]">🔒 लॉक</span>
+                        <span className="font-black font-mono text-emerald-700 dark:text-emerald-400">{exam.lockedQuestionsCount}</span>
+                      </div>
+                      <div>
+                        <span className="text-amber-600 block text-[9px]">🔓 अनलॉक</span>
+                        <span className="font-black font-mono text-amber-700 dark:text-amber-400">{exam.unlockedQuestionsCount}</span>
                       </div>
                     </div>
 
@@ -649,7 +730,7 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
             </div>
 
             {/* Selected Exam KPI Summary Ribbon */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-stone-50 dark:bg-stone-800/60 p-3.5 rounded-2xl border border-stone-200 dark:border-stone-700">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-stone-50 dark:bg-stone-800/60 p-3.5 rounded-2xl border border-stone-200 dark:border-stone-700">
               <div>
                 <div className="text-[10px] text-stone-500 uppercase font-black">कुल सेट्स</div>
                 <div className="text-lg font-black font-mono text-[#2D2424] dark:text-white">
@@ -661,9 +742,9 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
               </div>
 
               <div>
-                <div className="text-[10px] text-stone-500 uppercase font-black">प्रति सेट मानक प्रश्न</div>
+                <div className="text-[10px] text-stone-500 uppercase font-black">मानक लक्ष्य</div>
                 <div className="text-lg font-black font-mono text-[#7A2A1E] dark:text-[#D4A017]">
-                  {activeDetailExam.targetQuestionsPerSet} Qs
+                  {activeDetailExam.targetQuestionsPerSet} Qs/सेट
                 </div>
                 <div className="text-[10px] text-stone-500 font-bold">
                   कुल लक्ष्य: {activeDetailExam.totalCapacityTarget} प्रश्न
@@ -671,8 +752,8 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
               </div>
 
               <div>
-                <div className="text-[10px] text-stone-500 uppercase font-black">वर्तमान प्रश्न संख्या</div>
-                <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+                <div className="text-[10px] text-stone-500 uppercase font-black">कुल प्रश्न</div>
+                <div className="text-lg font-black font-mono text-[#2D2424] dark:text-white">
                   {activeDetailExam.totalQuestionsUploaded}
                 </div>
                 <div className="text-[10px] text-stone-500 font-bold">
@@ -681,14 +762,28 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
               </div>
 
               <div>
-                <div className="text-[10px] text-stone-500 uppercase font-black">शेष आवश्यक प्रश्न</div>
-                <div className={`text-lg font-black font-mono ${
-                  activeDetailExam.remainingToTarget === 0 ? 'text-emerald-600' : 'text-orange-600'
-                }`}>
-                  {activeDetailExam.remainingToTarget}
+                <div className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-black flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  <span>लॉक / फाइनल</span>
                 </div>
-                <div className="text-[10px] text-stone-500 font-bold">
-                  {activeDetailExam.remainingToTarget === 0 ? '✓ पूर्णत: तैयार' : 'अपलोड की प्रतीक्षा में'}
+                <div className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400">
+                  {activeDetailExam.lockedQuestionsCount}
+                </div>
+                <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                  छात्रों हेतु तैयार
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] text-amber-700 dark:text-amber-400 uppercase font-black flex items-center gap-1">
+                  <Unlock className="w-3 h-3" />
+                  <span>अनलॉक / ड्राफ्ट</span>
+                </div>
+                <div className="text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+                  {activeDetailExam.unlockedQuestionsCount}
+                </div>
+                <div className="text-[10px] text-amber-700 dark:text-amber-400 font-bold">
+                  समीक्षा बाकी
                 </div>
               </div>
             </div>
@@ -751,6 +846,22 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
                             / {set.targetCount} प्रश्न
                           </span>
                         </div>
+
+                        {/* Set Lock Breakdown mini pills */}
+                        {set.questionsCount > 0 && (
+                          <div className="flex items-center gap-1.5 my-1 text-[9px] font-bold">
+                            <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded flex items-center gap-0.5" title="फाइनल लॉक प्रश्न">
+                              <Lock className="w-2.5 h-2.5" />
+                              <span>{set.lockedCount}</span>
+                            </span>
+                            {set.unlockedCount > 0 && (
+                              <span className="text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/60 px-1.5 py-0.2 rounded flex items-center gap-0.5" title="अनलॉक ड्राफ्ट प्रश्न">
+                                <Unlock className="w-2.5 h-2.5" />
+                                <span>{set.unlockedCount}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Progress Bar for Set */}
                         <div className="w-full bg-stone-200 dark:bg-stone-700 h-1.5 rounded-full mt-1.5 overflow-hidden">

@@ -357,6 +357,24 @@ export const INITIAL_WEBSITE_CONTENT: WebsiteContentConfig = {
   showLastUpdated: true
 };
 
+export const INITIAL_POPUP_CONFIG = {
+  isActive: true,
+  titleHi: '🎉 MP पटवारी एवं कृषि विस्तार अधिकारी 2026 स्पेशल अपडेट',
+  titleEn: 'Special Mock Test Launch & Offer',
+  badgeText: '🔥 NEW LAUNCH',
+  messageHi: 'सभी 20 मॉक टेस्ट सेट्स लाइव हो चुके हैं! सेट #1 फ्री डेमो टेस्ट अभी हल करें और ऑल-एमपी रैंक व तुरंत AI विस्तृत हल पाएँ।',
+  messageEn: 'All 20 Mock Test Sets are now live! Attempt Set #1 Free Demo test now with instant AI report.',
+  imageUrl: '',
+  buttonTextHi: '🎯 अभी फ्री डेमो टेस्ट दें (Start Free Demo)',
+  buttonTextEn: 'Start Free Demo Now',
+  buttonLink: '/test/free_mock_40',
+  secondaryButtonTextHi: '📚 सभी टेस्ट सीरीज़ देखें',
+  secondaryButtonLink: '#catalog',
+  highlightText: 'विशेष कूपन कोड: SETU50 से ₹50 की अतिरिक्त छूट',
+  showOnlyOncePerSession: false,
+  autoCloseSeconds: 0
+};
+
 export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   siteTitle: 'MP परीक्षा सेतु',
   siteTagline: 'मध्यप्रदेश प्रतियोगी परीक्षा सर्वोत्तम टेस्ट पोर्टल',
@@ -381,7 +399,8 @@ export const INITIAL_PLATFORM_SETTINGS: PlatformSettings = {
   showHitCounter: true,
   showLastUpdated: true,
   websiteContent: INITIAL_WEBSITE_CONTENT,
-  socialChannels: INITIAL_SOCIAL_CHANNELS
+  socialChannels: INITIAL_SOCIAL_CHANNELS,
+  popupConfig: INITIAL_POPUP_CONFIG
 };
 
 function getStorage<T>(key: string, fallback: T): T {
@@ -438,6 +457,8 @@ function normalizeQuestion(q: any): Question {
     correctOptionIndex: correctIndex,
     subject: q.subject || q.section || 'General Studies',
     section: q.section || q.subject || 'General Studies',
+    isLocked: q.isLocked === true,
+    lockedAt: q.isLocked === true ? q.lockedAt : undefined,
   };
 }
 
@@ -536,6 +557,8 @@ function normalizePlatformSettings(s: any): PlatformSettings {
   mergedWebsiteContent.showHitCounter = showHitCounter;
   mergedWebsiteContent.showLastUpdated = showLastUpdated;
 
+  const popupConfig = s.popupConfig ? { ...INITIAL_POPUP_CONFIG, ...s.popupConfig } : INITIAL_POPUP_CONFIG;
+
   return {
     ...INITIAL_PLATFORM_SETTINGS,
     ...s,
@@ -545,7 +568,8 @@ function normalizePlatformSettings(s: any): PlatformSettings {
     showHitCounter,
     showLastUpdated,
     websiteContent: mergedWebsiteContent,
-    socialChannels: mergedChannels
+    socialChannels: mergedChannels,
+    popupConfig
   };
 }
 
@@ -611,6 +635,23 @@ export const StorageService = {
   setTestSeries: (series: TestSeries[]) => setStorage(STORAGE_KEYS.TEST_SERIES, series.map(normalizeTestSeries)),
 
   getQuestions: (): Question[] => {
+    // One-time check to ensure all questions are unlocked as per admin directive
+    try {
+      if (typeof window !== 'undefined' && localStorage.getItem('admin_unlocked_all_initial') !== 'true') {
+        const stored = localStorage.getItem(STORAGE_KEYS.QUESTIONS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const unlockedList = parsed.map(q => ({ ...q, isLocked: false, lockedAt: undefined }));
+            localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(unlockedList));
+          }
+        }
+        localStorage.setItem('admin_unlocked_all_initial', 'true');
+      }
+    } catch (e) {
+      console.warn('One-time unlock reset notice:', e);
+    }
+
     const raw = getStorage(STORAGE_KEYS.QUESTIONS, INITIAL_QUESTIONS);
     if (!Array.isArray(raw) || raw.length === 0) {
       return INITIAL_QUESTIONS.map(normalizeQuestion);
@@ -621,6 +662,12 @@ export const StorageService = {
     return Array.from(map.values()).map(normalizeQuestion);
   },
   setQuestions: (questions: Question[]) => setStorage(STORAGE_KEYS.QUESTIONS, questions.map(normalizeQuestion)),
+  unlockAllQuestions: (): Question[] => {
+    const raw = StorageService.getQuestions();
+    const updated = raw.map(q => ({ ...q, isLocked: false, lockedAt: undefined }));
+    StorageService.setQuestions(updated);
+    return updated;
+  },
 
   getAttempts: (): TestAttempt[] => {
     const raw = getStorage<TestAttempt[]>(STORAGE_KEYS.ATTEMPTS, INITIAL_ATTEMPTS);

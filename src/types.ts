@@ -64,6 +64,8 @@ export interface Question {
   difficulty: 'easy' | 'medium' | 'hard';
   topic: string;
   setNumber?: number;
+  isLocked?: boolean;
+  lockedAt?: string;
 }
 
 export interface TestSeriesSyllabusSection {
@@ -243,6 +245,24 @@ export interface WebsiteContentConfig {
   showLastUpdated?: boolean;
 }
 
+export interface PopupNotificationConfig {
+  isActive: boolean;
+  titleHi: string;
+  titleEn?: string;
+  badgeText?: string;
+  messageHi: string;
+  messageEn?: string;
+  imageUrl?: string;
+  buttonTextHi?: string;
+  buttonTextEn?: string;
+  buttonLink?: string;
+  secondaryButtonTextHi?: string;
+  secondaryButtonLink?: string;
+  highlightText?: string;
+  showOnlyOncePerSession?: boolean;
+  autoCloseSeconds?: number; // 0 = do not auto close
+}
+
 export interface PlatformSettings {
   siteTitle: string;
   siteTagline: string;
@@ -268,6 +288,7 @@ export interface PlatformSettings {
   showLastUpdated?: boolean;
   websiteContent?: WebsiteContentConfig;
   socialChannels?: SocialChannelConfig[];
+  popupConfig?: PopupNotificationConfig;
 }
 
 export interface MockSetMetadata {
