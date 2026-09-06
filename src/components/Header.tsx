@@ -164,16 +164,28 @@ export const Header: React.FC = () => {
 
                     <div className="py-1">
                       {currentUser.role === 'admin' ? (
-                        <button
-                          onClick={() => {
-                            setIsProfileDropdownOpen(false);
-                            navigate('admin');
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-xs font-black text-[#D4A017] hover:bg-[#963E2F] flex items-center gap-2 bg-[#5E1F16] cursor-pointer"
-                        >
-                          <ShieldAlert className="w-4 h-4 text-[#D4A017]" />
-                          <span>{lang === 'hi' ? '👑 सुपर एडमिन कंसोल' : 'Super Admin Console'}</span>
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsProfileDropdownOpen(false);
+                              navigate('ownerDesk');
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-black text-amber-300 hover:bg-[#963E2F] flex items-center gap-2 border-b border-[#963E2F] cursor-pointer"
+                          >
+                            <Award className="w-4 h-4 text-[#D4A017]" />
+                            <span>{lang === 'hi' ? '👑 संस्थापक एवं प्रबंधन डेस्क' : 'Founder & Owner Desk'}</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsProfileDropdownOpen(false);
+                              navigate('admin');
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-black text-[#D4A017] hover:bg-[#963E2F] flex items-center gap-2 bg-[#5E1F16] cursor-pointer"
+                          >
+                            <ShieldAlert className="w-4 h-4 text-[#D4A017]" />
+                            <span>{lang === 'hi' ? '🛡️ सुपर एडमिन कंसोल' : 'Super Admin Console'}</span>
+                          </button>
+                        </>
                       ) : (
                         <>
                           <button
@@ -239,7 +251,7 @@ export const Header: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex items-center">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={() => openAuthModal('login')}
                   className="h-9 px-3 sm:px-4 rounded-xl bg-[#D4A017] hover:bg-[#e0b020] text-[#2D2424] text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
@@ -247,6 +259,14 @@ export const Header: React.FC = () => {
                 >
                   <User className="w-3.5 h-3.5 shrink-0" />
                   <span>{lang === 'hi' ? 'लॉगिन / साइन अप' : 'Login / Sign Up'}</span>
+                </button>
+                <button
+                  onClick={() => navigate('ownerDesk')}
+                  className="h-9 px-2.5 sm:px-3 rounded-xl bg-[#5E1F16] hover:bg-[#963E2F] border border-[#D4A017]/60 text-[#D4A017] text-xs font-black tracking-wider transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                  title="संस्थापक एवं प्रबंधन डेस्क (Founder & Owner Desk)"
+                >
+                  <Award className="w-3.5 h-3.5 text-[#D4A017]" />
+                  <span className="hidden sm:inline">{lang === 'hi' ? 'संस्थापक डेस्क' : 'Owner Desk'}</span>
                 </button>
               </div>
             )}

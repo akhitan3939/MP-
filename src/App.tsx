@@ -23,6 +23,7 @@ import { LeaderboardView } from './views/LeaderboardView';
 import { StudentDashboardView } from './views/StudentDashboardView';
 import { AdminDashboardView } from './views/AdminDashboardView';
 import { LegalAndAboutView } from './views/LegalAndAboutView';
+import { FounderOwnerDeskView } from './views/FounderOwnerDeskView';
 
 const MainAppContent: React.FC = () => {
   const { activeView, toastMessage } = useApp();
@@ -57,6 +58,7 @@ const MainAppContent: React.FC = () => {
         {activeView === 'notes' && <CatalogView />}
         {(activeView === 'dashboard' || activeView === 'studentDashboard') && <StudentDashboardView />}
         {activeView === 'admin' && <AdminDashboardView />}
+        {(activeView === 'ownerDesk' || activeView === 'founderDesk') && <FounderOwnerDeskView />}
         {(activeView === 'legal' || activeView === 'aboutUs' || activeView === 'terms' || activeView === 'privacy' || activeView === 'refund') && <LegalAndAboutView />}
       </main>
 

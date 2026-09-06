@@ -130,6 +130,15 @@ export const LegalAndAboutView: React.FC = () => {
             <RotateCcw className="w-4 h-4" />
             <span>{lang === 'hi' ? '4. रिफंड एवं गणना नीति (Refund & Calculation Policy)' : '4. Refund & Calculation Policy'}</span>
           </button>
+
+          <button
+            onClick={() => navigate('ownerDesk')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black whitespace-nowrap transition cursor-pointer bg-gradient-to-r from-[#D4A017] to-amber-300 text-[#2D2424] hover:shadow-lg hover:scale-105 ml-auto"
+            title="संस्थापक एवं मुख्य संचालक डेस्क"
+          >
+            <Award className="w-4 h-4 text-[#5E1F16]" />
+            <span>{lang === 'hi' ? '👑 संस्थापक एवं संचालक डेस्क' : '👑 Founder & Owner Desk'}</span>
+          </button>
         </div>
       </div>
 
@@ -180,6 +189,39 @@ export const LegalAndAboutView: React.FC = () => {
                   {lang === 'hi'
                     ? 'वास्तविक परीक्षा जैसा कंप्यूटर आधारित टेस्ट (CBT) अनुभव, द्विभाषी प्रश्न (हिन्दी व English), विषयवार गहन AI विश्लेषण, और ऑल-एमपी मेरिट रैंकिंग प्रदान करके छात्रों की सफलता दर को अधिकतम करना।'
                     : 'Delivering real exam-like CBT software, curated bilingual question banks with detailed explanations, comprehensive AI analytics, and statewide ranking.'}
+                </p>
+              </div>
+            </div>
+
+            {/* FOUNDER INTRODUCTION & VISION (संस्थापक परिचय व विज़न) */}
+            <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-[#5E1F16] via-[#7A2A1E] to-[#48160E] text-white border-2 border-[#D4A017] shadow-xl space-y-4">
+              <div className="flex items-center gap-2 text-[#D4A017] font-black text-sm uppercase tracking-wider">
+                <Award className="w-5 h-5 text-[#D4A017]" />
+                <span>संस्थापक परिचय व विज़न (Founder Introduction & Vision)</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#3A1009]/80 p-4 rounded-2xl border border-[#D4A017]/30 text-xs sm:text-sm">
+                <div>
+                  <span className="text-[#D4A017] font-black block text-[11px] uppercase">नाम</span>
+                  <span className="font-mono font-bold tracking-widest text-white text-base">.......</span>
+                </div>
+                <div>
+                  <span className="text-[#D4A017] font-black block text-[11px] uppercase">पद</span>
+                  <span className="font-bold text-[#EAD8B1]">संस्थापक (Founder, MP परीक्षा सेतु)</span>
+                </div>
+                <div>
+                  <span className="text-[#D4A017] font-black block text-[11px] uppercase">मुख्यालय</span>
+                  <span className="font-bold text-stone-200">भोपाल, मध्यप्रदेश</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <div className="text-xs font-black text-[#D4A017] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>म.प्र. के प्रतियोगी परीक्षार्थियों के लिए प्रेरणादायी संदेश एवं CBT गुणवत्ता संकल्प:</span>
+                </div>
+                <p className="text-xs sm:text-sm text-stone-200 leading-relaxed font-medium bg-[#3A1009]/50 p-4 rounded-xl border border-[#D4A017]/20 italic">
+                  "मध्यप्रदेश के प्रत्येक होनहार अभ्यर्थी तक बिना किसी बाधा के राज्य स्तरीय परीक्षाओं (MPPSC, पटवारी, पुलिस SI/कांस्टेबल, व्यापम ESB) की सबसे प्रामाणिक, उच्च गुणवत्तायुक्त और वास्तविक CBT परीक्षा प्रणाली पहुँचाना हमारा सर्वोच्च संकल्प है।"
                 </p>
               </div>
             </div>

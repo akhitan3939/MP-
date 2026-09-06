@@ -344,15 +344,24 @@ export const Footer: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[#D4A017] font-black uppercase tracking-wider">जय मध्यप्रदेश • जय हिन्द 🇮🇳</span>
             
-            {/* Dedicated Admin Portal Access Link at bottom */}
+            {/* Dedicated Founder Desk & Admin Portal Access Links at bottom */}
+            <span className="text-[#963E2F]">|</span>
+            <button
+              onClick={() => navigate('ownerDesk')}
+              className="px-2.5 py-1.5 rounded-lg bg-[#48160E] hover:bg-[#7A2A1E] text-[#EAD8B1] hover:text-white border border-[#D4A017]/30 flex items-center gap-1.5 transition cursor-pointer text-xs font-bold shadow-sm"
+              title="संस्थापक एवं प्रबंधन डेस्क"
+            >
+              <Award className="w-3.5 h-3.5 text-[#D4A017]" />
+              <span>{lang === 'hi' ? '👑 संस्थापक डेस्क (Owner Desk)' : '👑 Founder & Owner Desk'}</span>
+            </button>
             <span className="text-[#963E2F]">|</span>
             <button
               onClick={() => openAuthModal('admin')}
-              className="px-3 py-1.5 rounded-lg bg-[#5E1F16] hover:bg-[#963E2F] text-[#D4A017] border border-[#D4A017]/40 flex items-center gap-1.5 transition cursor-pointer text-xs font-mono font-bold shadow-sm"
+              className="px-2.5 py-1.5 rounded-lg bg-[#5E1F16] hover:bg-[#963E2F] text-[#D4A017] border border-[#D4A017]/40 flex items-center gap-1.5 transition cursor-pointer text-xs font-mono font-bold shadow-sm"
               title="Secure Admin Portal Login"
             >
               <Lock className="w-3.5 h-3.5 text-[#D4A017]" />
-              <span>{lang === 'hi' ? '🔒 एडमिन पोर्टल लॉगिन (Admin Only)' : '🔒 Staff / Admin Portal Login'}</span>
+              <span>{lang === 'hi' ? '🔒 एडमिन लॉगिन (Admin Only)' : '🔒 Staff / Admin Login'}</span>
             </button>
           </div>
         </div>

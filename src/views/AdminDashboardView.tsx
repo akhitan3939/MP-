@@ -174,8 +174,56 @@ export const AdminDashboardView: React.FC = () => {
     openNotesModal,
     lang, 
     showToast,
-    navigate
+    navigate,
+    currentUser,
+    openAuthModal
   } = useApp();
+
+  // Strict Admin Security Guard: Verify administrator role
+  if (!currentUser || currentUser.role !== 'admin') {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-[#5E1F16] text-[#D4A017] flex items-center justify-center mx-auto text-2xl font-black shadow-lg">
+            🔒
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-display font-black text-xl text-stone-900 dark:text-stone-100">
+              {lang === 'hi' ? 'प्रतिबंधित क्षेत्र (Restricted Admin Area)' : 'Restricted Admin Area'}
+            </h2>
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+              {lang === 'hi'
+                ? 'यह एडमिन कंसोल केवल पोर्टल के मुख्य व्यवस्थापक (श्री अखिलेश कोरसने) के लिए आरक्षित है। सामान्य छात्र अथवा अनाधिकृत यूज़र इस क्षेत्र में प्रवेश नहीं कर सकते।'
+                : 'This section is strictly reserved for the authorized Portal Administrator. Students and unauthorized users cannot access this console.'}
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col gap-2.5">
+            <button
+              onClick={() => openAuthModal('admin')}
+              className="w-full py-3 rounded-xl bg-[#5E1F16] hover:bg-[#7A2A1E] text-[#D4A017] border border-[#D4A017]/60 font-black text-xs transition cursor-pointer shadow-md flex items-center justify-center gap-2"
+            >
+              <Lock className="w-4 h-4" />
+              <span>{lang === 'hi' ? 'गोपनीय एडमिन पासवर्ड से लॉगिन करें' : 'Login with Admin Password'}</span>
+            </button>
+            <button
+              onClick={() => navigate('ownerDesk')}
+              className="w-full py-2.5 rounded-xl bg-amber-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 font-bold text-xs hover:bg-amber-200 dark:hover:bg-stone-700 transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Award className="w-3.5 h-3.5 text-[#7A2A1E]" />
+              <span>{lang === 'hi' ? '👑 संस्थापक एवं प्रबंधन डेस्क पर जाएं' : 'Go to Founder & Owner Desk'}</span>
+            </button>
+            <button
+              onClick={() => navigate('home')}
+              className="w-full py-2 text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 text-xs font-semibold transition cursor-pointer"
+            >
+              {lang === 'hi' ? '← मुख्य होमपेज पर लौटें' : '← Return to Homepage'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Active Admin Navigation Tab (All buttons on LEFT side)
   const [activeTab, setActiveTab] = useState<AdminModuleTab>('OVERVIEW');
