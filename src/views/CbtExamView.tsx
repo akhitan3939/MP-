@@ -37,6 +37,7 @@ import { getPatwariQuestionsForSet, ALL_20_PATWARI_SETS } from '../data/patwariS
 import { getAgriQuestionsForSet, ALL_20_AGRI_SETS } from '../data/agriSetsData';
 import { EXCLUSIVE_FREE_MOCK_QUESTIONS } from '../data/freeMockQuestions';
 import { getResolvedMockQuestions } from '../utils/questionBankHelper';
+import { MathFormattedText } from '../components/common/MathFormattedText';
 
 export const CbtExamView: React.FC = () => {
   const { 
@@ -1204,7 +1205,7 @@ export const CbtExamView: React.FC = () => {
             
             {/* Question Text */}
             <div className="text-sm sm:text-base font-semibold text-stone-900 dark:text-stone-100 leading-relaxed">
-              {examLang === 'hi' ? currentQ.questionHi : currentQ.questionEn}
+              <MathFormattedText text={examLang === 'hi' ? currentQ.questionHi : (currentQ.questionEn || currentQ.questionHi)} />
             </div>
 
             {/* Optional MCQ Image attachment */}
@@ -1261,7 +1262,7 @@ export const CbtExamView: React.FC = () => {
                       {isSelected ? '✓' : optionLabel}
                     </div>
                     <div className="text-xs sm:text-sm font-medium leading-normal pt-0.5">
-                      {optText}
+                      <MathFormattedText text={optText} />
                     </div>
                   </button>
                 );

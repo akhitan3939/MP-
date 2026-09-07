@@ -64,6 +64,7 @@ export interface Question {
   difficulty: 'easy' | 'medium' | 'hard';
   topic: string;
   setNumber?: number;
+  slotNumber?: number;
   isLocked?: boolean;
   lockedAt?: string;
 }

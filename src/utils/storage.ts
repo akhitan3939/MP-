@@ -635,31 +635,11 @@ export const StorageService = {
   setTestSeries: (series: TestSeries[]) => setStorage(STORAGE_KEYS.TEST_SERIES, series.map(normalizeTestSeries)),
 
   getQuestions: (): Question[] => {
-    // One-time check to ensure all questions are unlocked as per admin directive
-    try {
-      if (typeof window !== 'undefined' && localStorage.getItem('admin_unlocked_all_initial') !== 'true') {
-        const stored = localStorage.getItem(STORAGE_KEYS.QUESTIONS);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            const unlockedList = parsed.map(q => ({ ...q, isLocked: false, lockedAt: undefined }));
-            localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(unlockedList));
-          }
-        }
-        localStorage.setItem('admin_unlocked_all_initial', 'true');
-      }
-    } catch (e) {
-      console.warn('One-time unlock reset notice:', e);
+    const raw = getStorage<any[] | null>(STORAGE_KEYS.QUESTIONS, null);
+    if (raw && Array.isArray(raw) && raw.length > 0) {
+      return raw.map(normalizeQuestion);
     }
-
-    const raw = getStorage(STORAGE_KEYS.QUESTIONS, INITIAL_QUESTIONS);
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return INITIAL_QUESTIONS.map(normalizeQuestion);
-    }
-    const map = new Map<string, any>();
-    INITIAL_QUESTIONS.forEach(q => map.set(q.id, q));
-    raw.forEach((q: any) => map.set(q.id, { ...(map.get(q.id) || {}), ...q }));
-    return Array.from(map.values()).map(normalizeQuestion);
+    return INITIAL_QUESTIONS.map(normalizeQuestion);
   },
   setQuestions: (questions: Question[]) => setStorage(STORAGE_KEYS.QUESTIONS, questions.map(normalizeQuestion)),
   unlockAllQuestions: (): Question[] => {

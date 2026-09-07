@@ -18,6 +18,7 @@ import {
   Award, 
   Leaf, 
   Shield, 
+  ShieldCheck,
   Monitor, 
   TreePine, 
   GraduationCap, 
@@ -45,6 +46,7 @@ import { Question, TestSeries } from '../../types';
 import { 
   MOCK_CATEGORY_OPTIONS, 
   MockCategoryOption, 
+  getDynamicMockCategoryOptions,
   getResolvedMockQuestions,
   getAllQuestionsForSeries,
   getSeriesAndSetInfo 
@@ -52,7 +54,9 @@ import {
 import { exportToCsv, exportToXls, exportToPdfPrint } from '../../utils/exportReports';
 import { BulkQuestionUploadModal } from './BulkQuestionUploadModal';
 import { QuestionAnalyticsDashboard } from './QuestionAnalyticsDashboard';
+import { QuestionSlotPalette } from './QuestionSlotPalette';
 import { StorageService } from '../../utils/storage';
+import { MathFormattedText } from '../common/MathFormattedText';
 
 interface AdminQuestionBankHubProps {
   questions: Question[];
@@ -62,7 +66,7 @@ interface AdminQuestionBankHubProps {
   showToast: (msg: string) => void;
   navigate: (view: string, params?: any) => void;
   onEditQuestion: (q: Question) => void;
-  onAddNewQuestion: (seriesId: string, setNumber: number) => void;
+  onAddNewQuestion: (seriesId: string, setNumber: number, slotNumber?: number) => void;
   onSaveBulk?: (
     questions: Question[],
     mode: 'append' | 'replace',
@@ -107,15 +111,29 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   const [aiSubjectInput, setAiSubjectInput] = useState<string>('म.प्र. सामान्य ज्ञान');
   const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
 
+  // Dynamic Mock category list synchronized with user-configured Test Packages
+  const categoryOptions = useMemo(() => {
+    return getDynamicMockCategoryOptions(testSeries);
+  }, [testSeries]);
+
   // Active Mock category object
   const activeCategory = useMemo(() => {
-    return MOCK_CATEGORY_OPTIONS.find(c => c.id === selectedMockId) || MOCK_CATEGORY_OPTIONS[0];
-  }, [selectedMockId]);
+    return categoryOptions.find(c => c.id === selectedMockId) || categoryOptions[0];
+  }, [categoryOptions, selectedMockId]);
 
   // Selected TestSeries object from AppContext
   const activeSeriesObj = useMemo(() => {
     return testSeries.find(ts => ts.id === selectedMockId);
   }, [testSeries, selectedMockId]);
+
+  // Multi-set and total sets calculation
+  const isMultiSet = useMemo(() => {
+    return (activeSeriesObj?.totalTests || 0) > 1 || activeCategory.isMultiSet || selectedMockId === 'ts_patwari_2026' || selectedMockId === 'ts_agri_ext_2026';
+  }, [activeSeriesObj, activeCategory, selectedMockId]);
+
+  const totalSetsCount = useMemo(() => {
+    return activeSeriesObj?.totalTests || activeCategory.totalSets || (isMultiSet ? 20 : 1);
+  }, [activeSeriesObj, activeCategory, isMultiSet]);
 
   // Resolved questions for current Mock and Set
   const currentMockQuestions = useMemo(() => {
@@ -177,7 +195,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
     return currentMockQuestions.length - lockedCount;
   }, [currentMockQuestions, lockedCount]);
 
-  // Single Question Lock/Unlock Toggle
+  // Single Question Lock/Unlock Toggle with Direct Disk Persistence
   const handleToggleLock = (q: Question) => {
     const nextLockedState = q.isLocked === true ? false : true;
     const updatedQ: Question = {
@@ -186,10 +204,18 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
       lockedAt: nextLockedState ? new Date().toISOString() : undefined,
     };
     saveQuestion(updatedQ);
+
+    // Call dedicated lock persistence endpoint
+    fetch('/api/questions/lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questionId: q.id, isLocked: nextLockedState })
+    }).catch(e => console.warn('Direct lock persistence error:', e));
+
     showToast(
       nextLockedState 
-        ? '🔒 प्रश्न लॉक (Finalized) कर दिया गया — अब यह छात्र टेस्ट सीरीज़ में लाइव रहेगा!' 
-        : '🔓 प्रश्न अनलॉक (Draft) कर दिया गया — समीक्षा हेतु रखा गया।'
+        ? '🔒 प्रश्न लॉक (Finalized) कर दिया गया — अब यह सर्वर और लाइव टेस्ट में स्थायी रूप से सुरक्षित है!' 
+        : '🔓 प्रश्न अनलॉक (Draft) कर दिया गया — संपादन योग्य।'
     );
   };
 
@@ -214,10 +240,22 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
       questionsToUpdate.forEach(q => saveQuestion(q));
     }
 
+    // Call direct bulk endpoint for all selected
+    fetch('/api/questions/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        questions: questionsToUpdate,
+        mode: 'append',
+        seriesId: selectedMockId,
+        setNumber: selectedSetNumber
+      })
+    }).catch(e => console.warn('Bulk lock direct sync error:', e));
+
     setSelectedQuestionIds([]);
     showToast(
       lockStatus 
-        ? `🔒 चयनित ${questionsToUpdate.length} प्रश्न सफलतापूर्वक लॉक (Finalize) कर दिए गए!` 
+        ? `🔒 चयनित ${questionsToUpdate.length} प्रश्न सफलतापूर्वक लॉक (Finalize) व सुरक्षित कर दिए गए!` 
         : `🔓 चयनित ${questionsToUpdate.length} प्रश्न अनलॉक कर दिए गए!`
     );
   };
@@ -236,44 +274,45 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
       questionsToUpdate.forEach(q => saveQuestion(q));
     }
 
+    fetch('/api/questions/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        questions: questionsToUpdate,
+        mode: 'append',
+        seriesId: selectedMockId,
+        setNumber: selectedSetNumber
+      })
+    }).catch(e => console.warn('Lock all in view direct sync error:', e));
+
     showToast(
       lockStatus 
-        ? `🔒 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न लॉक व टेस्ट हेतु फाइनल कर दिए गए!` 
+        ? `🔒 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न लॉक व टेस्ट हेतु सुरक्षित कर दिए गए!` 
         : `🔓 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न अनलॉक कर दिए गए!`
     );
   };
 
-  // Master Unlock All Questions Platform-Wide (One-click)
-  const handleUnlockAllEverywhere = () => {
-    // 1. Reset stored questions
-    StorageService.unlockAllQuestions();
-
-    // 2. Update custom / appContext questions
-    const unlockedQuestions = (questions || []).map(q => ({
-      ...q,
-      isLocked: false,
-      lockedAt: undefined,
-    }));
-
-    if (onSaveBulk && unlockedQuestions.length > 0) {
-      onSaveBulk(unlockedQuestions, 'append');
-    } else {
-      unlockedQuestions.forEach(q => saveQuestion(q));
-    }
-
-    // 3. Update any currently loaded questions
-    currentMockQuestions.forEach(q => {
-      if (q.isLocked === true) {
-        saveQuestion({
-          ...q,
-          isLocked: false,
-          lockedAt: undefined,
-        });
-      }
-    });
-
-    setSelectedQuestionIds([]);
-    showToast('🔓 सभी 15,000+ प्रश्न एक ही बार में अनलॉक कर दिए गए हैं! अब आप अपनी इच्छानुसार प्रश्नों को लॉक कर सकते हैं।');
+  // Download Complete Question Bank Backup (JSON)
+  const handleDownloadFullBackup = () => {
+    const allQs = (questions && questions.length > 0) ? questions : currentMockQuestions;
+    const backupData = {
+      portal: 'MP परीक्षा सेतु (MP Pariksha Setu)',
+      founder: 'अखिलेश कोरसने (Akhilesh Korsne)',
+      exportedAt: new Date().toISOString(),
+      totalQuestions: allQs.length,
+      lockedQuestionsCount: allQs.filter(q => q.isLocked).length,
+      questions: allQs
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MP_Pariksha_Setu_Question_Bank_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`📥 बैकअप फाइल डाउनलोड हो गई! कुल ${allQs.length} प्रश्न सुरक्षित हैं।`);
   };
 
   // Duplicate Question Handler
@@ -567,6 +606,35 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
         />
       ) : (
         <>
+        {/* Persistence & Protection Guarantee Banner for Portal Owner / Admin */}
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-stone-900 border-2 border-emerald-400 dark:border-emerald-700 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-700 text-white shadow-xs shrink-0">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-black text-sm text-emerald-950 dark:text-emerald-100 flex items-center gap-2">
+                <span>🛡️ लाइव प्रश्न सुरक्षा एवं डेटा परसिस्टेंस गारंटी (Permanent Storage Active)</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-800 text-white text-[10px] font-bold uppercase tracking-wider">
+                  सर्वर डिस्क व डेटाबेस सुरक्षित
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium mt-0.5">
+                आपके द्वारा लाइव पोर्टल पर जोड़े गए या <span className="font-black underline">लॉक (🔒)</span> किए गए सभी प्रश्न सर्वर डिस्क में स्थायी रूप से सहेजे जाते हैं। कोई भी अन्य सेट अपलोड या सिस्टम रिफ्रेश आपके लॉक प्रश्नों को कभी नहीं मिटाएगा।
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleDownloadFullBackup}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-xs cursor-pointer transition shrink-0"
+            title="संपूर्ण प्रश्न बैंक का बैकअप फाइल डाउनलोड करें"
+          >
+            <Download className="w-4 h-4" />
+            <span>📥 पूर्ण बैंक बैकअप (.JSON)</span>
+          </button>
+        </div>
+
       {/* 1. MOCK & TEST SERIES SELECTOR (TOP TABS) */}
       <div className="bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100 dark:border-stone-800">
@@ -631,8 +699,11 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
         {/* Horizontal Category Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {MOCK_CATEGORY_OPTIONS.map((cat) => {
+          {categoryOptions.map((cat) => {
             const isSelected = selectedMockId === cat.id;
+            const seriesObj = testSeries.find(ts => ts.id === cat.id);
+            const isCatMultiSet = (seriesObj?.totalTests || 0) > 1 || cat.isMultiSet || cat.id === 'ts_patwari_2026' || cat.id === 'ts_agri_ext_2026';
+            const catSets = seriesObj?.totalTests || cat.totalSets || (isCatMultiSet ? 20 : 1);
 
             return (
               <button
@@ -657,11 +728,11 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                     </span>
                     {cat.id !== 'all_questions' && (
                       <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                        cat.isMultiSet 
+                        isCatMultiSet 
                           ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300/80' 
                           : 'bg-sky-100 text-sky-900 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300/80'
                       }`}>
-                        {cat.isMultiSet ? '📚 20 सेट्स सीरीज़' : '🎯 एकल मॉक'}
+                        {isCatMultiSet ? `📚 ${catSets} सेट्स सीरीज़` : '🎯 एकल मॉक'}
                       </span>
                     )}
                     {isSelected && (
@@ -677,8 +748,8 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold mt-2 pt-2 border-t border-stone-200/60 dark:border-stone-700/60">
-                  <span className={cat.isMultiSet ? 'text-amber-700 dark:text-amber-400 font-black' : 'text-sky-700 dark:text-sky-400 font-black'}>
-                    {cat.isMultiSet ? `20 फुल मॉक सेट्स` : (cat.id === 'all_questions' ? 'मास्टर रिपॉजिटरी' : 'स्टैंडअलोन एकल मॉक')}
+                  <span className={isCatMultiSet ? 'text-amber-700 dark:text-amber-400 font-black' : 'text-sky-700 dark:text-sky-400 font-black'}>
+                    {isCatMultiSet ? `${catSets} फुल मॉक सेट्स` : (cat.id === 'all_questions' ? 'मास्टर रिपॉजिटरी' : 'स्टैंडअलोन एकल मॉक')}
                   </span>
                   <span className="font-mono text-[#7A2A1E] dark:text-[#D4A017]">
                     {cat.id === 'all_questions' ? `${questions.length} कुल प्रश्न` : `${cat.totalQuestionsPerSet} प्रश्न / सेट`}
@@ -690,11 +761,11 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
         </div>
 
         {/* 2. SET SWITCHER (When Multi-Set Series is selected) */}
-        {activeCategory.isMultiSet && (
+        {isMultiSet && (
           <div className="pt-3 border-t border-stone-100 dark:border-stone-800 space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-black text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
-                <span>🎯 सेट नंबर चुनें (Choose Mock Set 1 to 20):</span>
+                <span>🎯 सेट नंबर चुनें (Choose Mock Set 1 to {totalSetsCount}):</span>
                 <span className="px-2 py-0.5 rounded bg-[#7A2A1E] text-[#D4A017] text-[10px] font-mono font-black">
                   SET #{selectedSetNumber} ACTIVE
                 </span>
@@ -702,13 +773,9 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
               <button
                 onClick={() => {
-                  if (activeCategory.id === 'ts_patwari_2026') {
-                    navigate('cbtExam', { seriesId: 'ts_patwari_2026', setNumber: selectedSetNumber });
-                  } else if (activeCategory.id === 'ts_agri_ext_2026') {
-                    navigate('cbtExam', { seriesId: 'ts_agri_ext_2026', setNumber: selectedSetNumber });
-                  }
+                  navigate('cbtExam', { seriesId: activeCategory.id, setNumber: selectedSetNumber });
                 }}
-                className="px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-[#7A2A1E] dark:text-[#D4A017] text-xs font-black hover:bg-amber-200 flex items-center gap-1 transition"
+                className="px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-[#7A2A1E] dark:text-[#D4A017] text-xs font-black hover:bg-amber-200 flex items-center gap-1 transition cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>छात्र CBT टेस्ट में लॉन्च करें →</span>
@@ -717,7 +784,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
             {/* Sets Button Grid */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
-              {Array.from({ length: 20 }, (_, i) => i + 1).map(num => {
+              {Array.from({ length: totalSetsCount }, (_, i) => i + 1).map(num => {
                 const isCurrentSet = selectedSetNumber === num;
                 return (
                   <button
@@ -740,6 +807,33 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
           </div>
         )}
       </div>
+
+      {/* 2.5 LIVE QUESTION SLOT PALETTE (Interactive Question Slot Grid) */}
+      {selectedMockId !== 'all_questions' && (
+        <QuestionSlotPalette
+          mockId={selectedMockId}
+          mockNameHi={activeSeriesObj?.titleHi || activeCategory.nameHi}
+          setNumber={selectedSetNumber}
+          targetCapacity={setLimit}
+          questionsInSet={currentMockQuestions}
+          onAddNewAtSlot={(slot) => onAddNewQuestion(selectedMockId, selectedSetNumber, slot)}
+          onEditQuestion={onEditQuestion}
+          onQuickToggleLock={(qId, currentLock) => {
+            const q = questions.find(item => item.id === qId) || currentMockQuestions.find(item => item.id === qId);
+            if (q) {
+              saveQuestion({ ...q, isLocked: !currentLock });
+              showToast(!currentLock ? '🔒 प्रश्न लॉक कर दिया गया है' : '🔓 प्रश्न अनलॉक कर दिया गया है');
+            }
+          }}
+          onMoveSlot={(qId, newSlot) => {
+            const q = questions.find(item => item.id === qId) || currentMockQuestions.find(item => item.id === qId);
+            if (q) {
+              saveQuestion({ ...q, slotNumber: newSlot });
+              showToast(`✅ प्रश्न को स्लॉट Q#${newSlot} पर स्थानांतरित किया गया`);
+            }
+          }}
+        />
+      )}
 
       {/* 3. SEARCH, SUBJECT FILTER, STATS & EXPORT BAR */}
       <div className="p-4 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 rounded-3xl shadow-sm space-y-3">
@@ -1007,14 +1101,14 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                     <span>इस व्यू के अनलॉक</span>
                   </button>
 
-                  {/* Master 1-Click Platform-Wide Unlock (User directive) */}
+                  {/* Download Full Backup Button */}
                   <button
-                    onClick={handleUnlockAllEverywhere}
-                    className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
-                    title="एक ही बार में पूरे पोर्टल के सभी 15,000+ प्रश्न अनलॉक करें (ड्राफ्ट बनाएं)"
+                    onClick={handleDownloadFullBackup}
+                    className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+                    title="संपूर्ण प्रश्न बैंक का JSON बैकअप डाउनलोड करें ताकि आपका डेटा हमेशा सुरक्षित रहे"
                   >
-                    <Unlock className="w-3.5 h-3.5" />
-                    <span>💥 सभी प्रश्न अनलॉक करें (1-क्लिक)</span>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>📥 पूर्ण बैकअप डाउनलोड (JSON)</span>
                   </button>
                 </>
               )}
@@ -1051,10 +1145,14 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
             const isLocked = q.isLocked === true;
             const isSelected = selectedQuestionIds.includes(q.id);
 
+            const qSeriesObj = testSeries.find(ts => ts.id === q.seriesId);
+            const qSetsCount = qSeriesObj?.totalTests || (q.seriesId === 'ts_patwari_2026' || q.seriesId === 'ts_agri_ext_2026' ? 20 : totalSetsCount);
+
             return (
               <div 
                 key={q.id}
-                className={`p-5 bg-white dark:bg-stone-900 border-2 rounded-3xl shadow-xs hover:shadow-md transition space-y-3 relative group ${
+                id={`q-card-${q.id}`}
+                className={`p-5 bg-white dark:bg-stone-900 border-2 rounded-3xl shadow-xs hover:shadow-md transition space-y-3 relative group scroll-mt-24 ${
                   isSelected 
                     ? 'border-[#7A2A1E] dark:border-[#D4A017] ring-2 ring-[#7A2A1E]/20' 
                     : isLocked 
@@ -1096,7 +1194,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                           setNumber: q.setNumber || 1
                         };
                         saveQuestion(updatedQ);
-                        showToast(`✅ प्रश्न #${idx + 1} को सीरीज़ में ट्रांसफर किया गया`);
+                        showToast(`✅ प्रश्न को सीरीज़ में ट्रांसफर किया गया`);
                       }}
                       className="px-2 py-1 rounded-lg bg-white dark:bg-stone-800 border border-amber-300 dark:border-stone-600 text-[11px] font-bold text-[#7A2A1E] dark:text-amber-300 cursor-pointer"
                       title="इस प्रश्न को दूसरी टेस्ट सीरीज़ में बदलें"
@@ -1121,17 +1219,39 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                           setNumber: newSetNum
                         };
                         saveQuestion(updatedQ);
-                        showToast(`✅ प्रश्न #${idx + 1} को सेट #${newSetNum} में मैप किया गया`);
+                        showToast(`✅ प्रश्न को सेट #${newSetNum} में मैप किया गया`);
                       }}
                       className="px-2 py-1 rounded-lg bg-[#7A2A1E] text-[#D4A017] font-mono font-black text-[11px] shadow-2xs border-0 cursor-pointer"
                       title="इस प्रश्न का सेट नंबर बदलें"
                     >
-                      {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                      {Array.from({ length: Math.max(1, qSetsCount) }, (_, i) => i + 1).map(num => (
                         <option key={num} value={num}>
                           सेट #{num}
                         </option>
                       ))}
                     </select>
+
+                    <span className="text-stone-400 font-bold">➔</span>
+
+                    {/* Quick Slot Position Selector (User request: place at specific question number) */}
+                    <div className="flex items-center gap-1 bg-white dark:bg-stone-800 px-2 py-0.5 rounded-lg border border-amber-300 dark:border-stone-600 shadow-2xs">
+                      <span className="text-[10px] font-black text-stone-500">स्लॉट Q#:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={setLimit || 200}
+                        value={q.slotNumber ?? (idx + 1)}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val) && val >= 1) {
+                            saveQuestion({ ...q, slotNumber: val });
+                            showToast(`स्लॉट Q#${val} पर सेट किया गया`);
+                          }
+                        }}
+                        className="w-12 px-1 py-0.5 font-mono font-black text-xs text-[#7A2A1E] dark:text-[#D4A017] bg-transparent border-0 focus:outline-none"
+                        title="प्रश्न क्रमांक तय करें (User Slot Placement)"
+                      />
+                    </div>
                   </div>
                   <div className="text-[10px] font-mono text-stone-500 dark:text-stone-400 bg-stone-200/60 dark:bg-stone-800 px-2 py-0.5 rounded">
                     ID: {q.id}
@@ -1142,7 +1262,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="bg-[#7A2A1E] text-[#D4A017] text-[11px] font-mono font-black px-2.5 py-0.5 rounded-lg">
-                      Q#{idx + 1}
+                      Q#{q.slotNumber ?? (idx + 1)}
                     </span>
                     <span className="text-xs font-black text-stone-700 dark:text-stone-300 px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800">
                       {q.subject || q.section || 'सामान्य अध्ययन'}
@@ -1234,12 +1354,20 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                     </button>
                     <button
                       onClick={() => {
+                        if (q.isLocked) {
+                          showToast('⚠️ यह प्रश्न लॉक (Locked) है! सुरक्षा हेतु इसे सीधे नहीं हटाया जा सकता। हटाने से पहले ऊपर दिए गए लॉक बटन से इसे अनलॉक करें।');
+                          return;
+                        }
                         if (window.confirm('क्या आप निश्चित रूप से इस प्रश्न को हटाना चाहते हैं?')) {
                           deleteQuestion(q.id);
                         }
                       }}
-                      className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 hover:bg-rose-100 transition"
-                      title="हटाएँ (Delete)"
+                      className={`p-1.5 rounded-lg transition ${
+                        q.isLocked 
+                          ? 'bg-stone-200 dark:bg-stone-800 text-stone-400 cursor-not-allowed opacity-60' 
+                          : 'bg-rose-50 dark:bg-rose-950 text-rose-600 hover:bg-rose-100 cursor-pointer'
+                      }`}
+                      title={q.isLocked ? "🔒 यह प्रश्न लॉक (सुरक्षित) है - हटाने के लिए पहले अनलॉक करें" : "हटाएँ (Delete)"}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1248,13 +1376,13 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
                 {/* Question Statement */}
                 <div className="space-y-1">
-                  <p className="font-bold text-sm text-[#2D2424] dark:text-stone-100 leading-relaxed">
-                    {q.questionHi}
-                  </p>
+                  <div className="font-bold text-sm text-[#2D2424] dark:text-stone-100 leading-relaxed">
+                    <MathFormattedText text={q.questionHi} />
+                  </div>
                   {q.questionEn && q.questionEn !== q.questionHi && (
-                    <p className="text-xs text-stone-500 dark:text-stone-400 font-serif italic">
-                      {q.questionEn}
-                    </p>
+                    <div className="text-xs text-stone-500 dark:text-stone-400 font-serif italic">
+                      <MathFormattedText text={q.questionEn} />
+                    </div>
                   )}
                 </div>
 
@@ -1314,9 +1442,13 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                             {String.fromCharCode(65 + oIdx)}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <div className="leading-snug">{optText}</div>
+                            <div className="leading-snug">
+                              <MathFormattedText text={optText} />
+                            </div>
                             {optEnText && optEnText !== optText && (
-                              <div className="text-[10px] text-stone-400 italic mt-0.5">{optEnText}</div>
+                              <div className="text-[10px] text-stone-400 italic mt-0.5">
+                                <MathFormattedText text={optEnText} />
+                              </div>
                             )}
                           </div>
                           {isCorrect ? (
@@ -1340,11 +1472,11 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                   <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl text-[11px] text-amber-950 dark:text-amber-200 space-y-1">
                     <div>
                       <span className="font-black text-[#7A2A1E] dark:text-[#D4A017]">💡 विस्तृत व्याख्या: </span>
-                      <span>{q.explanationHi}</span>
+                      <span><MathFormattedText text={q.explanationHi} /></span>
                     </div>
                     {q.explanationEn && q.explanationEn !== q.explanationHi && (
                       <div className="text-[10px] text-amber-800/80 dark:text-amber-300/80 italic">
-                        <span>Solution: </span>{q.explanationEn}
+                        <span>Solution: </span><MathFormattedText text={q.explanationEn} />
                       </div>
                     )}
                   </div>

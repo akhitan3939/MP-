@@ -433,10 +433,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const questionMap = new Map<string, Question>();
             // Start with current local questions
             (prev || []).forEach(q => { if (q && q.id) questionMap.set(q.id, q); });
-            // Merge in server-persisted questions
-            s.questions.forEach((q: Question) => {
-              if (q && q.id) {
-                questionMap.set(q.id, { ...(questionMap.get(q.id) || {}), ...q });
+            // Merge in server-persisted questions intelligently
+            s.questions.forEach((serverQ: Question) => {
+              if (serverQ && serverQ.id) {
+                const localQ = questionMap.get(serverQ.id);
+                if (!localQ) {
+                  questionMap.set(serverQ.id, serverQ);
+                } else {
+                  // Strictly preserve locked status: if either local or server marked it locked, KEEP IT LOCKED!
+                  const isLocked = localQ.isLocked === true || serverQ.isLocked === true;
+                  const lockedAt = localQ.lockedAt || serverQ.lockedAt;
+                  questionMap.set(serverQ.id, {
+                    ...serverQ,
+                    ...localQ,
+                    isLocked,
+                    lockedAt: isLocked ? (lockedAt || new Date().toISOString()) : undefined,
+                    slotNumber: localQ.slotNumber !== undefined ? localQ.slotNumber : serverQ.slotNumber,
+                  });
+                }
               }
             });
             const mergedQuestions = Array.from(questionMap.values());
@@ -1562,14 +1576,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const exists = prev.some(q => q.id === question.id);
       const updated = exists ? prev.map(q => q.id === question.id ? question : q) : [question, ...prev];
       StorageService.setQuestions(updated);
+
+      // Direct question persistence to server disk
+      fetch('/api/questions/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      }).catch(e => console.warn('Direct question save server sync error:', e));
+
+      // Global state sync
       fetch('/api/app-data/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questions: updated })
       }).catch(e => console.warn('Server sync error for questions:', e));
+
       return updated;
     });
-    showToast(lang === 'hi' ? 'प्रश्न सहेजा गया' : 'Question saved');
+    showToast(lang === 'hi' ? 'प्रश्न सहेजा गया व सुरक्षित किया गया' : 'Question saved & secured');
   };
 
   const saveBulkQuestions = async (
@@ -1587,21 +1611,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         let updated: Question[];
 
         if (mode === 'replace' && targetSeriesId && targetSetNumber) {
+          const targetSet = Number(targetSetNumber);
+          // Retain all questions from other sets/series AND ALL LOCKED QUESTIONS in target set!
           const retained = prev.filter(q => {
+            if (q.isLocked === true) return true; // LOCKED QUESTIONS CANNOT BE DELETED OR REPLACED!
             if (q.seriesId !== targetSeriesId) return true;
-            const qSet = q.setNumber || (q.id.includes(`set_${targetSetNumber}_`) ? targetSetNumber : 1);
-            return qSet !== targetSetNumber;
+            const qSet = Number(q.setNumber) || (q.id.includes(`set_${targetSet}_`) ? targetSet : 1);
+            return qSet !== targetSet;
           });
-          updated = [...newQuestions, ...retained];
+
+          const lockedInTarget = prev.filter(q => 
+            q.isLocked === true && q.seriesId === targetSeriesId && (Number(q.setNumber) || 1) === targetSet
+          );
+          const lockedIds = new Set(lockedInTarget.map(q => q.id));
+          const nonConflictingNew = newQuestions.filter(nq => !lockedIds.has(nq.id));
+
+          updated = [...lockedInTarget, ...nonConflictingNew, ...retained.filter(q => !lockedIds.has(q.id))];
         } else {
           const newMap = new Map<string, Question>();
           newQuestions.forEach(q => newMap.set(q.id, q));
-          const existingUpdated = prev.map(q => newMap.has(q.id) ? newMap.get(q.id)! : q);
+          const existingUpdated = prev.map(q => {
+            if (newMap.has(q.id)) {
+              const incoming = newMap.get(q.id)!;
+              const isLocked = incoming.isLocked !== undefined ? incoming.isLocked : q.isLocked;
+              return { ...q, ...incoming, isLocked };
+            }
+            return q;
+          });
           const brandNew = newQuestions.filter(q => !prev.some(p => p.id === q.id));
           updated = [...brandNew, ...existingUpdated];
         }
 
         StorageService.setQuestions(updated);
+
+        // Dedicated bulk questions endpoint
+        fetch('/api/questions/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            questions: newQuestions,
+            mode,
+            seriesId: targetSeriesId,
+            setNumber: targetSetNumber
+          })
+        }).catch(e => console.warn('Direct bulk questions server sync error:', e));
+
         fetch('/api/app-data/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1615,9 +1669,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteQuestion = (questionId: string) => {
+    // Check if target question is locked
+    const targetQ = questions.find(q => q.id === questionId);
+    if (targetQ && targetQ.isLocked) {
+      showToast(lang === 'hi' 
+        ? '⚠️ यह प्रश्न लॉक (Locked) है! सुरक्षा हेतु इसे हटाया नहीं जा सकता। पहले इसे अनलॉक करें।' 
+        : '⚠️ This question is locked! Unlock it first before deleting.'
+      );
+      return;
+    }
+
     setQuestions(prev => {
       const updated = prev.filter(q => q.id !== questionId);
       StorageService.setQuestions(updated);
+
+      // Call dedicated delete API on server
+      fetch(`/api/questions/${questionId}`, {
+        method: 'DELETE'
+      }).catch(e => console.warn('Delete question server sync error:', e));
+
+      fetch('/api/app-data/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions: updated })
+      }).catch(e => console.warn('Server sync error for questions deletion:', e));
+
       return updated;
     });
     showToast(lang === 'hi' ? 'प्रश्न हटाया गया' : 'Question deleted');

@@ -656,6 +656,7 @@ export const AdminDashboardView: React.FC = () => {
       id: editingQuestion.id || `q_custom_${Date.now()}`,
       seriesId: editingQuestion.seriesId || testSeries[0]?.id || 'ts_patwari_2026',
       setNumber: Number(editingQuestion.setNumber || 1),
+      slotNumber: editingQuestion.slotNumber ? Number(editingQuestion.slotNumber) : undefined,
       section: resolvedSection,
       subject: resolvedSubject,
       topic: editingQuestion.topic || 'General Topic',
@@ -676,7 +677,9 @@ export const AdminDashboardView: React.FC = () => {
       explanationHi: editingQuestion.explanationHi || 'विस्तृत व्याख्या उपलब्ध है।',
       explanationEn: editingQuestion.explanationEn || 'Detailed solution available.',
       marks: Number(editingQuestion.marks || 1),
-      negativeMarks: Number(editingQuestion.negativeMarks || 0)
+      negativeMarks: Number(editingQuestion.negativeMarks || 0),
+      isLocked: editingQuestion.isLocked === true,
+      lockedAt: editingQuestion.isLocked === true ? (editingQuestion.lockedAt || new Date().toISOString()) : undefined
     };
 
     saveQuestion(newQ);
@@ -4449,10 +4452,11 @@ export const AdminDashboardView: React.FC = () => {
               showToast={showToast}
               navigate={navigate}
               onEditQuestion={(q) => setEditingQuestion({ ...q })}
-              onAddNewQuestion={(seriesId, setNumber) => setEditingQuestion({
+              onAddNewQuestion={(seriesId, setNumber, slotNumber) => setEditingQuestion({
                 id: `q_custom_${Date.now()}`,
                 seriesId: seriesId || 'free_mock_40',
                 setNumber: setNumber || 1,
+                slotNumber: slotNumber,
                 subject: 'म.प्र. सामान्य ज्ञान',
                 section: 'म.प्र. सामान्य ज्ञान',
                 topic: '',
@@ -8236,12 +8240,12 @@ export const AdminDashboardView: React.FC = () => {
                 );
               })()}
 
-              {/* Series, Set Number & Difficulty Assignment */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Series, Set Number, Slot Position & Difficulty Assignment */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* 1. Exam Series Selector */}
                 <div>
                   <label className="block font-black uppercase text-stone-500 mb-1">
-                    🎯 संबद्ध परीक्षा / टेस्ट सीरीज़ (Exam Series)
+                    🎯 संबद्ध परीक्षा / टेस्ट सीरीज़
                   </label>
                   <select
                     value={editingQuestion.seriesId || 'free_mock_40'}
@@ -8267,7 +8271,7 @@ export const AdminDashboardView: React.FC = () => {
                 {/* 2. Set Number Selector */}
                 <div>
                   <label className="block font-black uppercase text-stone-500 mb-1">
-                    🎯 परीक्षा सेट नंबर (Set #1–20)
+                    🎯 परीक्षा सेट नंबर
                   </label>
                   {(() => {
                     const currentSeries = testSeries.find(s => s.id === (editingQuestion.seriesId || 'free_mock_40'));
@@ -8294,7 +8298,27 @@ export const AdminDashboardView: React.FC = () => {
                   })()}
                 </div>
 
-                {/* 3. Difficulty Level */}
+                {/* 3. Slot Number Selector (User request: specific slot placement) */}
+                <div>
+                  <label className="block font-black uppercase text-stone-500 mb-1">
+                    🔢 प्रश्न स्लॉट क्र.सं. (Q# Slot)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    placeholder="स्लॉट संख्या (उदा. 15)"
+                    value={editingQuestion.slotNumber || ''}
+                    onChange={(e) => setEditingQuestion({ 
+                      ...editingQuestion, 
+                      slotNumber: e.target.value ? parseInt(e.target.value, 10) : undefined 
+                    })}
+                    className="w-full p-2.5 rounded-xl bg-amber-50/60 dark:bg-stone-800 border border-amber-300 dark:border-amber-700 font-bold text-stone-900 dark:text-amber-300 font-mono"
+                    title="यह प्रश्न टेस्ट सेट में किस क्रमांक/नंबर पर रहेगा (उदा. Q#1 से Q#100)"
+                  />
+                </div>
+
+                {/* 4. Difficulty Level */}
                 <div>
                   <label className="block font-black uppercase text-stone-500 mb-1">कठिनाई स्तर (Difficulty)</label>
                   <select
@@ -8307,6 +8331,45 @@ export const AdminDashboardView: React.FC = () => {
                     <option value="hard">🔴 कठिन (Hard)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* 5. Lock & Protection Status */}
+              <div className="p-3.5 rounded-2xl border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-xl ${editingQuestion.isLocked ? 'bg-emerald-600 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300'}`}>
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-black text-xs text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+                      <span>प्रश्न सुरक्षा व लॉक स्थिति (Lock & Protection)</span>
+                      {editingQuestion.isLocked && (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black">
+                          स्थायी रूप से सुरक्षित (PERMANENT)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium">
+                      {editingQuestion.isLocked 
+                        ? 'यह प्रश्न लाइव पोर्टल पर लॉक है—यह गलती से डिलीट या रिप्लेस नहीं होगा।' 
+                        : 'वर्तमान में ड्राफ्ट में है। लाइव टेस्ट हेतु फाइनल करने के लिए लॉक टिक करें।'}
+                    </div>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none shrink-0 bg-white dark:bg-stone-850 px-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700">
+                  <input
+                    type="checkbox"
+                    checked={editingQuestion.isLocked === true}
+                    onChange={(e) => setEditingQuestion({
+                      ...editingQuestion,
+                      isLocked: e.target.checked,
+                      lockedAt: e.target.checked ? (editingQuestion.lockedAt || new Date().toISOString()) : undefined
+                    })}
+                    className="w-4 h-4 rounded text-emerald-700 focus:ring-emerald-600 cursor-pointer"
+                  />
+                  <span className="font-black text-xs text-stone-900 dark:text-white">
+                    {editingQuestion.isLocked ? '🔒 लॉक्ड (सुरक्षित)' : '🔓 अनलॉक (ड्राफ्ट)'}
+                  </span>
+                </label>
               </div>
 
               {/* Subject & Topic */}

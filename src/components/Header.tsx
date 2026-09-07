@@ -320,19 +320,33 @@ export const Header: React.FC = () => {
               );
             })}
 
-            {/* Admin Console Tab - Shown ONLY when currentUser is admin */}
+            {/* Admin Console & Founder Desk Tabs - Shown ONLY when currentUser is admin */}
             {currentUser?.role === 'admin' && (
-              <button
-                onClick={() => navigate('admin')}
-                className={`h-9 flex items-center justify-center gap-1.5 px-4 rounded-xl text-xs font-black tracking-wider transition-all active:scale-95 btn-press-effect cursor-pointer whitespace-nowrap shrink-0 ${
-                  activeView === 'admin'
-                    ? 'bg-[#D4A017] text-[#2D2424] shadow-md border-2 border-white/50'
-                    : 'bg-[#7A2A1E] text-[#D4A017] hover:bg-[#963E2F] border border-[#D4A017]/80'
-                }`}
-              >
-                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                <span>{lang === 'hi' ? '👑 एडमिन कंसोल' : 'Admin Console'}</span>
-              </button>
+              <>
+                <button
+                  onClick={() => navigate('ownerDesk')}
+                  className={`h-9 flex items-center justify-center gap-1.5 px-3.5 rounded-xl text-xs font-black tracking-wider transition-all active:scale-95 btn-press-effect cursor-pointer whitespace-nowrap shrink-0 ${
+                    activeView === 'ownerDesk' || activeView === 'founderDesk'
+                      ? 'bg-[#D4A017] text-[#2D2424] shadow-md border-2 border-white/50'
+                      : 'bg-amber-950/80 text-[#D4A017] hover:bg-amber-900 border border-[#D4A017]/60'
+                  }`}
+                >
+                  <Award className="w-3.5 h-3.5 shrink-0 text-[#D4A017]" />
+                  <span>{lang === 'hi' ? '👑 संस्थापक डेस्क' : 'Founder Desk'}</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('admin')}
+                  className={`h-9 flex items-center justify-center gap-1.5 px-4 rounded-xl text-xs font-black tracking-wider transition-all active:scale-95 btn-press-effect cursor-pointer whitespace-nowrap shrink-0 ${
+                    activeView === 'admin'
+                      ? 'bg-[#D4A017] text-[#2D2424] shadow-md border-2 border-white/50'
+                      : 'bg-[#7A2A1E] text-[#D4A017] hover:bg-[#963E2F] border border-[#D4A017]/80'
+                  }`}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                  <span>{lang === 'hi' ? '🛡️ एडमिन कंसोल' : 'Admin Console'}</span>
+                </button>
+              </>
             )}
           </nav>
         </div>
@@ -408,16 +422,28 @@ export const Header: React.FC = () => {
           </div>
 
           {currentUser?.role === 'admin' && (
-            <button
-              onClick={() => {
-                navigate('admin');
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-black bg-[#D4A017] text-[#2D2424] uppercase tracking-wider mt-2 shadow-md btn-press-effect"
-            >
-              <ShieldAlert className="w-4 h-4" />
-              <span>{lang === 'hi' ? '👑 एडमिन कंसोल' : 'Admin Console'}</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button
+                onClick={() => {
+                  navigate('ownerDesk');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-black bg-amber-950 text-[#D4A017] border border-[#D4A017] uppercase tracking-wider shadow-md btn-press-effect cursor-pointer"
+              >
+                <Award className="w-4 h-4 text-[#D4A017]" />
+                <span>संस्थापक डेस्क</span>
+              </button>
+              <button
+                onClick={() => {
+                  navigate('admin');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-black bg-[#D4A017] text-[#2D2424] uppercase tracking-wider shadow-md btn-press-effect cursor-pointer"
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>एडमिन कंसोल</span>
+              </button>
+            </div>
           )}
         </div>
       )}

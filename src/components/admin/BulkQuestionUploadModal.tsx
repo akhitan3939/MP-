@@ -6,23 +6,32 @@ import {
   AlertCircle, 
   X as CloseIcon, 
   Download, 
-  HelpCircle,
-  Eye,
-  Layers,
-  Sparkles,
-  FileCheck,
-  RefreshCw,
-  Gauge,
-  Info,
-  TrendingUp,
-  AlertTriangle,
-  Table,
-  Check
+  Eye, 
+  Layers, 
+  Sparkles, 
+  FileCheck, 
+  RefreshCw, 
+  Gauge, 
+  Info, 
+  TrendingUp, 
+  AlertTriangle, 
+  Table, 
+  Check, 
+  FileText, 
+  Languages, 
+  HelpCircle, 
+  BookOpen, 
+  Lock, 
+  Sliders, 
+  ArrowRight,
+  Calculator,
+  Edit3
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Question, TestSeries } from '../../types';
 import { exportToXls, exportToCsv } from '../../utils/exportReports';
-import { MOCK_CATEGORY_OPTIONS, getResolvedMockQuestions } from '../../utils/questionBankHelper';
+import { MathFormattedText } from '../common/MathFormattedText';
+import { MathEquationToolbar } from './MathEquationToolbar';
 
 export interface BulkUploadResultReport {
   totalInFile: number;
@@ -48,544 +57,789 @@ interface BulkQuestionUploadModalProps {
   initialSeriesId?: string;
   initialSetNumber?: number;
   onSaveBulk: (
-    questions: Question[],
-    mode: 'append' | 'replace',
+    questions: Question[], 
+    mode: 'replace' | 'append',
     seriesId: string,
     setNumber: number
   ) => Promise<{ success: boolean; count: number }>;
-  showToast: (msg: string) => void;
 }
+
+const DEFAULT_SUBJECTS = [
+  'सामान्य ज्ञान व म.प्र. सामान्य ज्ञान',
+  'सामान्य गणित एवं संख्यात्मक अभिरुचि',
+  'सामान्य विज्ञान (भौतिक, रसायन, जीव)',
+  'सामान्य हिन्दी',
+  'सामान्य अंग्रेजी',
+  'तर्कशक्ति (General Reasoning)',
+  'सामान्य प्रबंधन (Management)',
+  'कंप्यूटर ज्ञान (Computer Knowledge)',
+  'कृषि विस्तार एवं कृषि विज्ञान'
+];
+
+const SAMPLE_PASTE_TEXT = `1. प्रश्न: मध्य प्रदेश का राजकीय पक्षी कौन सा है?
+(A) दूधराज (शाह बुलबुल / पैराडाइज फ्लाईकैचर)
+(B) मोर
+(C) सोन चिड़िया
+(D) खरमोर
+उत्तर: A
+व्याख्या: मध्य प्रदेश का राजकीय पक्षी दूधराज (पैराडाइज फ्लाईकैचर) है, जिसे 1981 में घोषित किया गया था।
+
+2. प्रश्न: यदि x² - 5x + 6 = 0 है, तो x के मान क्या होंगे?
+(A) 2 और 3
+(B) -2 और -3
+(C) 1 और 6
+(D) 0 और 5
+उत्तर: A
+व्याख्या: (x - 2)(x - 3) = 0 ⟹ x = 2, 3
+
+3. प्रश्न: 144 का वर्गमूल (√144) क्या है?
+(A) 10
+(B) 12
+(C) 14
+(D) 16
+उत्तर: B
+व्याख्या: 12 × 12 = 144, अतः √144 = 12`;
 
 export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = ({
   isOpen,
   onClose,
   testSeries,
   questions = [],
-  initialSeriesId = 'ts_patwari_2026',
+  initialSeriesId,
   initialSetNumber = 1,
-  onSaveBulk,
-  showToast
+  onSaveBulk
 }) => {
-  const [targetSeriesId, setTargetSeriesId] = useState<string>(initialSeriesId);
-  const [targetSetNumber, setTargetSetNumber] = useState<number>(initialSetNumber);
-  const [useFileSetNumbers, setUseFileSetNumbers] = useState<boolean>(true);
-  const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+  // Navigation Tabs: 'easyPaste' (Text/Paste) | 'excelUpload' (Excel/CSV) | 'preview' | 'formatGuide'
+  const [activeTab, setActiveTab] = useState<'easyPaste' | 'excelUpload' | 'preview' | 'formatGuide'>('easyPaste');
+
+  // Selected Target Series & Set
+  const [targetSeriesId, setTargetSeriesId] = useState<string>(
+    initialSeriesId || (testSeries.length > 0 ? testSeries[0].id : 'ts_patwari_2026')
+  );
+  const [targetSetNumber, setTargetSetNumber] = useState<number>(initialSetNumber || 1);
+  const [useFileSetNumbers, setUseFileSetNumbers] = useState<boolean>(false);
+
+  // Common defaults
+  const [defaultSubject, setDefaultSubject] = useState<string>('सामान्य ज्ञान व म.प्र. सामान्य ज्ञान');
+  const [defaultTopic, setDefaultTopic] = useState<string>('');
   
-  const [fileName, setFileName] = useState<string>('');
-  const [rawRowCount, setRawRowCount] = useState<number>(0);
+  // Easy Paste text state
+  const [pastedText, setPastedText] = useState<string>('');
+  const pasteTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-translate toggle & states
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState<boolean>(true);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
+  const [translationProgress, setTranslationProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Parsed Questions state
   const [parsedQuestions, setParsedQuestions] = useState<Question[]>([]);
-  const [invalidCount, setInvalidCount] = useState<number>(0);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [rawRowCount, setRawRowCount] = useState<number>(0);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'preview' | 'formatGuide'>('upload');
-  
-  // Post-upload Detailed Success Status Modal
+  const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+
+  // Success audit result report
   const [uploadResultReport, setUploadResultReport] = useState<BulkUploadResultReport | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Toast notification
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
-  if (!isOpen) return null;
+  // Selected series object & capacity limits
+  const selectedSeriesObj = testSeries.find(s => s.id === targetSeriesId);
+  const isMultiSet = (selectedSeriesObj?.totalTests || 0) > 1 || 
+                     targetSeriesId === 'ts_patwari_2026' || 
+                     targetSeriesId === 'ts_agri_ext_2026';
+  const totalSetsAvailable = selectedSeriesObj?.totalTests || (isMultiSet ? 20 : 1);
+  const targetLimit = selectedSeriesObj?.totalQuestions || 100;
 
-  // Selected series info
-  const selectedSeriesObj = testSeries.find(ts => ts.id === targetSeriesId);
-  const selectedCatObj = MOCK_CATEGORY_OPTIONS.find(c => c.id === targetSeriesId);
-  const isMultiSet = (selectedSeriesObj?.totalTests || 0) > 1 || selectedCatObj?.isMultiSet || targetSeriesId === 'ts_patwari_2026' || targetSeriesId === 'ts_agri_ext_2026';
-  const totalSetsAvailable = selectedSeriesObj?.totalTests || selectedCatObj?.totalSets || 20;
+  // Existing count in target set
+  const currentCount = useMemo(() => {
+    return questions.filter(q => 
+      q.seriesId === targetSeriesId && 
+      (Number(q.setNumber) || 1) === targetSetNumber
+    ).length;
+  }, [questions, targetSeriesId, targetSetNumber]);
 
-  // Current questions in the target set before upload
-  const existingSetQuestions = useMemo(() => {
-    return getResolvedMockQuestions(targetSeriesId, targetSetNumber, questions);
-  }, [targetSeriesId, targetSetNumber, questions]);
-
-  // Target standard limit for questions in this set/test
-  const targetLimit = useMemo(() => {
-    if (targetSeriesId === 'free_mock_40') return 40;
-    if (selectedSeriesObj?.totalQuestions) return selectedSeriesObj.totalQuestions;
-    if (selectedCatObj?.totalQuestionsPerSet) return selectedCatObj.totalQuestionsPerSet;
-    return 100;
-  }, [targetSeriesId, selectedSeriesObj, selectedCatObj]);
-
-  const currentCount = existingSetQuestions.length;
   const remainingBefore = Math.max(0, targetLimit - currentCount);
   const progressPercentBefore = Math.min(100, Math.round((currentCount / targetLimit) * 100));
 
-  // Projected counts with parsed questions
   const projectedAfterCount = importMode === 'replace' 
     ? parsedQuestions.length 
-    : currentCount + parsedQuestions.length;
-  const projectedRemaining = Math.max(0, targetLimit - projectedAfterCount);
+    : (currentCount + parsedQuestions.length);
   const projectedPercent = Math.min(100, Math.round((projectedAfterCount / targetLimit) * 100));
+  const projectedRemaining = Math.max(0, targetLimit - projectedAfterCount);
 
-  // Download Sample Excel Format
-  const handleDownloadSample = (format: 'xls' | 'csv') => {
-    const sampleData = [
-      {
-        'क्र.सं. (Q#)': 1,
-        'प्रश्न ID': `q_sample_1`,
-        'मॉक सीरीज़': selectedSeriesObj?.titleHi || selectedCatObj?.nameHi || 'समूह-02 उपसमूह-04: पटवारी',
-        'सेट नं.': isMultiSet ? `सेट #${targetSetNumber}` : 'मुख्य',
-        'विषय (Subject)': 'सामान्य ज्ञान (General Knowledge)',
-        'टॉपिक': 'मध्यप्रदेश के राष्ट्रीय उद्यान',
-        'कठिनाई (Difficulty)': 'medium',
-        'प्रश्न (हिन्दी)': 'मध्यप्रदेश का सबसे पहला एवं सबसे बड़ा राष्ट्रीय उद्यान कौन सा है?',
-        'प्रश्न (English)': 'Which is the first and largest national park in Madhya Pradesh?',
-        'विकल्प A': 'कान्हा किसली राष्ट्रीय उद्यान (मण्डला)',
-        'विकल्प B': 'बाधवगढ़ राष्ट्रीय उद्यान (उमरिया)',
-        'विकल्प C': 'पेंच राष्ट्रीय उद्यान (सिवनी-छिंदवाड़ा)',
-        'विकल्प D': 'पन्ना राष्ट्रीय उद्यान (पन्ना-छतरपुर)',
-        'सही उत्तर विकल्प': 'A',
-        'व्याख्या (Solution)': 'कान्हा किसली म.प्र. का सबसे बड़ा राष्ट्रीय उद्यान है (940 वर्ग किमी)। इसे 1955 में नेशनल पार्क तथा 1973 में टाइगर रिजर्व बनाया गया।'
-      },
-      {
-        'क्र.सं. (Q#)': 2,
-        'प्रश्न ID': `q_sample_2`,
-        'मॉक सीरीज़': selectedSeriesObj?.titleHi || selectedCatObj?.nameHi || 'समूह-02 उपसमूह-04: पटवारी',
-        'सेट नं.': isMultiSet ? `सेट #${targetSetNumber}` : 'मुख्य',
-        'विषय (Subject)': 'सामान्य हिन्दी (General Hindi)',
-        'टॉपिक': 'संधि एवं समास',
-        'कठिनाई (Difficulty)': 'easy',
-        'प्रश्न (हिन्दी)': 'निम्न में से "सूर्योदय" शब्द में कौन सी संधि है?',
-        'प्रश्न (English)': 'Which Sandhi is present in the word "Suryodaya"?',
-        'विकल्प A': 'दीर्घ स्वर संधि',
-        'विकल्प B': 'गुण स्वर संधि',
-        'विकल्प C': 'वृद्धि स्वर संधि',
-        'विकल्प D': 'यण स्वर संधि',
-        'सही उत्तर विकल्प': 'B',
-        'व्याख्या (Solution)': 'सूर्य + उदय = सूर्योदय (अ + उ = ओ)। अतः यह गुण स्वर संधि का प्रामाणिक उदाहरण है।'
-      },
-      {
-        'क्र.सं. (Q#)': 3,
-        'प्रश्न ID': `q_sample_3`,
-        'मॉक सीरीज़': selectedSeriesObj?.titleHi || selectedCatObj?.nameHi || 'समूह-02 उपसमूह-04: पटवारी',
-        'सेट नं.': isMultiSet ? `सेट #${targetSetNumber}` : 'मुख्य',
-        'विषय (Subject)': 'सामान्य गणित (Mathematics)',
-        'टॉपिक': 'प्रतिशत एवं लाभ-हानि',
-        'कठिनाई (Difficulty)': 'medium',
-        'प्रश्न (हिन्दी)': 'यदि किसी वस्तु का क्रय मूल्य ₹500 है और उसे ₹625 में बेचा जाता है, तो लाभ प्रतिशत क्या होगा?',
-        'प्रश्न (English)': 'If the cost price of an article is ₹500 and it is sold for ₹625, what is the profit percentage?',
-        'विकल्प A': '20%',
-        'विकल्प B': '25%',
-        'विकल्प C': '30%',
-        'विकल्प D': '15%',
-        'सही उत्तर विकल्प': 'B',
-        'व्याख्या (Solution)': 'लाभ = 625 - 500 = ₹125। लाभ प्रतिशत = (125 / 500) * 100 = 25%।'
-      }
-    ];
-
-    const fileName = `MP_Pariksha_Setu_Question_Upload_Template_${new Date().toISOString().split('T')[0]}`;
-    if (format === 'xls') {
-      exportToXls(sampleData, fileName);
-    } else {
-      exportToCsv(sampleData, fileName);
+  // Insert symbol/template into textarea at cursor position
+  const handleInsertSymbol = (sym: string) => {
+    if (!pasteTextareaRef.current) {
+      setPastedText(prev => prev + sym);
+      return;
     }
-    showToast('📥 नमूना (Sample) फ़ाइल डाउनलोड हो गई!');
+    const el = pasteTextareaRef.current;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const val = el.value;
+    const newVal = val.substring(0, start) + sym + val.substring(end);
+    setPastedText(newVal);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + sym.length, start + sym.length);
+    }, 0);
   };
 
   // Helper to parse option index from A/B/C/D or 1/2/3/4
   const parseCorrectOptionIndex = (val: any): number => {
     if (val === undefined || val === null) return 0;
     const s = String(val).trim().toUpperCase();
-    if (s === 'A' || s === '1' || s === 'OPTION A' || s === 'विकल्प A') return 0;
-    if (s === 'B' || s === '2' || s === 'OPTION B' || s === 'विकल्प B') return 1;
-    if (s === 'C' || s === '3' || s === 'OPTION C' || s === 'विकल्प C') return 2;
-    if (s === 'D' || s === '4' || s === 'OPTION D' || s === 'विकल्प D') return 3;
+    if (s.startsWith('A') || s.startsWith('1') || s.startsWith('क')) return 0;
+    if (s.startsWith('B') || s.startsWith('2') || s.startsWith('ख')) return 1;
+    if (s.startsWith('C') || s.startsWith('3') || s.startsWith('ग')) return 2;
+    if (s.startsWith('D') || s.startsWith('4') || s.startsWith('घ')) return 3;
     const n = parseInt(s, 10);
     if (!isNaN(n) && n >= 1 && n <= 4) return n - 1;
     return 0;
   };
 
-  // Helper to parse set number from row
-  const parseSetNumberFromRow = (rawVal: any, defaultSet: number): number => {
-    if (!rawVal) return defaultSet;
-    const str = String(rawVal).trim();
-    const match = str.match(/\d+/);
-    if (match) {
-      const num = parseInt(match[0], 10);
-      if (num >= 1 && num <= 30) return num;
+  // Auto-translate batch of questions via server endpoint
+  const performAutoTranslate = async (questionsList: Question[]) => {
+    if (questionsList.length === 0) return questionsList;
+    setIsTranslating(true);
+    try {
+      const batchSize = 25;
+      const updated = [...questionsList];
+      
+      for (let i = 0; i < updated.length; i += batchSize) {
+        const slice = updated.slice(i, i + batchSize);
+        setTranslationProgress({ current: i + 1, total: updated.length });
+
+        const res = await fetch('/api/questions/auto-translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            questions: slice.map(q => ({
+              id: q.id,
+              questionHi: q.questionHi,
+              optionsHi: q.options.map(o => o.textHi),
+              explanationHi: q.explanationHi
+            }))
+          })
+        });
+
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.translations)) {
+          const map = new Map<string, any>();
+          data.translations.forEach((t: any) => map.set(t.id, t));
+
+          for (let j = i; j < Math.min(i + batchSize, updated.length); j++) {
+            const q = updated[j];
+            const t = map.get(q.id);
+            if (t) {
+              updated[j] = {
+                ...q,
+                questionEn: t.questionEn || q.questionEn || q.questionHi,
+                options: q.options.map((opt, oIdx) => ({
+                  ...opt,
+                  textEn: (t.optionsEn && t.optionsEn[oIdx]) || opt.textEn || opt.textHi
+                })),
+                explanationEn: t.explanationEn || q.explanationEn || q.explanationHi
+              };
+            }
+          }
+        }
+      }
+      return updated;
+    } catch (err) {
+      console.warn('Auto translate warning:', err);
+      return questionsList;
+    } finally {
+      setIsTranslating(false);
+      setTranslationProgress(null);
     }
-    return defaultSet;
   };
 
-  // Flexible column name finder
+  // Intelligent text parser for copy-pasted questions
+  const handleParsePastedText = async () => {
+    if (!pastedText.trim()) {
+      showToast('⚠️ कृपया पहले प्रश्न टेक्स्ट दर्ज करें या पेस्ट करें।');
+      return;
+    }
+
+    const clean = pastedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    const rawLines = clean.split('\n');
+
+    const questionBlocks: string[] = [];
+    let currentBlock: string[] = [];
+
+    const isQuestionStart = (line: string): boolean => {
+      const t = line.trim();
+      return (
+        /^(?:(?:प्रश्न|प्र\.|Q(?:uestion)?)\s*[:\.\d\-]*|\d+[\.\)\:\-]\s*|\[\d+\])/i.test(t)
+      );
+    };
+
+    for (const line of rawLines) {
+      if (isQuestionStart(line) && currentBlock.length > 0) {
+        questionBlocks.push(currentBlock.join('\n'));
+        currentBlock = [line];
+      } else {
+        currentBlock.push(line);
+      }
+    }
+    if (currentBlock.length > 0) {
+      questionBlocks.push(currentBlock.join('\n'));
+    }
+
+    const finalBlocks = questionBlocks.length > 0 ? questionBlocks : clean.split(/\n\s*\n+/);
+    const parsed: Question[] = [];
+    const baseSlot = currentCount + 1;
+
+    finalBlocks.forEach((block, idx) => {
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) return;
+
+      let questionHi = '';
+      const optionsHi: string[] = ['', '', '', ''];
+      let correctOptionIndex = 0;
+      let explanationHi = '';
+
+      const regularLines: string[] = [];
+
+      lines.forEach(line => {
+        const matchA = line.match(/^(?:(?:\(?[A|a|1|क]\)?[\.\:\)\s]+)|(?:विकल्प\s*[A|1|क][\:\.\s]+))(.+)$/);
+        const matchB = line.match(/^(?:(?:\(?[B|b|2|ख]\)?[\.\:\)\s]+)|(?:विकल्प\s*[B|2|ख][\:\.\s]+))(.+)$/);
+        const matchC = line.match(/^(?:(?:\(?[C|c|3|ग]\)?[\.\:\)\s]+)|(?:विकल्प\s*[C|3|ग][\:\.\s]+))(.+)$/);
+        const matchD = line.match(/^(?:(?:\(?[D|d|4|घ]\)?[\.\:\)\s]+)|(?:विकल्प\s*[D|4|घ][\:\.\s]+))(.+)$/);
+
+        const matchAns = line.match(/^(?:(?:उत्तर|सही उत्तर|Ans(?:wer)?|Correct)\s*[\:\.\-\)]*\s*)(.+)$/i);
+        const matchExp = line.match(/^(?:(?:व्याख्या|विवरण|हल|Explanation|Solution|Note)\s*[\:\.\-\)]*\s*)(.+)$/i);
+
+        if (matchAns) {
+          correctOptionIndex = parseCorrectOptionIndex(matchAns[1].trim());
+        } else if (matchExp) {
+          explanationHi = matchExp[1].trim();
+        } else if (matchA) {
+          optionsHi[0] = matchA[1].trim();
+        } else if (matchB) {
+          optionsHi[1] = matchB[1].trim();
+        } else if (matchC) {
+          optionsHi[2] = matchC[1].trim();
+        } else if (matchD) {
+          optionsHi[3] = matchD[1].trim();
+        } else {
+          regularLines.push(line);
+        }
+      });
+
+      if (regularLines.length > 0) {
+        questionHi = regularLines.join(' ')
+          .replace(/^(?:(?:प्रश्न|प्र\.|Q(?:uestion)?)\s*[:\.\d\-]*|\d+[\.\)\:\-]\s*|\[\d+\])\s*/i, '')
+          .trim();
+      }
+
+      // If options were not marked with prefixes, extract last 4 lines
+      if (!optionsHi[0] && !optionsHi[1] && regularLines.length >= 5) {
+        questionHi = regularLines.slice(0, regularLines.length - 4).join(' ')
+          .replace(/^(?:(?:प्रश्न|प्र\.|Q(?:uestion)?)\s*[:\.\d\-]*|\d+[\.\)\:\-]\s*|\[\d+\])\s*/i, '')
+          .trim();
+        optionsHi[0] = regularLines[regularLines.length - 4];
+        optionsHi[1] = regularLines[regularLines.length - 3];
+        optionsHi[2] = regularLines[regularLines.length - 2];
+        optionsHi[3] = regularLines[regularLines.length - 1];
+      }
+
+      if (!questionHi) {
+        questionHi = `प्रश्न #${idx + 1}`;
+      }
+
+      // Default empty options
+      if (!optionsHi[0]) optionsHi[0] = 'विकल्प A';
+      if (!optionsHi[1]) optionsHi[1] = 'विकल्प B';
+      if (!optionsHi[2]) optionsHi[2] = 'विकल्प C';
+      if (!optionsHi[3]) optionsHi[3] = 'विकल्प D';
+
+      const qId = `q_easy_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+      const slotNum = Math.min(targetLimit, baseSlot + idx);
+
+      parsed.push({
+        id: qId,
+        seriesId: targetSeriesId,
+        setNumber: targetSetNumber,
+        slotNumber: slotNum,
+        subject: defaultSubject,
+        topic: defaultTopic || defaultSubject,
+        section: defaultSubject,
+        difficulty: 'medium',
+        marks: 1,
+        negativeMarks: 0,
+        questionHi,
+        questionEn: '',
+        options: [
+          { id: `${qId}_opt_1`, textHi: optionsHi[0], textEn: '' },
+          { id: `${qId}_opt_2`, textHi: optionsHi[1], textEn: '' },
+          { id: `${qId}_opt_3`, textHi: optionsHi[2], textEn: '' },
+          { id: `${qId}_opt_4`, textHi: optionsHi[3], textEn: '' }
+        ],
+        correctOption: correctOptionIndex,
+        correctOptionIndex: correctOptionIndex,
+        explanationHi: explanationHi || '',
+        explanationEn: '',
+        isLocked: true, // GUARANTEED PERSISTENT LOCK
+        lockedAt: new Date().toISOString()
+      });
+    });
+
+    if (parsed.length === 0) {
+      showToast('⚠️ कोई मान्य प्रश्न नहीं मिले। कृपया फॉर्मेट जांचें।');
+      return;
+    }
+
+    setRawRowCount(finalBlocks.length);
+    showToast(`✅ ${parsed.length} प्रश्न सफलतापूर्वक तैयार!`);
+
+    let finalQuestions = parsed;
+    if (autoTranslateEnabled) {
+      showToast('🔄 AI द्वारा अंग्रेजी अनुवाद शुरू हो रहा है...');
+      finalQuestions = await performAutoTranslate(parsed);
+      showToast('🎉 अनुवाद पूर्ण! प्रश्न प्रिव्यू में उपलब्ध हैं।');
+    }
+
+    setParsedQuestions(finalQuestions);
+    setActiveTab('preview');
+  };
+
+  // Helper to read flexible column names
   const getVal = (row: any, possibleKeys: string[]): string => {
     for (const key of possibleKeys) {
       if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
         return String(row[key]).trim();
       }
-      // Case-insensitive check
       const lowerKey = key.toLowerCase();
       for (const actualKey of Object.keys(row)) {
         if (actualKey.trim().toLowerCase() === lowerKey && row[actualKey] !== undefined && row[actualKey] !== null) {
           const v = String(row[actualKey]).trim();
-          if (v) return v;
+          if (v !== '') return v;
         }
       }
     }
     return '';
   };
 
-  // File Upload and Parse Handler
+  // Parse Excel / CSV files
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setFileName(file.name);
-    setIsProcessing(true);
-
     const reader = new FileReader();
-
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
-        const workbook = XLSX.read(bstr, { type: 'binary' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const rawJson: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-        if (!rawJson || rawJson.length === 0) {
-          showToast('⚠️ फ़ाइल में कोई डेटा पंक्ति नहीं मिली।');
-          setIsProcessing(false);
+        setRawRowCount(rawData.length);
+
+        if (!rawData || rawData.length === 0) {
+          setValidationErrors(['अपलोड की गई फ़ाइल में कोई डेटा नहीं मिला।']);
           return;
         }
 
-        setRawRowCount(rawJson.length);
-        const validList: Question[] = [];
-        let invalid = 0;
+        const validQuestions: Question[] = [];
+        const errors: string[] = [];
+        const baseSlot = currentCount + 1;
 
-        rawJson.forEach((row, idx) => {
-          const qHi = getVal(row, ['प्रश्न (हिन्दी)', 'प्रश्न (हिंदी)', 'question (hindi)', 'questionhi', 'question_hi', 'प्रश्न']);
-          const qEn = getVal(row, ['प्रश्न (english)', 'question (english)', 'questionen', 'question_en', 'question']);
-          
-          const optA = getVal(row, ['विकल्प a', 'विकल्प 1', 'option a', 'option 1', 'opt_a']);
-          const optB = getVal(row, ['विकल्प b', 'विकल्प 2', 'option b', 'option 2', 'opt_b']);
-          const optC = getVal(row, ['विकल्प c', 'विकल्प 3', 'option c', 'option 3', 'opt_c']);
-          const optD = getVal(row, ['विकल्प d', 'विकल्प 4', 'option d', 'option 4', 'opt_d']);
+        rawData.forEach((row, idx) => {
+          const rowNum = idx + 2;
 
-          const correctRaw = getVal(row, ['सही उत्तर विकल्प', 'सही उत्तर', 'correct option', 'correct', 'answer']);
-          const correctIdx = parseCorrectOptionIndex(correctRaw);
+          const qHi = getVal(row, ['प्रश्न (हिन्दी)', 'Question (Hindi)', 'प्रश्न', 'Question', 'qHi', 'questionHi', 'सवाल']);
+          const qEn = getVal(row, ['प्रश्न (English)', 'Question (English)', 'Question_En', 'qEn', 'questionEn']);
 
-          const subject = getVal(row, ['विषय (subject)', 'विषय', 'subject', 'section']) || 'म.प्र. सामान्य ज्ञान';
-          const topic = getVal(row, ['टॉपिक', 'topic', 'उपविषय']) || 'सामान्य';
-          const difficultyRaw = getVal(row, ['कठिनाई (difficulty)', 'कठिनाई', 'difficulty']).toLowerCase();
-          const difficulty = (difficultyRaw === 'easy' || difficultyRaw === 'hard') ? difficultyRaw : 'medium';
-          
-          const expHi = getVal(row, ['व्याख्या (solution)', 'व्याख्या', 'solution', 'explanation', 'explanationhi']) || 'विस्तृत समाधान उपलब्ध है।';
-          const expEn = getVal(row, ['व्याख्या (english)', 'explanation (english)', 'explanationen']);
+          const optA = getVal(row, ['विकल्प A', 'Option A', 'optA', 'Option 1', 'विकल्प 1', 'A']);
+          const optB = getVal(row, ['विकल्प B', 'Option B', 'optB', 'Option 2', 'विकल्प 2', 'B']);
+          const optC = getVal(row, ['विकल्प C', 'Option C', 'optC', 'Option 3', 'विकल्प 3', 'C']);
+          const optD = getVal(row, ['विकल्प D', 'Option D', 'optD', 'Option 4', 'विकल्प 4', 'D']);
 
-          const explicitId = getVal(row, ['प्रश्न id', 'id', 'question id', 'question_id']);
-          const setRaw = getVal(row, ['सेट नं.', 'सेट नंबर', 'set', 'set no', 'set number']);
-          
-          const resolvedSetNumber = useFileSetNumbers 
-            ? parseSetNumberFromRow(setRaw, targetSetNumber)
-            : targetSetNumber;
+          const correctVal = getVal(row, ['सही उत्तर विकल्प', 'सही उत्तर', 'Correct Option', 'Answer', 'Ans', 'Correct', 'उत्तर']);
+          const explanationHi = getVal(row, ['व्याख्या (Solution)', 'व्याख्या (हिन्दी)', 'व्याख्या', 'Explanation', 'Solution', 'हल', 'विवरण']);
+          const explanationEn = getVal(row, ['व्याख्या (English)', 'Explanation (English)', 'Explanation_En']);
 
-          // Validate minimum fields: question text and at least 2 options
           if (!qHi && !qEn) {
-            invalid++;
-            return;
-          }
-          if (!optA && !optB) {
-            invalid++;
+            errors.push(`पंक्ति ${rowNum}: प्रश्न का विवरण (Question text) खाली है।`);
             return;
           }
 
-          const qId = explicitId || `q_bulk_${targetSeriesId}_set${resolvedSetNumber}_${Date.now()}_${idx + 1}`;
+          if (!optA || !optB) {
+            errors.push(`पंक्ति ${rowNum}: कम से कम विकल्प A और B होना अनिवार्य है।`);
+            return;
+          }
 
-          const formattedQuestion: Question = {
+          const correctIndex = parseCorrectOptionIndex(correctVal);
+          const qId = `q_xl_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+          const slotNum = Math.min(targetLimit, baseSlot + validQuestions.length);
+
+          const subjectVal = getVal(row, ['विषय (Subject)', 'विषय', 'Subject']) || defaultSubject;
+          const topicVal = getVal(row, ['टॉपिक', 'Topic']) || defaultTopic || subjectVal;
+
+          validQuestions.push({
             id: qId,
             seriesId: targetSeriesId,
-            setNumber: resolvedSetNumber,
-            subject: subject,
-            section: subject,
-            topic: topic,
-            difficulty: difficulty,
-            questionHi: qHi || qEn,
-            questionEn: qEn || qHi,
-            optionsHi: [optA || 'विकल्प A', optB || 'विकल्प B', optC || 'विकल्प C', optD || 'विकल्प D'],
-            optionsEn: [optA, optB, optC, optD],
-            options: [
-              { id: 'opt_0', textHi: optA || 'विकल्प A', textEn: optA || 'Option A' },
-              { id: 'opt_1', textHi: optB || 'विकल्प B', textEn: optB || 'Option B' },
-              { id: 'opt_2', textHi: optC || 'विकल्प C', textEn: optC || 'Option C' },
-              { id: 'opt_3', textHi: optD || 'विकल्प D', textEn: optD || 'Option D' }
-            ],
-            correctOption: correctIdx,
-            correctOptionIndex: correctIdx,
-            explanationHi: expHi,
-            explanationEn: expEn || expHi,
+            setNumber: targetSetNumber,
+            slotNumber: slotNum,
+            subject: subjectVal,
+            topic: topicVal,
+            section: subjectVal,
+            difficulty: 'medium',
             marks: 1,
-            negativeMarks: 0
-          };
-
-          validList.push(formattedQuestion);
+            negativeMarks: 0,
+            questionHi: qHi || qEn,
+            questionEn: qEn || '',
+            options: [
+              { id: `${qId}_1`, textHi: optA, textEn: '' },
+              { id: `${qId}_2`, textHi: optB, textEn: '' },
+              { id: `${qId}_3`, textHi: optC || 'विकल्प C', textEn: '' },
+              { id: `${qId}_4`, textHi: optD || 'विकल्प D', textEn: '' }
+            ],
+            correctOption: correctIndex,
+            correctOptionIndex: correctIndex,
+            explanationHi: explanationHi || '',
+            explanationEn: explanationEn || '',
+            isLocked: true, // LOCKED FOR SAFETY
+            lockedAt: new Date().toISOString()
+          });
         });
 
-        setParsedQuestions(validList);
-        setInvalidCount(invalid);
-        setActiveTab('preview');
-        showToast(`✅ ${validList.length} में से ${validList.length} मान्य प्रश्न फ़ाइल से तैयार हुए!`);
-      } catch (err) {
+        setValidationErrors(errors);
+
+        if (validQuestions.length > 0) {
+          showToast(`✅ ${validQuestions.length} प्रश्न फ़ाइल से लोड हुए!`);
+          let finalQs = validQuestions;
+          if (autoTranslateEnabled) {
+            showToast('🔄 AI द्वारा अंग्रेजी अनुवाद प्रारंभ...');
+            finalQs = await performAutoTranslate(validQuestions);
+            showToast('🎉 अनुवाद पूर्ण!');
+          }
+          setParsedQuestions(finalQs);
+          setActiveTab('preview');
+        } else {
+          showToast('❌ फ़ाइल में कोई वैध प्रश्न नहीं मिले।');
+        }
+      } catch (err: any) {
         console.error('File parsing error:', err);
-        showToast('❌ फ़ाइल पढ़ने में त्रुटि। कृपया टेम्पलेट अनुसार Excel/CSV चुनें।');
-      } finally {
-        setIsProcessing(false);
+        setValidationErrors([`फ़ाइल पढ़ने में त्रुटि: ${err.message || 'फ़ाइल का प्रारूप अमान्य है'}`]);
       }
     };
-
     reader.readAsBinaryString(file);
   };
 
-  // Submit Bulk Questions
+  // Download Sample Files
+  const handleDownloadSample = (type: 'simple' | 'detailed', format: 'xls' | 'csv') => {
+    let sampleData: any[] = [];
+
+    if (type === 'simple') {
+      // Simple 6-column format requested by founder
+      sampleData = [
+        {
+          'प्रश्न (हिन्दी)': 'मध्य प्रदेश का सबसे बड़ा राष्ट्रीय उद्यान कौन सा है?',
+          'विकल्प A': 'कान्हा किसली राष्ट्रीय उद्यान',
+          'विकल्प B': 'बांधवगढ़ राष्ट्रीय उद्यान',
+          'विकल्प C': 'पेंच राष्ट्रीय उद्यान',
+          'विकल्प D': 'पन्ना राष्ट्रीय उद्यान',
+          'सही उत्तर': 'A',
+          'व्याख्या': 'कान्हा किसली राष्ट्रीय उद्यान मण्डला जिले में स्थित है एवं यह मध्य प्रदेश का सबसे बड़ा राष्ट्रीय उद्यान (940 वर्ग किमी) है।'
+        },
+        {
+          'प्रश्न (हिन्दी)': 'यदि x² - 9 = 0 है, तो x का मान क्या होगा?',
+          'विकल्प A': '±3',
+          'विकल्प B': '9',
+          'विकल्प C': '0',
+          'विकल्प D': '3',
+          'सही उत्तर': 'A',
+          'व्याख्या': 'x² = 9 ⟹ x = ±√9 = ±3'
+        },
+        {
+          'प्रश्न (हिन्दी)': 'साधारण ब्याज का सूत्र क्या है?',
+          'विकल्प A': 'SI = (P × R × T) / 100',
+          'विकल्प B': 'SI = P(1 + R/100)ⁿ',
+          'विकल्प C': 'SI = P + R + T',
+          'विकल्प D': 'SI = (P × R) / T',
+          'सही उत्तर': 'A',
+          'व्याख्या': 'साधारण ब्याज = (मूलधन × दर × समय) / 100'
+        }
+      ];
+    } else {
+      // Detailed 14-column format
+      sampleData = [
+        {
+          'क्र.सं. (Q#)': 1,
+          'मॉक सीरीज़': selectedSeriesObj?.titleHi || 'पटवारी',
+          'सेट नं.': targetSetNumber,
+          'विषय (Subject)': defaultSubject,
+          'टॉपिक': 'म.प्र. राष्ट्रीय उद्यान',
+          'कठिनाई (Difficulty)': 'medium',
+          'प्रश्न (हिन्दी)': 'मध्य प्रदेश में कान्हा राष्ट्रीय उद्यान किस जिले में है?',
+          'प्रश्न (English)': 'In which district of MP is Kanha National Park situated?',
+          'विकल्प A': 'मण्डला',
+          'विकल्प B': 'शिवपुरी',
+          'विकल्प C': 'पन्ना',
+          'विकल्प D': 'रीवा',
+          'सही उत्तर': 'A',
+          'व्याख्या (Solution)': 'कान्हा किसली राष्ट्रीय उद्यान मण्डला जिले में है।'
+        }
+      ];
+    }
+
+    const fileName = `MP_Pariksha_Setu_${type === 'simple' ? 'Simple_6Column' : 'Full'}_Template_${new Date().toISOString().split('T')[0]}`;
+    if (format === 'xls') {
+      exportToXls(sampleData, fileName);
+    } else {
+      exportToCsv(sampleData, fileName);
+    }
+    showToast(`📥 ${type === 'simple' ? 'सरल 6-कॉलम' : 'विस्तृत'} टेम्पलेट डाउनलोड हो गया!`);
+  };
+
+  // Confirm Import & Save Bulk
   const handleConfirmImport = async () => {
     if (parsedQuestions.length === 0) {
-      showToast('⚠️ अपलोड करने हेतु कोई मान्य प्रश्न नहीं है।');
+      showToast('⚠️ सहेजने के लिए कोई प्रश्न नहीं हैं।');
       return;
     }
 
     setIsSaving(true);
     try {
-      const res = await onSaveBulk(
-        parsedQuestions,
-        importMode,
-        targetSeriesId,
-        targetSetNumber
-      );
+      // Always ensure questions are locked and have correct series and set
+      const sanitized = parsedQuestions.map((q, idx) => ({
+        ...q,
+        seriesId: targetSeriesId,
+        setNumber: targetSetNumber,
+        slotNumber: q.slotNumber || (currentCount + idx + 1),
+        isLocked: true, // GUARANTEED PERSISTENT LOCK
+        lockedAt: q.lockedAt || new Date().toISOString()
+      }));
 
-      if (res.success) {
-        const savedCount = res.count;
-        const totalRows = rawRowCount || (parsedQuestions.length + invalidCount);
-        const finalAfter = importMode === 'replace' ? savedCount : (currentCount + savedCount);
-        const finalRemaining = Math.max(0, targetLimit - finalAfter);
-        const sName = selectedSeriesObj?.titleHi || selectedCatObj?.nameHi || 'मॉक टेस्ट सीरीज़';
-        const setName = isMultiSet ? `सेट #${targetSetNumber}` : 'मुख्य टेस्ट';
+      const result = await onSaveBulk(sanitized, importMode, targetSeriesId, targetSetNumber);
+      if (result && result.success) {
+        const savedCount = result.count || sanitized.length;
+        const totalRows = rawRowCount > 0 ? rawRowCount : sanitized.length;
+        const newQuestionsCount = currentCount + savedCount;
+        const remainingSlots = Math.max(0, targetLimit - newQuestionsCount);
 
-        // Prepare Detailed Report
         setUploadResultReport({
           totalInFile: totalRows,
-          validParsed: parsedQuestions.length,
-          invalidRows: invalidCount,
+          validParsed: sanitized.length,
+          invalidRows: Math.max(0, totalRows - sanitized.length),
           successfullySaved: savedCount,
           seriesId: targetSeriesId,
-          seriesNameHi: sName,
-          setNameHi: setName,
+          seriesNameHi: selectedSeriesObj?.titleHi || 'चयनित सीरीज़',
+          setNameHi: `सेट #${targetSetNumber}`,
           setNumber: targetSetNumber,
-          targetLimit: targetLimit,
+          targetLimit,
           questionsBefore: currentCount,
-          questionsAfter: finalAfter,
-          remainingSlots: finalRemaining,
-          isCompleted: finalAfter >= targetLimit
+          questionsAfter: newQuestionsCount,
+          remainingSlots,
+          isCompleted: remainingSlots === 0
         });
 
-        showToast(`🎉 कुल ${totalRows} में से ${savedCount} प्रश्न सफलतापूर्वक अपडेट हो गए!`);
+        showToast(`🎉 कुल ${savedCount} प्रश्न सर्वर पर स्थायी रूप से सहेजे व लॉक हो गए!`);
       } else {
         showToast('⚠️ प्रश्न सहेजने में समस्या आई, कृपया पुनः प्रयास करें।');
       }
     } catch (err) {
-      console.error('Import error:', err);
+      console.error('Save error:', err);
       showToast('❌ तकनीकी त्रुटि, कृपया पुनः प्रयास करें।');
     } finally {
       setIsSaving(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white dark:bg-stone-900 border-2 border-[#D4A017] rounded-3xl max-w-4xl w-full p-6 space-y-5 shadow-2xl my-8">
         
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="fixed top-6 right-6 z-70 bg-stone-900 text-amber-300 px-4 py-3 rounded-2xl shadow-2xl border border-amber-400/50 flex items-center gap-2 text-xs font-black animate-in fade-in slide-in-from-top-3">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+            <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-300/40">
               <UploadCloud className="w-6 h-6" />
             </div>
             <div>
               <h3 className="font-black text-base text-[#2D2424] dark:text-white flex items-center gap-2">
-                <span>एक्सेल / CSV से प्रश्न बल्क अपलोड (Bulk Question Upload Engine)</span>
+                <span>⚡ सुपर ईज़ी बल्क प्रश्न लोडर (Easy Bulk Question Upload Engine)</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-black border border-emerald-300">
+                  AI ट्रांसलेट + मैथ फॉर्मूला युक्त
+                </span>
               </h3>
               <p className="text-xs text-stone-500 dark:text-stone-400">
-                डाउनलोड किए गए सेट के फॉर्मेट अनुसार अपनी Excel (.xlsx, .xls) या CSV फ़ाइल से 1 क्लिक में प्रश्नों को जोड़ें व अपडेट करें।
+                सीधे हिन्दी में लिखें/पेस्ट करें या 6-कॉलम एक्सेल अपलोड करें — अंग्रेजी अनुवाद और गणित सूत्र सिस्टम स्वयं करेगा!
               </p>
             </div>
           </div>
           <button 
             onClick={onClose} 
-            className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+            className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
           >
             <CloseIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Target Series & Set Selector Box */}
+        {/* Target Series, Set & Subject Selector Box */}
         <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-stone-850 border border-amber-300 dark:border-amber-800/60 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-black text-stone-900 dark:text-amber-300 flex items-center gap-1.5 uppercase">
               <Layers className="w-4 h-4 text-[#7A2A1E] dark:text-[#D4A017]" />
-              <span>लक्ष्य परीक्षा एवं मॉक सेट चयन (Target Series & Set)</span>
+              <span>लक्ष्य सीरीज़, सेट व विषय चयन (Target Selection)</span>
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => handleDownloadSample('xls')}
+                onClick={() => handleDownloadSample('simple', 'xls')}
                 className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
+                title="सरल 6-कॉलम एक्सेल टेम्पलेट (केवल प्रश्न, विकल्प A,B,C,D और उत्तर)"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>एक्सेल टेम्पलेट (.xls)</span>
+                <span>सरल 6-कॉलम एक्सेल (.xls)</span>
               </button>
               <button
                 type="button"
-                onClick={() => handleDownloadSample('csv')}
+                onClick={() => handleDownloadSample('simple', 'csv')}
                 className="px-2.5 py-1 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
+                title="सरल CSV टेम्पलेट"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>CSV टेम्पलेट</span>
+                <span>सरल CSV</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            {/* Series Dropdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            {/* 1. Series Dropdown */}
             <div>
               <label className="block font-black text-stone-600 dark:text-stone-300 mb-1">
-                1. किस परीक्षा / सीरीज़ में अपलोड करना है?
+                1. परीक्षा सीरीज़ चुनें:
               </label>
               <select
                 value={targetSeriesId}
                 onChange={(e) => setTargetSeriesId(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-bold text-stone-900 dark:text-amber-300"
               >
-                <option value="free_mock_40">🎁 [एकल/Standalone] 40-प्रश्न फ्री डेमो मॉक टेस्ट (All-MP Demo)</option>
+                <option value="free_mock_40">🎁 40-प्रश्न फ्री डेमो मॉक टेस्ट</option>
                 {testSeries.map(ts => {
-                  const isTsMultiSet = (ts.totalTests || 0) > 1 || ts.id === 'ts_patwari_2026' || ts.id === 'ts_agri_ext_2026';
-                  const typeBadge = isTsMultiSet ? `[20 Full Sets]` : `[एकल/Standalone]`;
+                  const isTsMulti = (ts.totalTests || 0) > 1 || ts.id === 'ts_patwari_2026' || ts.id === 'ts_agri_ext_2026';
                   return (
                     <option key={ts.id} value={ts.id}>
-                      {isTsMultiSet ? '📚' : '🎯'} {typeBadge} {ts.titleHi || ts.titleEn} (₹{ts.price})
+                      {isTsMulti ? '📚' : '🎯'} {ts.titleHi || ts.titleEn}
                     </option>
                   );
                 })}
               </select>
             </div>
 
-            {/* Set Selector */}
+            {/* 2. Set Dropdown */}
             <div>
               <label className="block font-black text-stone-600 dark:text-stone-300 mb-1">
-                2. किस मॉक सेट में जोड़ना है?
+                2. मॉक टेस्ट सेट:
               </label>
-              {isMultiSet ? (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={targetSetNumber}
-                      onChange={(e) => setTargetSetNumber(Number(e.target.value))}
-                      className="flex-1 p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-mono font-bold text-stone-900 dark:text-amber-300"
-                    >
-                      {Array.from({ length: totalSetsAvailable }, (_, i) => i + 1).map(num => (
-                        <option key={num} value={num}>
-                          सेट #{num} {num === 1 ? '(फ्री डेमो सेट)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <label className="flex items-center gap-2 text-[11px] text-stone-500 dark:text-stone-400 font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={useFileSetNumbers}
-                      onChange={(e) => setUseFileSetNumbers(e.target.checked)}
-                      className="rounded accent-[#7A2A1E]"
-                    />
-                    <span>यदि एक्सेल में 'सेट नं.' कॉलम है तो उसी अनुसार सेट तय करें</span>
-                  </label>
-                </div>
-              ) : (
-                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-stone-800 border border-amber-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 font-bold flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                    <span>एकल स्टैंडअलोन टेस्ट (Single Standalone Mock)</span>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 dark:bg-stone-700 text-amber-900 dark:text-amber-200 font-black">
-                    केवल 1 मुख्य सेट
-                  </span>
-                </div>
-              )}
+              <select
+                value={targetSetNumber}
+                onChange={(e) => setTargetSetNumber(Number(e.target.value))}
+                className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-mono font-bold text-stone-900 dark:text-amber-300"
+              >
+                {Array.from({ length: totalSetsAvailable }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>
+                    सेट #{num} {num === 1 ? '(फ्री डेमो सेट)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 3. Default Subject */}
+            <div>
+              <label className="block font-black text-stone-600 dark:text-stone-300 mb-1">
+                3. डिफ़ॉल्ट विषय (Subject):
+              </label>
+              <select
+                value={defaultSubject}
+                onChange={(e) => setDefaultSubject(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-bold text-stone-900 dark:text-amber-300"
+              >
+                {DEFAULT_SUBJECTS.map((sub, i) => (
+                  <option key={i} value={sub}>{sub}</option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* REALTIME QUESTION LIMIT & REMAINING TRACKER BAR */}
-          <div className="pt-3 border-t border-amber-200/80 dark:border-stone-800/80 space-y-2">
+          {/* Set Capacity Indicator */}
+          <div className="pt-2 border-t border-amber-200/80 dark:border-stone-800/80 space-y-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
               <div className="flex items-center gap-1.5 text-stone-700 dark:text-stone-300">
-                <Gauge className="w-4 h-4 text-[#7A2A1E] dark:text-[#D4A017]" />
-                <span>इस टेस्ट सेट की क्षमता (Question Limit):</span>
-                <span className="font-mono font-black text-[#7A2A1E] dark:text-[#D4A017]">
-                  {targetLimit} प्रश्न
-                </span>
+                <Gauge className="w-3.5 h-3.5 text-[#7A2A1E] dark:text-[#D4A017]" />
+                <span>सेट क्षमता: <strong className="text-[#7A2A1E] dark:text-[#D4A017]">{targetLimit} प्रश्न</strong></span>
               </div>
-              <div className="flex items-center gap-3 text-[11px]">
+              <div className="flex items-center gap-2 text-[11px]">
                 <span className="text-emerald-700 dark:text-emerald-400 font-black">
-                  ✓ वर्तमान में उपलब्ध: {currentCount}
+                  ✓ वर्तमान: {currentCount}
                 </span>
                 <span className="text-stone-400">•</span>
                 <span className={remainingBefore > 0 ? 'text-amber-700 dark:text-amber-400 font-black' : 'text-emerald-600 font-black'}>
-                  {remainingBefore > 0 ? `⏳ शेष बचे हैं: ${remainingBefore} प्रश्न` : '🎯 सेट पूर्ण (Full)'}
+                  {remainingBefore > 0 ? `⏳ शेष: ${remainingBefore}` : '🎯 सेट पूर्ण'}
                 </span>
               </div>
             </div>
-
-            {/* Progress Bar */}
-            <div className="w-full bg-stone-200 dark:bg-stone-700 h-2.5 rounded-full overflow-hidden flex">
+            <div className="w-full bg-stone-200 dark:bg-stone-700 h-2 rounded-full overflow-hidden flex">
               <div 
                 className="bg-emerald-600 h-full transition-all duration-300"
                 style={{ width: `${progressPercentBefore}%` }}
-                title={`वर्तमान: ${currentCount}/${targetLimit} प्रश्न`}
               />
-              {parsedQuestions.length > 0 && importMode === 'append' && (
+              {parsedQuestions.length > 0 && (
                 <div 
                   className="bg-amber-500 h-full transition-all duration-300"
                   style={{ width: `${Math.min(100 - progressPercentBefore, (parsedQuestions.length / targetLimit) * 100)}%` }}
-                  title={`अपलोड होने वाले: +${parsedQuestions.length} प्रश्न`}
                 />
               )}
             </div>
-
-            {/* Projected Status when File is Loaded */}
-            {parsedQuestions.length > 0 && (
-              <div className="p-2.5 rounded-xl bg-amber-100/70 dark:bg-stone-800 border border-amber-300/80 dark:border-stone-700 text-[11px] flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-stone-200">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>अपलोड के बाद स्थिति:</span>
-                  <span className="font-mono font-black text-[#7A2A1E] dark:text-[#D4A017]">
-                    {projectedAfterCount} / {targetLimit} प्रश्न
-                  </span>
-                  <span>({projectedPercent}%)</span>
-                </div>
-                <div>
-                  {projectedRemaining === 0 ? (
-                    <span className="font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded">
-                      🎉 यह सेट 100% पूर्ण हो जाएगा!
-                    </span>
-                  ) : (
-                    <span className="font-bold text-amber-900 dark:text-amber-300">
-                      पूर्ण होने हेतु अभी <strong>{projectedRemaining}</strong> प्रश्न और शेष रहेंगे।
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Tabs: Upload / Preview / Format Guide */}
+        {/* Modal Navigation Tabs */}
         <div className="flex flex-wrap items-center gap-2 border-b border-stone-200 dark:border-stone-800 pb-2">
           <button
-            onClick={() => setActiveTab('upload')}
+            onClick={() => setActiveTab('easyPaste')}
             className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'upload' 
+              activeTab === 'easyPaste' 
+                ? 'bg-[#7A2A1E] text-white shadow' 
+                : 'text-stone-500 hover:text-black dark:hover:text-white'
+            }`}
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>1. आसान टेक्स्ट पेस्ट मोड (Easy Paste)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('excelUpload')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'excelUpload' 
                 ? 'bg-[#7A2A1E] text-white shadow' 
                 : 'text-stone-500 hover:text-black dark:hover:text-white'
             }`}
           >
             <UploadCloud className="w-3.5 h-3.5" />
-            <span>1. फ़ाइल चुनें व अपलोड करें</span>
+            <span>2. एक्सेल / CSV फ़ाइल अपलोड</span>
           </button>
 
           <button
@@ -597,366 +851,391 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                 : 'text-stone-500 hover:text-black dark:hover:text-white'
             }`}
           >
-            <FileCheck className="w-3.5 h-3.5" />
-            <span>
-              2. प्रिव्यू एवं सत्यापन ({rawRowCount > 0 ? `${rawRowCount} में से ` : ''}{parsedQuestions.length} मान्य प्रश्न)
-            </span>
+            <Eye className="w-3.5 h-3.5" />
+            <span>3. पूर्वावलोकन व AI अनुवाद ({parsedQuestions.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('formatGuide')}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ml-auto ${
               activeTab === 'formatGuide' 
-                ? 'bg-[#7A2A1E] text-white shadow' 
-                : 'text-stone-500 hover:text-black dark:hover:text-white'
+                ? 'bg-stone-200 dark:bg-stone-700 text-stone-900 dark:text-white' 
+                : 'text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'
             }`}
           >
-            <Table className="w-3.5 h-3.5 text-amber-400" />
-            <span>3. एक्सेल फॉर्मेट देखें एवं डाउनलोड करें (Format & Columns)</span>
+            <HelpCircle className="w-3.5 h-3.5 text-amber-500" />
+            <span>स्टेप गाइड (How to Use)</span>
           </button>
         </div>
 
-        {/* TAB 1: UPLOAD AREA */}
-        {activeTab === 'upload' && (
+        {/* TAB 1: EASY TEXT PASTE MODE */}
+        {activeTab === 'easyPaste' && (
           <div className="space-y-4">
-            {/* Drag and drop upload zone */}
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="p-8 border-2 border-dashed border-amber-400 dark:border-amber-700/80 hover:border-amber-600 rounded-3xl bg-stone-50/60 dark:bg-stone-850/50 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer transition-all group"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <FileSpreadsheet className="w-8 h-8 text-[#7A2A1E] dark:text-[#D4A017]" />
-              </div>
+            {/* Math Formula Toolbar */}
+            <MathEquationToolbar
+              onInsert={handleInsertSymbol}
+              title="गणित सूत्र व समीकरण टूलबार (Math Toolbar: क्लिक कर जोड़ें)"
+              previewText={pastedText.slice(0, 140)}
+            />
 
-              <div>
-                <h4 className="font-black text-sm text-stone-900 dark:text-white">
-                  यहाँ क्लिक करें या अपनी Excel (.xlsx, .xls) अथवा .CSV फ़ाइल ड्रैग करें
-                </h4>
-                <p className="text-xs text-stone-500 mt-1">
-                  समर्थित फाइलें: <strong>.xlsx, .xls, .csv</strong> • UTF-8 हिन्दी (देवनागरी) फॉन्ट पूर्ण समर्थित
-                </p>
-              </div>
-
-              {fileName && (
-                <div className="px-4 py-1.5 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-mono text-xs font-black rounded-full flex items-center gap-1.5">
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  <span>चयनित फ़ाइल: {fileName}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Import Mode: Append or Replace */}
-            <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <span className="font-bold text-stone-700 dark:text-stone-300">
-                अपलोड विधि (Import Action):
-              </span>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer font-bold">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="append"
-                    checked={importMode === 'append'}
-                    onChange={() => setImportMode('append')}
-                    className="accent-[#7A2A1E]"
-                  />
-                  <span>पुराने प्रश्नों में जोड़ें / अपडेट करें (Merge & Append)</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer font-bold text-rose-700 dark:text-rose-400">
-                  <input
-                    type="radio"
-                    name="importMode"
-                    value="replace"
-                    checked={importMode === 'replace'}
-                    onChange={() => setImportMode('replace')}
-                    className="accent-rose-700"
-                  />
-                  <span>केवल इस सेट के पुराने प्रश्न हटाकर ये नए रखें (Replace Set)</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Instructions checklist */}
-            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 text-xs space-y-2 text-blue-900 dark:text-blue-300">
-              <div className="flex items-center justify-between">
-                <div className="font-black flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4 text-blue-600" />
-                  <span>आवश्यक कॉलम निर्देश (Format Guidelines):</span>
-                </div>
+            {/* Paste Box Header & Sample Button */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-black text-stone-800 dark:text-stone-200 flex items-center gap-2">
+                <span>अपने प्रश्न, 4 विकल्प और सही उत्तर यहाँ पेस्ट करें:</span>
+                <span className="text-[10px] font-normal text-stone-500">
+                  (हिन्दी में 1 या 50 प्रश्न एक साथ जोड़ सकते हैं)
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('formatGuide')}
-                  className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/80 hover:bg-blue-200 text-blue-800 dark:text-blue-200 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  onClick={() => setPastedText(SAMPLE_PASTE_TEXT)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer border border-amber-300/40"
                 >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>पूरा फॉर्मेट व सैंपल तालिका देखें →</span>
-                </button>
-              </div>
-              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-stone-600 dark:text-stone-300">
-                <li>कॉलम नाम: <strong>प्रश्न (हिन्दी), विकल्प A, विकल्प B, विकल्प C, विकल्प D, सही उत्तर विकल्प (A, B, C, D), व्याख्या</strong>।</li>
-                <li>वैकल्पिक कॉलम: <strong>प्रश्न (English), विषय (Subject), टॉपिक, कठिनाई (easy/medium/hard), सेट नं.</strong>।</li>
-                <li>यदि आप पहले से डाउनलोड की गई एक्सेल शीट में ही प्रश्न जोड़ रहे हैं, तो वह 100% स्वतः मैच हो जाएगी।</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: FORMAT GUIDE & SAMPLE DOWNLOAD */}
-        {activeTab === 'formatGuide' && (
-          <div className="space-y-4">
-            {/* Header with Download CTAs */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-stone-850 dark:to-stone-800 border border-amber-300 dark:border-amber-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
-                  <Table className="w-4 h-4" />
-                  <span>बल्क अपलोड एक्सेल / CSV फॉर्मेट संरचना (Column Specification)</span>
-                </h4>
-                <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
-                  अपनी एक्सेल शीट में नीचे दिए गए कॉलम नामों का उपयोग करें। आप तुरंत तैयार सैंपल फ़ाइल डाउनलोड कर उसमें डेटा भर सकते हैं।
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleDownloadSample('xls')}
-                  className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>सैंपल एक्सेल (.xls) डाउनलोड करें</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadSample('csv')}
-                  className="px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-white text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>सैंपल .CSV डाउनलोड</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Visual Columns Table */}
-            <div className="border border-stone-200 dark:border-stone-700 rounded-2xl overflow-hidden shadow-xs">
-              <div className="p-3 bg-stone-100 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
-                <span className="text-xs font-black text-stone-700 dark:text-stone-200 flex items-center gap-1.5">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                  <span>सैंपल डेटा प्रिव्यू (Sample Rows Preview):</span>
-                </span>
-                <span className="text-[11px] font-bold text-stone-500">
-                  कुल 13 मानक कॉलम समर्थित हैं
-                </span>
-              </div>
-
-              <div className="overflow-x-auto max-h-72 scrollbar-thin">
-                <table className="w-full text-left text-xs border-collapse font-sans">
-                  <thead>
-                    <tr className="bg-amber-100/70 dark:bg-stone-900 border-b border-amber-200 dark:border-stone-700 text-stone-800 dark:text-amber-300">
-                      <th className="p-2.5 font-black whitespace-nowrap">क्र.सं.</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">प्रश्न (हिन्दी)*</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">विकल्प A*</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">विकल्प B*</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">विकल्प C*</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">विकल्प D*</th>
-                      <th className="p-2.5 font-black whitespace-nowrap bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300">
-                        सही उत्तर विकल्प*
-                      </th>
-                      <th className="p-2.5 font-black whitespace-nowrap">व्याख्या (Solution)</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">विषय (Subject)</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">टॉपिक</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">कठिनाई</th>
-                      <th className="p-2.5 font-black whitespace-nowrap">सेट नं.</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-200 dark:divide-stone-750 text-stone-700 dark:text-stone-300">
-                    <tr className="bg-white dark:bg-stone-850 hover:bg-stone-50">
-                      <td className="p-2.5 font-mono font-bold text-center">1</td>
-                      <td className="p-2.5 font-medium min-w-[220px]">
-                        मध्यप्रदेश का सबसे पहला एवं सबसे बड़ा राष्ट्रीय उद्यान कौन सा है?
-                      </td>
-                      <td className="p-2.5 min-w-[140px]">कान्हा किसली राष्ट्रीय उद्यान</td>
-                      <td className="p-2.5 min-w-[140px]">बांधवगढ़ राष्ट्रीय उद्यान</td>
-                      <td className="p-2.5 min-w-[140px]">पेंच राष्ट्रीय उद्यान</td>
-                      <td className="p-2.5 min-w-[140px]">पन्ना राष्ट्रीय उद्यान</td>
-                      <td className="p-2.5 font-mono font-black text-center bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300">
-                        A
-                      </td>
-                      <td className="p-2.5 text-stone-500 min-w-[180px]">
-                        कान्हा किसली म.प्र. का सबसे बड़ा राष्ट्रीय उद्यान है (940 वर्ग किमी)।
-                      </td>
-                      <td className="p-2.5 whitespace-nowrap">सामान्य ज्ञान</td>
-                      <td className="p-2.5 whitespace-nowrap">म.प्र. राष्ट्रीय उद्यान</td>
-                      <td className="p-2.5 whitespace-nowrap font-mono text-amber-600">medium</td>
-                      <td className="p-2.5 whitespace-nowrap font-mono">1</td>
-                    </tr>
-                    <tr className="bg-stone-50/50 dark:bg-stone-800/40 hover:bg-stone-50">
-                      <td className="p-2.5 font-mono font-bold text-center">2</td>
-                      <td className="p-2.5 font-medium min-w-[220px]">
-                        'खजुराहो के मंदिर' किस राजवंश के शासकों द्वारा बनवाए गए थे?
-                      </td>
-                      <td className="p-2.5 min-w-[140px]">परमार वंश</td>
-                      <td className="p-2.5 min-w-[140px]">चंदेल वंश</td>
-                      <td className="p-2.5 min-w-[140px]">गुप्त वंश</td>
-                      <td className="p-2.5 min-w-[140px]">मौर्य वंश</td>
-                      <td className="p-2.5 font-mono font-black text-center bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300">
-                        B
-                      </td>
-                      <td className="p-2.5 text-stone-500 min-w-[180px]">
-                        खजुराहो के मंदिर चंदेल शासकों द्वारा 950 से 1050 ईस्वी के मध्य बनवाए गए।
-                      </td>
-                      <td className="p-2.5 whitespace-nowrap">म.प्र. इतिहास</td>
-                      <td className="p-2.5 whitespace-nowrap">चंदेल वंश एवं स्थापत्य</td>
-                      <td className="p-2.5 whitespace-nowrap font-mono text-emerald-600">easy</td>
-                      <td className="p-2.5 whitespace-nowrap font-mono">1</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Explanatory Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-1">
-                <span className="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>सही उत्तर कैसे लिखें?</span>
-                </span>
-                <p className="text-[11px] text-stone-600 dark:text-stone-300">
-                  'सही उत्तर विकल्प' कॉलम में केवल <strong>A, B, C, या D</strong> (या 1, 2, 3, 4) लिखें। सिस्टम इसे स्वतः पहचान लेगा।
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-1">
-                <span className="font-black text-amber-800 dark:text-amber-300 flex items-center gap-1">
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>सेट व स्टैंडअलोन प्रकार</span>
-                </span>
-                <p className="text-[11px] text-stone-600 dark:text-stone-300">
-                  यदि परीक्षा <strong>फुल 20 सेट्स</strong> वाली है तो ऊपर सेट ड्रॉपडाउन से चुनें, अथवा एक्सेल में <strong>'सेट नं.'</strong> कॉलम में 1 से 20 लिखें।
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 space-y-1">
-                <span className="font-black text-purple-800 dark:text-purple-300 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>हिन्दी / English दोहरी भाषा</span>
-                </span>
-                <p className="text-[11px] text-stone-600 dark:text-stone-300">
-                  यदि आप दोनों भाषाओं में प्रश्न अपलोड करना चाहते हैं तो <strong>'प्रश्न (English)'</strong> कॉलम भी शामिल कर सकते हैं।
-                </p>
+                  <span>✨ 1-क्लिक नमूना लोड करें</span>
+                </button>
+                {pastedText && (
+                  <button
+                    type="button"
+                    onClick={() => setPastedText('')}
+                    className="px-2 py-1 text-[11px] text-stone-400 hover:text-rose-500 font-bold transition cursor-pointer"
+                  >
+                    साफ़ करें
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="pt-2 text-center">
+            {/* Textarea */}
+            <div className="relative">
+              <textarea
+                ref={pasteTextareaRef}
+                value={pastedText}
+                onChange={(e) => setPastedText(e.target.value)}
+                rows={10}
+                placeholder={`उदाहरण:\n1. मध्य प्रदेश की राजधानी क्या है?\n(A) भोपाल\n(B) इंदौर\n(C) ग्वालियर\n(D) जबलपुर\nउत्तर: A\nव्याख्या: मध्य प्रदेश की राजधानी भोपाल है।`}
+                className="w-full p-4 rounded-2xl bg-stone-50 dark:bg-stone-850 border border-stone-300 dark:border-stone-700 text-xs font-mono leading-relaxed text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#D4A017] shadow-inner resize-y"
+              />
+            </div>
+
+            {/* Action Bar: Auto-Translate Toggle + Parse Button */}
+            <div className="p-4 rounded-2xl bg-stone-100 dark:bg-stone-800 flex flex-wrap items-center justify-between gap-3 border border-stone-200 dark:border-stone-700">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-black text-stone-800 dark:text-stone-200">
+                <input
+                  type="checkbox"
+                  checked={autoTranslateEnabled}
+                  onChange={(e) => setAutoTranslateEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded accent-[#7A2A1E] cursor-pointer"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Languages className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>🤖 पार्स करते ही स्वतः AI से अंग्रेजी अनुवाद करें (Auto-Translate to English)</span>
+                </span>
+              </label>
+
               <button
                 type="button"
-                onClick={() => setActiveTab('upload')}
-                className="px-5 py-2.5 rounded-xl bg-[#7A2A1E] hover:bg-[#963E2F] text-white font-black text-xs inline-flex items-center gap-2 shadow cursor-pointer"
+                onClick={handleParsePastedText}
+                disabled={!pastedText.trim() || isTranslating}
+                className="px-6 py-2.5 rounded-xl bg-[#7A2A1E] hover:bg-[#963E2F] disabled:opacity-50 text-white text-xs font-black transition flex items-center gap-2 shadow cursor-pointer ml-auto"
               >
-                <UploadCloud className="w-4 h-4 text-amber-300" />
-                <span>फॉर्मेट समझ लिया, अब फ़ाइल अपलोड करें →</span>
+                {isTranslating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
+                    <span>अनुवाद हो रहा है... ({translationProgress?.current}/{translationProgress?.total})</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>🚀 प्रश्नों को प्रोसेस करें (Parse & Preview) →</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         )}
 
-        {/* TAB 2: PREVIEW AREA */}
+        {/* TAB 2: EXCEL / CSV UPLOAD MODE */}
+        {activeTab === 'excelUpload' && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-stone-850 border border-amber-200 dark:border-stone-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-stone-900 dark:text-amber-300 flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span>सरल 6-कॉलम एक्सेल या विस्तृत 14-कॉलम एक्सेल दोनों समर्थित हैं</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSample('simple', 'xls')}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>सरल 6-कॉलम फॉर्मेट डाउनलोड (.xls)</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-stone-600 dark:text-stone-400">
+                सरल 6-कॉलम एक्सेल में केवल: <strong>प्रश्न (हिन्दी)</strong>, <strong>विकल्प A</strong>, <strong>विकल्प B</strong>, <strong>विकल्प C</strong>, <strong>विकल्प D</strong>, <strong>सही उत्तर (A/B/C/D)</strong> भरें। बाकी सब अपने-आप भर जाएगा!
+              </p>
+            </div>
+
+            {/* Dropzone */}
+            <div className="p-8 border-2 border-dashed border-[#D4A017] rounded-3xl bg-amber-50/20 dark:bg-stone-950 text-center space-y-3 hover:bg-amber-50/40 transition">
+              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shadow-xs">
+                <FileSpreadsheet className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-black text-stone-800 dark:text-stone-200">
+                  अपनी एक्सेल (.xlsx, .xls) या CSV फ़ाइल यहाँ चुनें
+                </p>
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  फाइल चुनते ही प्रश्न स्वतः लोड एवं मान्य हो जाएंगे
+                </p>
+              </div>
+              <label className="inline-block px-6 py-2.5 rounded-xl bg-[#7A2A1E] hover:bg-[#963E2F] text-white text-xs font-black shadow transition cursor-pointer">
+                <span>📁 फ़ाइल ब्राउज़ करें (Choose File)</span>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {/* Auto-translate toggle for Excel mode */}
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-stone-700 dark:text-stone-300 p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+              <input
+                type="checkbox"
+                checked={autoTranslateEnabled}
+                onChange={(e) => setAutoTranslateEnabled(e.target.checked)}
+                className="w-4 h-4 rounded accent-[#7A2A1E] cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5">
+                <Languages className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>फ़ाइल अपलोड होते ही स्वतः AI से अंग्रेजी अनुवाद करें (Auto-Translate on Upload)</span>
+              </span>
+            </label>
+
+            {validationErrors.length > 0 && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl space-y-1 text-xs text-rose-700 dark:text-rose-300">
+                <div className="font-bold flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 text-rose-600" />
+                  <span>फ़ाइल में निम्नलिखित चेतावनियाँ मिलीं:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                  {validationErrors.slice(0, 5).map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: PREVIEW & AI TRANSLATE TAB */}
         {activeTab === 'preview' && (
-          <div className="space-y-3">
-            {/* Detailed Success / Validation summary badge */}
-            <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-stone-800 border border-emerald-300 dark:border-emerald-700/60 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>
-                    फ़ाइल के {rawRowCount} में से {parsedQuestions.length} प्रश्न पूरी तरह मान्य व तैयार!
+          <div className="space-y-4">
+            {/* Header with Auto-Translate Button */}
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-stone-850 border border-amber-300 dark:border-amber-800 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-black text-stone-900 dark:text-amber-300 flex items-center gap-2">
+                  <span>कुल {parsedQuestions.length} प्रश्न सहेजने हेतु तैयार</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-black border border-emerald-300">
+                    🔒 स्थायी लॉक सुरक्षित
                   </span>
                 </span>
-                {invalidCount > 0 && (
-                  <span className="text-rose-600 font-bold text-[11px] bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded">
-                    ⚠️ {invalidCount} अधूरी पंक्तियाँ छोड़ दी गईं
-                  </span>
-                )}
+                <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                  सभी प्रश्नों को नीचे जांचें। यदि कोई प्रश्न अंग्रेजी में नहीं है, तो AI अनुवाद बटन दबाएं।
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] font-bold text-stone-600 dark:text-stone-300">
-                <span>सीरीज़ क्षमता: <strong className="text-[#7A2A1E] dark:text-[#D4A017]">{targetLimit}</strong></span>
-                <span>•</span>
-                <span>वर्तमान: <strong>{currentCount}</strong></span>
-                <span>•</span>
-                <span>अपलोड बाद शेष: <strong className="text-emerald-700 dark:text-emerald-400">{projectedRemaining}</strong></span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const translated = await performAutoTranslate(parsedQuestions);
+                    setParsedQuestions(translated);
+                    showToast('🎉 सभी प्रश्नों का अंग्रेजी अनुवाद पूर्ण!');
+                  }}
+                  disabled={isTranslating}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
+                >
+                  {isTranslating ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>अनुवाद हो रहा है ({translationProgress?.current}/{translationProgress?.total})...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Languages className="w-3.5 h-3.5 text-amber-300" />
+                      <span>✨ AI से अंग्रेजी में अनुवाद करें</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Preview table / cards */}
-            <div className="max-h-[50vh] overflow-y-auto space-y-2.5 pr-2">
-              {parsedQuestions.slice(0, 15).map((q, idx) => (
+            {/* Questions Cards List */}
+            <div className="max-h-96 overflow-y-auto space-y-3 pr-1">
+              {parsedQuestions.map((q, idx) => (
                 <div 
-                  key={idx}
-                  className="p-3.5 rounded-2xl border border-stone-200 dark:border-stone-800 bg-stone-50/80 dark:bg-stone-800/40 text-xs space-y-1.5"
+                  key={q.id || idx}
+                  className="p-3.5 rounded-2xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 space-y-2 shadow-2xs"
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  {/* Question header */}
+                  <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="bg-[#7A2A1E] text-[#D4A017] font-mono font-black px-2 py-0.5 rounded text-[10px]">
+                      <span className="px-2 py-0.5 rounded bg-[#7A2A1E] text-amber-300 font-mono font-black text-[11px]">
                         Q#{idx + 1}
                       </span>
-                      <span className="font-bold text-stone-700 dark:text-stone-300">
-                        {q.subject} • {q.topic}
+                      <span className="text-stone-400 font-bold text-[11px]">
+                        स्लॉट: {q.slotNumber || (idx + 1)}
                       </span>
-                      <span className="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-mono">
-                        सेट #{q.setNumber || targetSetNumber}
+                      <span className="px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 text-[10px] font-bold">
+                        {q.subject}
                       </span>
                     </div>
-                    <span className="text-[10px] text-stone-400 font-mono">
-                      ID: {q.id}
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> ऑटो-लॉक
                     </span>
                   </div>
 
-                  <p className="font-bold text-stone-900 dark:text-white">
-                    {q.questionHi}
-                  </p>
-
-                  {q.questionEn && q.questionEn !== q.questionHi && (
-                    <p className="text-[11px] text-stone-500 italic">
-                      {q.questionEn}
-                    </p>
-                  )}
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
-                    {(q.optionsHi || ['A', 'B', 'C', 'D']).map((opt, i) => (
-                      <div 
-                        key={i}
-                        className={`p-1.5 rounded-lg border ${
-                          (q.correctOption ?? 0) === i 
-                            ? 'bg-emerald-100 dark:bg-emerald-950/60 border-emerald-500 font-bold text-emerald-900 dark:text-emerald-300' 
-                            : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400'
-                        }`}
-                      >
-                        <span className="font-bold mr-1">{String.fromCharCode(65 + i)}:</span>
-                        <span>{opt}</span>
-                      </div>
-                    ))}
+                  {/* Hindi Question Text with Math Formatter */}
+                  <div className="text-xs font-bold text-stone-900 dark:text-stone-100 leading-relaxed">
+                    <MathFormattedText text={q.questionHi} />
                   </div>
 
+                  {/* English Question Text (if translated) */}
+                  {q.questionEn && q.questionEn !== q.questionHi && (
+                    <div className="text-[11px] font-medium text-stone-600 dark:text-stone-400 italic bg-stone-50 dark:bg-stone-900/60 p-2 rounded-xl border border-stone-200 dark:border-stone-700">
+                      <strong>EN:</strong> <MathFormattedText text={q.questionEn} />
+                    </div>
+                  )}
+
+                  {/* Options 2x2 Grid with Math Formatter */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                    {q.options.map((opt, oIdx) => {
+                      const isCorrect = q.correctOption === oIdx;
+                      const optLabel = String.fromCharCode(65 + oIdx);
+                      return (
+                        <div
+                          key={opt.id || oIdx}
+                          className={`p-2 rounded-xl border flex items-center justify-between text-[11px] ${
+                            isCorrect 
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 dark:border-emerald-700 font-bold text-emerald-900 dark:text-emerald-200' 
+                              : 'bg-stone-50 dark:bg-stone-850 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 flex-1 mr-1">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                              isCorrect 
+                                ? 'bg-emerald-600 text-white' 
+                                : 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300'
+                            }`}>
+                              {optLabel}
+                            </span>
+                            <span className="truncate">
+                              <MathFormattedText text={opt.textHi} />
+                              {opt.textEn && opt.textEn !== opt.textHi && (
+                                <span className="text-stone-400 ml-1 italic">({opt.textEn})</span>
+                              )}
+                            </span>
+                          </div>
+                          {isCorrect && (
+                            <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider shrink-0">
+                              ✓ सही उत्तर
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Explanation with Math Formatter */}
                   {q.explanationHi && (
-                    <div className="text-[10px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/50 dark:border-stone-700/50">
-                      💡 <strong>व्याख्या:</strong> {q.explanationHi}
+                    <div className="text-[11px] text-stone-500 dark:text-stone-400 pt-1.5 border-t border-stone-100 dark:border-stone-700/50">
+                      💡 <strong>व्याख्या:</strong> <MathFormattedText text={q.explanationHi} />
                     </div>
                   )}
                 </div>
               ))}
-              {parsedQuestions.length > 15 && (
-                <div className="text-center py-2 text-xs font-bold text-stone-400">
-                  ... एवं {parsedQuestions.length - 15} अन्य प्रश्न सफलतापूर्वक तैयार हैं।
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: FORMAT GUIDE (STEP-BY-STEP HINDI GUIDE) */}
+        {activeTab === 'formatGuide' && (
+          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-850 border border-stone-200 dark:border-stone-700 space-y-4 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <h4 className="font-black text-sm text-stone-900 dark:text-white">
+                आसान 5 स्टेप्स में प्रश्न लोड करने की मार्गदर्शिका (Step-by-Step Guide)
+              </h4>
+            </div>
+
+            <div className="space-y-3 text-stone-700 dark:text-stone-300">
+              <div className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#7A2A1E] text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                  1
                 </div>
-              )}
+                <div>
+                  <div className="font-black text-stone-900 dark:text-white">सीरीज़, सेट व विषय चुनें</div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    ऊपर पीले बॉक्स में जिस परीक्षा (जैसे पटवारी या कॉन्स्टेबल), सेट नंबर और विषय में प्रश्न डालने हैं, उसे चुनें।
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#7A2A1E] text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                  2
+                </div>
+                <div>
+                  <div className="font-black text-stone-900 dark:text-white">हिन्दी में प्रश्न व विकल्प पेस्ट करें (या सरल 6-कॉलम एक्सेल अपलोड करें)</div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    "आसान टेक्स्ट पेस्ट" में प्रश्न, A/B/C/D विकल्प और 'उत्तर: A' लिखें या वर्ड/पीडीएफ/व्हाट्सएप से सीधा कॉपी-पेस्ट करें।
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#7A2A1E] text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                  3
+                </div>
+                <div>
+                  <div className="font-black text-stone-900 dark:text-white">गणित समीकरण व फॉर्मूला टूलबार</div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    यदि गणित के प्रश्न हैं, तो ऊपर दिए गए टूलबार से <strong>x²</strong>, <strong>√x</strong>, <strong>½</strong>, <strong>π</strong>, <strong>±</strong> या बने-बनाए सूत्र 1-क्लिक में जोड़ें।
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#7A2A1E] text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                  4
+                </div>
+                <div>
+                  <div className="font-black text-stone-900 dark:text-white">🤖 AI स्वतः अंग्रेजी अनुवाद (Auto-Translate)</div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    "AI से अनुवाद करें" टिक रहने पर सिस्टम आपके पूरे प्रश्न, चारों विकल्पों और व्याख्या को शुद्ध अकादमिक अंग्रेजी में स्वयं बदल देगा!
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#7A2A1E] text-amber-300 font-black text-xs flex items-center justify-center shrink-0">
+                  5
+                </div>
+                <div>
+                  <div className="font-black text-stone-900 dark:text-white">सत्यापित करें एवं सहेजें (Permanent Save & Lock)</div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                    "सहेजें" बटन दबाते ही आपके प्रश्न सर्वर डिस्क पर स्थायी रूप से सुरक्षित और लॉक हो जाएंगे!
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -972,13 +1251,13 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           </button>
 
           <div className="flex items-center gap-2">
-            {activeTab === 'upload' && parsedQuestions.length > 0 && (
+            {activeTab !== 'preview' && parsedQuestions.length > 0 && (
               <button
                 type="button"
                 onClick={() => setActiveTab('preview')}
                 className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black transition cursor-pointer"
               >
-                प्रिव्यू देखें ({rawRowCount > 0 ? `${rawRowCount} में से ` : ''}{parsedQuestions.length} प्रश्न) →
+                प्रिव्यू देखें ({parsedQuestions.length} प्रश्न) →
               </button>
             )}
 
@@ -997,7 +1276,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-amber-300" />
                   <span>
-                    {parsedQuestions.length > 0 ? `सत्यापित करें एवं ${parsedQuestions.length} प्रश्न सेव करें` : 'प्रश्न सेव करें'}
+                    {parsedQuestions.length > 0 ? `सत्यापित करें एवं ${parsedQuestions.length} प्रश्न सेव व लॉक करें` : 'प्रश्न सेव करें'}
                   </span>
                 </>
               )}
@@ -1007,11 +1286,10 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
 
       </div>
 
-      {/* POST-UPLOAD SUCCESS REPORT MODAL (Detailed Result Breakdown) */}
+      {/* Success Audit Report Modal */}
       {uploadResultReport && (
         <div className="fixed inset-0 z-60 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-stone-900 border-2 border-emerald-500 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
             <div className="text-center space-y-2">
               <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle2 className="w-10 h-10" />
@@ -1024,52 +1302,46 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
               </p>
             </div>
 
-            {/* Scorecard / Stats Breakdown Box */}
             <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-850 border border-stone-200 dark:border-stone-700 space-y-3">
               <div className="text-xs font-black uppercase text-stone-500 tracking-wider flex items-center justify-between">
-                <span>अपलोड सांख्यिकी (Upload Audit Report)</span>
-                <span className="text-emerald-600 font-mono font-bold">100% LIVE SYNC</span>
+                <span>अपलोड ऑडिट रिपोर्ट (Upload Audit)</span>
+                <span className="text-emerald-600 font-mono font-bold">100% PERSISTENT & LOCKED</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
-                {/* 1. File to Valid Ratio */}
                 <div className="p-3 bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 space-y-0.5">
-                  <div className="text-stone-400 text-[11px] font-bold">फ़ाइल में कुल प्रश्न:</div>
+                  <div className="text-stone-400 text-[11px] font-bold">कुल प्रोसेस किए गए:</div>
                   <div className="text-base font-mono font-black text-stone-900 dark:text-white">
-                    {uploadResultReport.totalInFile} पंक्ति
+                    {uploadResultReport.totalInFile}
                   </div>
                 </div>
 
-                {/* 2. Successfully Saved */}
                 <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl border border-emerald-300 dark:border-emerald-800 space-y-0.5">
-                  <div className="text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">सफलतापूर्वक अपडेट:</div>
+                  <div className="text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">सफलतापूर्वक सेव व लॉक:</div>
                   <div className="text-base font-mono font-black text-emerald-700 dark:text-emerald-300">
-                    {uploadResultReport.successfullySaved} / {uploadResultReport.totalInFile}
+                    {uploadResultReport.successfullySaved}
                   </div>
                 </div>
 
-                {/* 3. Target Limit */}
                 <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl border border-amber-300 dark:border-amber-800 space-y-0.5">
-                  <div className="text-amber-800 dark:text-amber-300 text-[11px] font-bold">सीरीज़/सेट सीमा (Limit):</div>
+                  <div className="text-amber-800 dark:text-amber-300 text-[11px] font-bold">सेट क्षमता सीमा:</div>
                   <div className="text-base font-mono font-black text-amber-900 dark:text-amber-300">
                     {uploadResultReport.targetLimit} प्रश्न
                   </div>
                 </div>
 
-                {/* 4. Total Active in this Set Now */}
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-xl border border-blue-300 dark:border-blue-800 space-y-0.5">
-                  <div className="text-blue-800 dark:text-blue-300 text-[11px] font-bold">वर्तमान कुल प्रश्न (Now):</div>
+                  <div className="text-blue-800 dark:text-blue-300 text-[11px] font-bold">सेट में वर्तमान कुल प्रश्न:</div>
                   <div className="text-base font-mono font-black text-blue-900 dark:text-blue-300">
                     {uploadResultReport.questionsAfter} प्रश्न
                   </div>
                 </div>
               </div>
 
-              {/* Remaining questions count banner */}
               <div className="p-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-stone-800 dark:to-stone-750 border border-amber-300 dark:border-amber-800/80 text-xs">
                 <div className="flex items-center justify-between font-bold">
                   <span className="text-stone-700 dark:text-stone-300">
-                    🎯 सीमा अनुसार शेष बचे प्रश्न (Remaining):
+                    🎯 सेट स्थिति:
                   </span>
                   <span className={`font-mono font-black px-2 py-0.5 rounded ${
                     uploadResultReport.remainingSlots === 0 
@@ -1077,25 +1349,13 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                       : 'bg-[#7A2A1E] text-[#D4A017]'
                   }`}>
                     {uploadResultReport.remainingSlots === 0 
-                      ? '✓ 0 (पूर्ण)' 
+                      ? '✓ सेट 100% पूर्ण' 
                       : `${uploadResultReport.remainingSlots} प्रश्न शेष`}
                   </span>
                 </div>
-                <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-1">
-                  {uploadResultReport.remainingSlots === 0 
-                    ? `बधाई! यह मॉक टेस्ट सेट पूरे ${uploadResultReport.targetLimit} प्रश्नों के साथ पूरी तरह तैयार है।`
-                    : `इस सेट को पूर्ण (${uploadResultReport.targetLimit} प्रश्न) करने हेतु अभी ${uploadResultReport.remainingSlots} प्रश्नों की आवश्यकता है।`}
-                </div>
               </div>
-
-              {uploadResultReport.invalidRows > 0 && (
-                <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-                  ℹ️ {uploadResultReport.invalidRows} पंक्तियाँ प्रश्न पाठ अथवा विकल्पों के अभाव में अस्वीकृत हुईं।
-                </div>
-              )}
             </div>
 
-            {/* OK Button */}
             <button
               type="button"
               onClick={() => {

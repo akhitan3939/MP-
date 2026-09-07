@@ -536,6 +536,30 @@ app.post('/api/app-data/sync', (req: Request, res: Response) => {
     return res.status(400).json({ success: false, message: 'Invalid payload' });
   }
 
+  // Safe question merging: never drop locked status if question was already locked!
+  if (Array.isArray(incoming.questions)) {
+    const existingQMap = new Map<string, any>();
+    (inMemoryAppState.questions || []).forEach(q => {
+      if (q && q.id) existingQMap.set(q.id, q);
+    });
+
+    const mergedList = incoming.questions.map((iq: any) => {
+      const existing = existingQMap.get(iq.id);
+      // If either incoming or existing on server was locked, keep it locked!
+      const isLocked = iq.isLocked === true || (existing && existing.isLocked === true);
+      const lockedAt = isLocked ? (iq.lockedAt || existing?.lockedAt || new Date().toISOString()) : undefined;
+      return {
+        ...(existing || {}),
+        ...iq,
+        isLocked,
+        lockedAt,
+        slotNumber: iq.slotNumber !== undefined ? iq.slotNumber : existing?.slotNumber
+      };
+    });
+
+    incoming.questions = mergedList;
+  }
+
   inMemoryAppState = {
     ...inMemoryAppState,
     ...incoming
@@ -546,6 +570,176 @@ app.post('/api/app-data/sync', (req: Request, res: Response) => {
     success: true,
     message: 'Global app state synced successfully across all clients',
     data: inMemoryAppState
+  });
+});
+
+// ==========================================
+// DEDICATED HIGH-RELIABILITY QUESTIONS API
+// ==========================================
+
+// 1. Get Questions Master Repository
+app.get('/api/questions', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    questions: inMemoryAppState.questions || [],
+    total: (inMemoryAppState.questions || []).length,
+    lockedCount: (inMemoryAppState.questions || []).filter(q => q.isLocked).length
+  });
+});
+
+// 2. Save / Update Single Question with Immediate Disk Flush
+app.post('/api/questions/save', (req: Request, res: Response) => {
+  const { question } = req.body;
+  if (!question || !question.id) {
+    return res.status(400).json({ success: false, message: 'Invalid question object' });
+  }
+
+  if (!Array.isArray(inMemoryAppState.questions)) {
+    inMemoryAppState.questions = [];
+  }
+
+  const idx = inMemoryAppState.questions.findIndex(q => q.id === question.id);
+  if (idx >= 0) {
+    const existing = inMemoryAppState.questions[idx];
+    const isLocked = question.isLocked !== undefined ? Boolean(question.isLocked) : Boolean(existing.isLocked);
+    inMemoryAppState.questions[idx] = {
+      ...existing,
+      ...question,
+      isLocked,
+      lockedAt: isLocked ? (question.lockedAt || existing.lockedAt || new Date().toISOString()) : undefined,
+      slotNumber: question.slotNumber !== undefined ? question.slotNumber : existing.slotNumber
+    };
+  } else {
+    inMemoryAppState.questions.unshift(question);
+  }
+
+  saveAppStateToDisk(inMemoryAppState);
+  console.log(`[MP Setu] Question Saved & Persisted to Disk: ${question.id} (Locked: ${question.isLocked === true})`);
+
+  res.json({
+    success: true,
+    message: 'Question saved to disk successfully',
+    question: inMemoryAppState.questions[idx >= 0 ? idx : 0]
+  });
+});
+
+// 3. Lock / Unlock Single Question with Immediate Disk Flush
+app.post('/api/questions/lock', (req: Request, res: Response) => {
+  const { questionId, isLocked } = req.body;
+  if (!questionId) {
+    return res.status(400).json({ success: false, message: 'Question ID required' });
+  }
+
+  if (!Array.isArray(inMemoryAppState.questions)) {
+    inMemoryAppState.questions = [];
+  }
+
+  const idx = inMemoryAppState.questions.findIndex(q => q.id === questionId);
+  if (idx >= 0) {
+    inMemoryAppState.questions[idx] = {
+      ...inMemoryAppState.questions[idx],
+      isLocked: Boolean(isLocked),
+      lockedAt: isLocked ? new Date().toISOString() : undefined
+    };
+    saveAppStateToDisk(inMemoryAppState);
+    console.log(`[MP Setu] Question Lock Updated: ${questionId} is now ${isLocked ? 'LOCKED' : 'UNLOCKED'}`);
+
+    return res.json({
+      success: true,
+      questionId,
+      isLocked: Boolean(isLocked),
+      question: inMemoryAppState.questions[idx]
+    });
+  }
+
+  res.status(404).json({ success: false, message: 'Question not found' });
+});
+
+// 4. Bulk Save Questions with Disk Flush & Lock Protection
+app.post('/api/questions/bulk', (req: Request, res: Response) => {
+  const { questions: incoming, mode = 'append', seriesId, setNumber } = req.body;
+  if (!Array.isArray(incoming) || incoming.length === 0) {
+    return res.status(400).json({ success: false, message: 'Invalid questions payload' });
+  }
+
+  if (!Array.isArray(inMemoryAppState.questions)) {
+    inMemoryAppState.questions = [];
+  }
+
+  if (mode === 'replace' && seriesId && setNumber) {
+    // In replace mode: ALWAYS PRESERVE ANY QUESTION THAT IS LOCKED!
+    const targetSetNum = Number(setNumber);
+    const retained = inMemoryAppState.questions.filter(q => {
+      if (q.isLocked === true) return true; // LOCKED QUESTIONS CANNOT BE OVERWRITTEN!
+      if (q.seriesId !== seriesId) return true;
+      const qSet = Number(q.setNumber) || 1;
+      return qSet !== targetSetNum;
+    });
+
+    const lockedInTargetSet = inMemoryAppState.questions.filter(q => 
+      q.isLocked === true && q.seriesId === seriesId && (Number(q.setNumber) || 1) === targetSetNum
+    );
+    const lockedIds = new Set(lockedInTargetSet.map(q => q.id));
+    const nonConflictingIncoming = incoming.filter(q => !lockedIds.has(q.id));
+
+    inMemoryAppState.questions = [...lockedInTargetSet, ...nonConflictingIncoming, ...retained.filter(q => !lockedIds.has(q.id))];
+  } else {
+    // Append or update mode
+    const qMap = new Map<string, any>();
+    inMemoryAppState.questions.forEach(q => qMap.set(q.id, q));
+
+    incoming.forEach((q: any) => {
+      if (q && q.id) {
+        const existing = qMap.get(q.id);
+        const isLocked = q.isLocked !== undefined ? Boolean(q.isLocked) : (existing && existing.isLocked === true);
+        qMap.set(q.id, {
+          ...(existing || {}),
+          ...q,
+          isLocked,
+          lockedAt: isLocked ? (q.lockedAt || existing?.lockedAt || new Date().toISOString()) : undefined,
+          slotNumber: q.slotNumber !== undefined ? q.slotNumber : existing?.slotNumber
+        });
+      }
+    });
+
+    inMemoryAppState.questions = Array.from(qMap.values());
+  }
+
+  saveAppStateToDisk(inMemoryAppState);
+  console.log(`[MP Setu] Bulk Questions (${incoming.length} Qs) Persisted to Disk`);
+
+  res.json({
+    success: true,
+    count: incoming.length,
+    totalQuestions: inMemoryAppState.questions.length,
+    message: 'Bulk questions saved and locked states protected'
+  });
+});
+
+// 5. Delete Question with Strict Lock Check
+app.delete('/api/questions/:id', (req: Request, res: Response) => {
+  const id = req.params.id;
+  if (!Array.isArray(inMemoryAppState.questions)) {
+    inMemoryAppState.questions = [];
+  }
+
+  const target = inMemoryAppState.questions.find(q => q.id === id);
+  if (target && target.isLocked) {
+    return res.status(400).json({
+      success: false,
+      message: 'यह प्रश्न लॉक (Locked) है! सुरक्षा हेतु इसे हटाया नहीं जा सकता।'
+    });
+  }
+
+  inMemoryAppState.questions = inMemoryAppState.questions.filter(q => q.id !== id);
+  saveAppStateToDisk(inMemoryAppState);
+  console.log(`[MP Setu] Question Deleted: ${id}`);
+
+  res.json({
+    success: true,
+    deletedId: id,
+    totalQuestions: inMemoryAppState.questions.length,
+    message: 'Question deleted successfully'
   });
 });
 
@@ -1380,7 +1574,7 @@ function getGenAI(): GoogleGenAI | null {
 }
 
 // Fallback Model Hierarchy to seamlessly absorb 503 / high demand spikes
-const RESILIENT_MODELS = ['gemini-3.7-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+const RESILIENT_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
 
 async function callGenAIWithFallback(
   ai: GoogleGenAI,
@@ -1757,6 +1951,102 @@ Output as JSON format.`;
   } catch (err) {
     console.warn('[AI Question Gen fallback]:', err);
     res.json({ success: true, question: defaultQuestion });
+  }
+});
+
+// 3B. High-Precision Auto-Translate Hindi Questions to Academic English
+app.post('/api/questions/auto-translate', async (req: Request, res: Response) => {
+  const { questions } = req.body || {};
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return res.status(400).json({ success: false, message: 'Questions array is required' });
+  }
+
+  const ai = getGenAI();
+  if (!ai) {
+    // Graceful offline fallback: preserve original text so user is never blocked
+    const fallbackList = questions.map((q: any) => ({
+      id: q.id,
+      questionEn: q.questionEn || q.questionHi || '',
+      optionsEn: (q.optionsEn && q.optionsEn.some((o: string) => o)) ? q.optionsEn : (q.optionsHi || []),
+      explanationEn: q.explanationEn || q.explanationHi || 'Solution provided in Hindi.'
+    }));
+    return res.json({
+      success: true,
+      translations: fallbackList,
+      source: 'offline_fallback',
+      message: 'No Gemini API key attached - preserved original questions'
+    });
+  }
+
+  try {
+    // Process in batches of up to 25 to respect token and JSON limits
+    const batch = questions.slice(0, 25);
+    const prompt = `You are a professional bilingual examination translator for Indian competitive exams (MPPSC, MP Patwari, MP Police, ESB).
+Translate each Hindi question, its 4 options, and explanation into natural, precise, and academically accurate English suitable for competitive exams.
+
+CRITICAL TRANSLATION MANDATES:
+1. MATHEMATICAL FORMULAS & EQUATIONS: Preserve all math formulas, symbols (e.g. x², √x, ±, π, %, ₹), equations, superscripts, and numbers exactly as given.
+2. OPTIONS: Maintain identical order for options (Option A, Option B, Option C, Option D).
+3. PROPER NOUNS: Use standard Roman transliteration for MP locations, districts, rivers, personalities (e.g., "Bhopal", "Mandla", "Narmada", "Sanchi Stupa").
+4. Output STRICT JSON format as an array of objects matching the schema without any markdown formatting or extra text:
+[
+  {
+    "id": "question id",
+    "questionEn": "English translation of question",
+    "optionsEn": ["Option A in English", "Option B in English", "Option C in English", "Option D in English"],
+    "explanationEn": "English translation of explanation"
+  }
+]
+
+Items to translate:
+${JSON.stringify(batch.map((q: any) => ({
+  id: q.id,
+  questionHi: q.questionHi,
+  optionsHi: q.optionsHi || (q.options ? q.options.map((o: any) => o.textHi) : []),
+  explanationHi: q.explanationHi || ''
+})))}`;
+
+    const { text, modelUsed } = await callGenAIWithFallback(ai, prompt, {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            questionEn: { type: Type.STRING },
+            optionsEn: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            explanationEn: { type: Type.STRING }
+          },
+          required: ['id', 'questionEn', 'optionsEn']
+        }
+      }
+    });
+
+    const parsed = JSON.parse(text || '[]');
+    return res.json({
+      success: true,
+      translations: parsed,
+      modelUsed
+    });
+  } catch (err: any) {
+    console.error('Auto-translate error:', err);
+    // Graceful fallback
+    const fallbackList = questions.map((q: any) => ({
+      id: q.id,
+      questionEn: q.questionEn || q.questionHi || '',
+      optionsEn: (q.optionsEn && q.optionsEn.some((o: string) => o)) ? q.optionsEn : (q.optionsHi || []),
+      explanationEn: q.explanationHi || ''
+    }));
+    return res.json({
+      success: true,
+      translations: fallbackList,
+      source: 'fallback_error',
+      warning: err.message
+    });
   }
 });
 

@@ -27,7 +27,7 @@ import {
   Unlock
 } from 'lucide-react';
 import { Question, TestSeries } from '../../types';
-import { MOCK_CATEGORY_OPTIONS, getResolvedMockQuestions } from '../../utils/questionBankHelper';
+import { MOCK_CATEGORY_OPTIONS, getDynamicMockCategoryOptions, getResolvedMockQuestions } from '../../utils/questionBankHelper';
 import { exportToXls, exportToCsv } from '../../utils/exportReports';
 import { StorageService } from '../../utils/storage';
 
@@ -90,15 +90,15 @@ export const QuestionAnalyticsDashboard: React.FC<QuestionAnalyticsDashboardProp
 
   // Compute PowerBI-grade statistics across all exams
   const examStats = useMemo<ExamStatItem[]>(() => {
-    // Filter out the 'all_questions' meta category
-    const categories = MOCK_CATEGORY_OPTIONS.filter(c => c.id !== 'all_questions');
+    // Filter out the 'all_questions' meta category and use dynamic categories matching user's packages
+    const categories = getDynamicMockCategoryOptions(testSeries).filter(c => c.id !== 'all_questions');
 
     return categories.map(cat => {
       const seriesObj = testSeries.find(s => s.id === cat.id);
-      const isMultiSet = cat.isMultiSet;
+      const isMultiSet = (seriesObj?.totalTests || 0) > 1 || cat.isMultiSet || cat.id === 'ts_patwari_2026' || cat.id === 'ts_agri_ext_2026';
       
       const totalSets = isMultiSet 
-        ? (cat.id === 'ts_patwari_2026' || cat.id === 'ts_agri_ext_2026' ? 20 : (seriesObj?.totalTests || 20))
+        ? (seriesObj?.totalTests || cat.totalSets || (cat.id === 'ts_patwari_2026' || cat.id === 'ts_agri_ext_2026' ? 20 : 20))
         : 1;
 
       const disabledSets = Array.isArray(seriesObj?.disabledSetNumbers) ? seriesObj.disabledSetNumbers : [];

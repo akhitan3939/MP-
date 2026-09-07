@@ -28,6 +28,17 @@ export const MOCK_CATEGORY_OPTIONS: MockCategoryOption[] = [
     icon: 'Sparkles',
   },
   {
+    id: 'ts_police_si_2026',
+    nameHi: '🎖️ MP पुलिस आरक्षक एवं सब-इंस्पेक्टर (SI) खाकी बैच',
+    nameEn: '🎖️ MP Police SI & Constable Mock Batch',
+    isMultiSet: true,
+    totalSets: 35,
+    totalQuestionsPerSet: 100,
+    badge: '35 सेट्स खाकी स्पेशल',
+    typeLabelHi: '35 फुल मॉक सेट्स (35 Full Sets)',
+    icon: 'Shield',
+  },
+  {
     id: 'ts_patwari_2026',
     nameHi: '🏛️ समूह-02 उपसमूह-04: पटवारी एवं समकक्ष (20 सेट्स)',
     nameEn: '🏛️ Group-02 Sub-04: Patwari & Equivalent (20 Sets)',
@@ -53,55 +64,44 @@ export const MOCK_CATEGORY_OPTIONS: MockCategoryOption[] = [
     id: 'ts_mppsc_pre_2026',
     nameHi: '🏛️ MPPSC राज्य सेवा प्रारंभिक परीक्षा (GS + CSAT)',
     nameEn: '🏛️ MPPSC State Service Prelims 2026',
-    isMultiSet: false,
-    totalSets: 1,
+    isMultiSet: true,
+    totalSets: 60,
     totalQuestionsPerSet: 100,
-    badge: 'आयोग पैटर्न',
-    typeLabelHi: 'एकल परीक्षा मॉक (Single Exam Mock)',
+    badge: '60 सेट्स आयोग पैटर्न',
+    typeLabelHi: '60 फुल मॉक सेट्स (60 Full Sets)',
     icon: 'BookOpen',
-  },
-  {
-    id: 'ts_police_si_2026',
-    nameHi: '🎖️ MP पुलिस आरक्षक एवं सब-इंस्पेक्टर (SI) खाकी बैच',
-    nameEn: '🎖️ MP Police SI & Constable Mock Batch',
-    isMultiSet: false,
-    totalSets: 1,
-    totalQuestionsPerSet: 100,
-    badge: 'खाकी वर्दी स्पेशल',
-    typeLabelHi: 'एकल परीक्षा मॉक (Single Exam Mock)',
-    icon: 'Shield',
   },
   {
     id: 'ts_vyapam_group4_2026',
     nameHi: '💻 MP व्यापम समूह-4 (सहायक ग्रेड-3 / स्टेनो / CPCT)',
     nameEn: '💻 MP Vyapam Group-4 AG-3 & Steno',
-    isMultiSet: false,
-    totalSets: 1,
+    isMultiSet: true,
+    totalSets: 35,
     totalQuestionsPerSet: 100,
-    badge: 'CPCT पैटर्न',
-    typeLabelHi: 'एकल परीक्षा मॉक (Single Exam Mock)',
+    badge: '35 सेट्स CPCT पैटर्न',
+    typeLabelHi: '35 फुल मॉक सेट्स (35 Full Sets)',
     icon: 'Monitor',
   },
   {
     id: 'ts_vanrakshak_2026',
     nameHi: '🌲 MP वनरक्षक (Forest Guard) एवं क्षेत्ररक्षक',
     nameEn: '🌲 MP Forest Guard (Vanrakshak)',
-    isMultiSet: false,
-    totalSets: 1,
+    isMultiSet: true,
+    totalSets: 30,
     totalQuestionsPerSet: 100,
-    badge: 'वन विभाग स्पेशल',
-    typeLabelHi: 'एकल परीक्षा मॉक (Single Exam Mock)',
+    badge: '30 सेट्स वन विभाग स्पेशल',
+    typeLabelHi: '30 फुल मॉक सेट्स (30 Full Sets)',
     icon: 'TreePine',
   },
   {
     id: 'ts_mptet_2026',
     nameHi: '📚 MP TET शिक्षक पात्रता परीक्षा (वर्ग 2 व 3)',
     nameEn: '📚 MP TET Teacher Eligibility Test',
-    isMultiSet: false,
-    totalSets: 1,
+    isMultiSet: true,
+    totalSets: 40,
     totalQuestionsPerSet: 150,
-    badge: 'शिक्षाशास्त्र विशेष',
-    typeLabelHi: 'एकल परीक्षा मॉक (Single Exam Mock)',
+    badge: '40 सेट्स शिक्षाशास्त्र विशेष',
+    typeLabelHi: '40 फुल मॉक सेट्स (40 Full Sets)',
     icon: 'GraduationCap',
   },
   {
@@ -116,6 +116,48 @@ export const MOCK_CATEGORY_OPTIONS: MockCategoryOption[] = [
     icon: 'Database',
   }
 ];
+
+/**
+ * Returns dynamic category options synchronized with live test series (package sets count)
+ */
+export function getDynamicMockCategoryOptions(testSeriesList: TestSeries[] = []): MockCategoryOption[] {
+  const result: MockCategoryOption[] = [];
+
+  // 1. Always start with 40-Q Free Mock
+  result.push(MOCK_CATEGORY_OPTIONS[0]);
+
+  // 2. Map all test series from live AppContext / package configuration
+  testSeriesList.forEach(ts => {
+    const defaultOpt = MOCK_CATEGORY_OPTIONS.find(c => c.id === ts.id);
+    const totalSets = Number(ts.totalTests) || defaultOpt?.totalSets || (ts.id === 'ts_patwari_2026' || ts.id === 'ts_agri_ext_2026' ? 20 : 1);
+    const isMultiSet = totalSets > 1;
+    const questionsPerSet = ts.totalQuestions || defaultOpt?.totalQuestionsPerSet || (ts.id === 'ts_patwari_2026' || ts.id === 'ts_agri_ext_2026' ? 200 : 100);
+
+    result.push({
+      id: ts.id,
+      nameHi: ts.titleHi || defaultOpt?.nameHi || 'मॉक टेस्ट सीरीज़',
+      nameEn: ts.titleEn || defaultOpt?.nameEn || 'Mock Test Series',
+      isMultiSet,
+      totalSets,
+      totalQuestionsPerSet: questionsPerSet,
+      badge: isMultiSet ? `${totalSets} सेट्स बंडल` : 'एकल मॉक',
+      typeLabelHi: isMultiSet ? `${totalSets} फुल मॉक सेट्स` : 'एकल मॉक टेस्ट',
+      icon: defaultOpt?.icon || 'Award'
+    });
+  });
+
+  // 3. Any category in default options not yet included (except all_questions and free_mock_40)
+  MOCK_CATEGORY_OPTIONS.forEach(cat => {
+    if (cat.id !== 'free_mock_40' && cat.id !== 'all_questions' && !result.some(r => r.id === cat.id)) {
+      result.push(cat);
+    }
+  });
+
+  // 4. Always end with all_questions master repository
+  result.push(MOCK_CATEGORY_OPTIONS[MOCK_CATEGORY_OPTIONS.length - 1]);
+
+  return result;
+}
 
 /**
  * Accurately decodes which Exam Series and which Mock Set a question belongs to.
@@ -183,76 +225,107 @@ export function getResolvedMockQuestions(
   setNumber: number = 1,
   appContextQuestions: Question[] = []
 ): Question[] {
-  let baseQuestions: Question[] = [];
+  const targetSet = Number(setNumber) || 1;
 
   if (mockType === 'free_mock_40') {
-    // Map exclusive 40 questions
-    baseQuestions = EXCLUSIVE_FREE_MOCK_QUESTIONS.map(q => ({
-      ...q,
-      seriesId: 'free_mock_40',
-      setNumber: 1
-    }));
-  } else if (mockType === 'ts_patwari_2026') {
-    baseQuestions = getPatwariQuestionsForSet(setNumber).map(q => ({
-      ...q,
-      seriesId: 'ts_patwari_2026',
-      setNumber: setNumber
-    }));
-  } else if (mockType === 'ts_agri_ext_2026') {
-    baseQuestions = getAgriQuestionsForSet(setNumber).map(q => ({
-      ...q,
-      seriesId: 'ts_agri_ext_2026',
-      setNumber: setNumber
-    }));
-  } else if (mockType === 'all_questions') {
-    // Return all questions across the entire platform in a single Master Sheet
-    return getAllQuestionsForSeries('all_questions', appContextQuestions, 20);
-  } else {
-    // Other series: check AppContext questions or provide standard questions
-    const matching = appContextQuestions.filter(q => q.seriesId === mockType);
-    if (matching.length > 0) {
-      baseQuestions = matching.map(q => ({ ...q, setNumber: q.setNumber || 1 }));
-    } else {
-      // Fallback base questions
-      baseQuestions = EXCLUSIVE_FREE_MOCK_QUESTIONS.slice(0, 15).map((q, idx) => ({
-        ...q,
-        id: `${mockType}_q_${idx + 1}`,
-        seriesId: mockType,
-        setNumber: 1,
-        topic: `${q.subject} - अभ्यास प्रश्न`
-      }));
-    }
+    // Return 40 questions of free mock merged with custom overrides
+    const customMap = new Map<string, Question>();
+    appContextQuestions.forEach(cq => {
+      if (cq.seriesId === 'free_mock_40' || cq.id.startsWith('free_q_')) {
+        customMap.set(cq.id, cq);
+      }
+    });
+
+    const base = EXCLUSIVE_FREE_MOCK_QUESTIONS.map(q => {
+      if (customMap.has(q.id)) {
+        return { ...q, ...customMap.get(q.id), seriesId: 'free_mock_40', setNumber: 1 };
+      }
+      return { ...q, seriesId: 'free_mock_40', setNumber: 1 };
+    });
+
+    const baseIds = new Set(base.map(q => q.id));
+    const extra = appContextQuestions.filter(q => (q.seriesId === 'free_mock_40' || q.id.startsWith('free_q_')) && !baseIds.has(q.id));
+    return [...base, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
   }
 
-  // Merge with any custom overrides in appContextQuestions by ID
-  const customMap = new Map<string, Question>();
-  appContextQuestions.forEach(cq => {
-    customMap.set(cq.id, cq);
+  if (mockType === 'ts_patwari_2026') {
+    const baseQuestions = getPatwariQuestionsForSet(targetSet).map(q => ({
+      ...q,
+      seriesId: 'ts_patwari_2026',
+      setNumber: targetSet
+    }));
+
+    const customMap = new Map<string, Question>();
+    appContextQuestions.forEach(cq => {
+      if (cq.seriesId === 'ts_patwari_2026' || cq.id.startsWith(`pat_set_${targetSet}_`)) {
+        customMap.set(cq.id, cq);
+      }
+    });
+
+    const resolvedBase = baseQuestions.map(bq => {
+      if (customMap.has(bq.id)) {
+        return { ...bq, ...customMap.get(bq.id), setNumber: targetSet };
+      }
+      return bq;
+    });
+
+    const baseIds = new Set(resolvedBase.map(q => q.id));
+    const extra = appContextQuestions.filter(cq => {
+      if (baseIds.has(cq.id)) return false;
+      if (cq.seriesId !== 'ts_patwari_2026' && !cq.id.startsWith('pat_set_')) return false;
+      const qSet = Number(cq.setNumber) || (cq.id.match(/pat_set_(\d+)_/) ? parseInt(cq.id.match(/pat_set_(\d+)_/)![1], 10) : 1);
+      return qSet === targetSet;
+    });
+
+    return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+  }
+
+  if (mockType === 'ts_agri_ext_2026') {
+    const baseQuestions = getAgriQuestionsForSet(targetSet).map(q => ({
+      ...q,
+      seriesId: 'ts_agri_ext_2026',
+      setNumber: targetSet
+    }));
+
+    const customMap = new Map<string, Question>();
+    appContextQuestions.forEach(cq => {
+      if (cq.seriesId === 'ts_agri_ext_2026' || cq.id.startsWith(`agri_set_${targetSet}_`)) {
+        customMap.set(cq.id, cq);
+      }
+    });
+
+    const resolvedBase = baseQuestions.map(bq => {
+      if (customMap.has(bq.id)) {
+        return { ...bq, ...customMap.get(bq.id), setNumber: targetSet };
+      }
+      return bq;
+    });
+
+    const baseIds = new Set(resolvedBase.map(q => q.id));
+    const extra = appContextQuestions.filter(cq => {
+      if (baseIds.has(cq.id)) return false;
+      if (cq.seriesId !== 'ts_agri_ext_2026' && !cq.id.startsWith('agri_set_')) return false;
+      const qSet = Number(cq.setNumber) || (cq.id.match(/agri_set_(\d+)_/) ? parseInt(cq.id.match(/agri_set_(\d+)_/)![1], 10) : 1);
+      return qSet === targetSet;
+    });
+
+    return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+  }
+
+  if (mockType === 'all_questions') {
+    return getAllQuestionsForSeries('all_questions', appContextQuestions, 20);
+  }
+
+  // ALL OTHER SERIES (e.g. ts_police_si_2026, ts_mppsc_pre_2026, ts_vyapam_group4_2026, etc.):
+  // Strictly return only questions that match this mockType AND this targetSet!
+  // NO FAKE FALLBACKS! Sets with no questions remain completely blank.
+  const matching = appContextQuestions.filter(q => {
+    if (q.seriesId !== mockType) return false;
+    const qSet = Number(q.setNumber) || 1;
+    return qSet === targetSet;
   });
 
-  const resolvedBase = baseQuestions.map(bq => {
-    if (customMap.has(bq.id)) {
-      return { ...bq, ...customMap.get(bq.id), setNumber: bq.setNumber || setNumber };
-    }
-    return { ...bq, setNumber: bq.setNumber || setNumber };
-  });
-
-  // Also include newly added custom questions for this series and set number that are NOT in baseQuestions
-  const baseIds = new Set(resolvedBase.map(q => q.id));
-  const additionalCustom = appContextQuestions.filter(cq => {
-    if (baseIds.has(cq.id)) return false;
-    if (mockType === 'all_questions') return true;
-    if (cq.seriesId !== mockType) return false;
-    
-    // Check set number match for multi-set
-    if (mockType === 'ts_patwari_2026' || mockType === 'ts_agri_ext_2026') {
-      const qSetNum = cq.setNumber || (cq.id.includes(`set_${setNumber}_`) ? setNumber : 1);
-      return qSetNum === setNumber;
-    }
-    return true;
-  });
-
-  return [...resolvedBase, ...additionalCustom];
+  return matching.sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
 }
 
 /**
@@ -301,10 +374,5 @@ export function getAllQuestionsForSeries(
   }
 
   // Generic series
-  const matching = appContextQuestions.filter(q => q.seriesId === seriesId);
-  if (matching.length > 0) {
-    return matching;
-  }
-
-  return getResolvedMockQuestions(seriesId, 1, appContextQuestions);
+  return appContextQuestions.filter(q => q.seriesId === seriesId);
 }
