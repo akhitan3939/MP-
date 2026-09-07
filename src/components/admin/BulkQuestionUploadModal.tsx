@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   UploadCloud, 
   FileSpreadsheet, 
@@ -25,7 +25,8 @@ import {
   Sliders, 
   ArrowRight,
   Calculator,
-  Edit3
+  Edit3,
+  Plus
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Question, TestSeries } from '../../types';
@@ -119,9 +120,12 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
   const [targetSetNumber, setTargetSetNumber] = useState<number>(initialSetNumber || 1);
   const [useFileSetNumbers, setUseFileSetNumbers] = useState<boolean>(false);
 
-  // Common defaults
+  // Common defaults & dynamic subjects
   const [defaultSubject, setDefaultSubject] = useState<string>('सामान्य ज्ञान व म.प्र. सामान्य ज्ञान');
   const [defaultTopic, setDefaultTopic] = useState<string>('');
+  const [isCustomSubject, setIsCustomSubject] = useState<boolean>(false);
+  const [customSubjectInput, setCustomSubjectInput] = useState<string>('');
+  const [bulkChangeSubject, setBulkChangeSubject] = useState<string>('सामान्य ज्ञान व म.प्र. सामान्य ज्ञान');
   
   // Easy Paste text state
   const [pastedText, setPastedText] = useState<string>('');
@@ -156,6 +160,46 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                      targetSeriesId === 'ts_agri_ext_2026';
   const totalSetsAvailable = selectedSeriesObj?.totalTests || (isMultiSet ? 20 : 1);
   const targetLimit = selectedSeriesObj?.totalQuestions || 100;
+
+  // Dynamically extract subjects for the active test series from syllabus
+  const seriesSyllabusSubjects = useMemo(() => {
+    const list: string[] = [];
+    if (selectedSeriesObj && Array.isArray(selectedSeriesObj.syllabus) && selectedSeriesObj.syllabus.length > 0) {
+      selectedSeriesObj.syllabus.forEach(item => {
+        const name = (item.sectionHi || item.section || '').trim();
+        if (name && !list.includes(name)) {
+          list.push(name);
+        }
+      });
+    }
+    return list;
+  }, [selectedSeriesObj]);
+
+  // Combined available subjects (series syllabus first, then standard common subjects)
+  const availableSubjectsForSeries = useMemo(() => {
+    const list = [...seriesSyllabusSubjects];
+    DEFAULT_SUBJECTS.forEach(sub => {
+      if (!list.includes(sub)) {
+        list.push(sub);
+      }
+    });
+    return list;
+  }, [seriesSyllabusSubjects]);
+
+  // When selected series changes, automatically update defaultSubject and bulkChangeSubject
+  useEffect(() => {
+    if (seriesSyllabusSubjects.length > 0) {
+      const firstSub = seriesSyllabusSubjects[0];
+      setDefaultSubject(firstSub);
+      setBulkChangeSubject(firstSub);
+      setIsCustomSubject(false);
+    } else if (targetSeriesId === 'free_mock_40') {
+      const freeMockDef = 'सामान्य ज्ञान व म.प्र. सामान्य ज्ञान';
+      setDefaultSubject(freeMockDef);
+      setBulkChangeSubject(freeMockDef);
+      setIsCustomSubject(false);
+    }
+  }, [targetSeriesId, seriesSyllabusSubjects]);
 
   // Existing count in target set
   const currentCount = useMemo(() => {
@@ -193,13 +237,15 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
   };
 
   // Helper to parse option index from A/B/C/D or 1/2/3/4
+  // Helper to parse option index from A/B/C/D or 1/2/3/4 or (A)/(B) or Option A
   const parseCorrectOptionIndex = (val: any): number => {
     if (val === undefined || val === null) return 0;
-    const s = String(val).trim().toUpperCase();
-    if (s.startsWith('A') || s.startsWith('1') || s.startsWith('क')) return 0;
-    if (s.startsWith('B') || s.startsWith('2') || s.startsWith('ख')) return 1;
-    if (s.startsWith('C') || s.startsWith('3') || s.startsWith('ग')) return 2;
-    if (s.startsWith('D') || s.startsWith('4') || s.startsWith('घ')) return 3;
+    const raw = String(val).replace(/[\u200B-\u200D\uFEFF]/g, '').trim().toUpperCase();
+    const s = raw.replace(/[\(\)\[\]\{\}\.\:\-\s]/g, '');
+    if (s.includes('A') || s === '1' || s.includes('क') || s.startsWith('OPTIONA') || s.startsWith('OPTA')) return 0;
+    if (s.includes('B') || s === '2' || s.includes('ख') || s.startsWith('OPTIONB') || s.startsWith('OPTB')) return 1;
+    if (s.includes('C') || s === '3' || s.includes('ग') || s.startsWith('OPTIONC') || s.startsWith('OPTC')) return 2;
+    if (s.includes('D') || s === '4' || s.includes('घ') || s.startsWith('OPTIOND') || s.startsWith('OPTD')) return 3;
     const n = parseInt(s, 10);
     if (!isNaN(n) && n >= 1 && n <= 4) return n - 1;
     return 0;
@@ -468,16 +514,20 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
     setActiveTab('preview');
   };
 
-  // Helper to read flexible column names
+  // Helper to read flexible column names safely, cleaning zero-width chars and BOM
   const getVal = (row: any, possibleKeys: string[]): string => {
+    if (!row || typeof row !== 'object') return '';
+    const cleanStr = (s: string) => String(s).replace(/[\u200B-\u200D\uFEFF]/g, '').trim().toLowerCase();
+
     for (const key of possibleKeys) {
-      if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
-        return String(row[key]).trim();
+      if (row[key] !== undefined && row[key] !== null) {
+        const v = String(row[key]).replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+        if (v !== '') return v;
       }
-      const lowerKey = key.toLowerCase();
+      const cleanKey = cleanStr(key);
       for (const actualKey of Object.keys(row)) {
-        if (actualKey.trim().toLowerCase() === lowerKey && row[actualKey] !== undefined && row[actualKey] !== null) {
-          const v = String(row[actualKey]).trim();
+        if (cleanStr(actualKey) === cleanKey && row[actualKey] !== undefined && row[actualKey] !== null) {
+          const v = String(row[actualKey]).replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
           if (v !== '') return v;
         }
       }
@@ -485,121 +535,216 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
     return '';
   };
 
-  // Parse Excel / CSV files
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Robust, universally resilient Excel / CSV file parser
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const rawData: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    // Reset input value so re-uploading the same file always triggers onChange
+    e.target.value = '';
 
-        setRawRowCount(rawData.length);
+    setValidationErrors([]);
+    showToast('📂 फ़ाइल पढ़ी जा रही है...');
 
-        if (!rawData || rawData.length === 0) {
-          setValidationErrors(['अपलोड की गई फ़ाइल में कोई डेटा नहीं मिला।']);
+    try {
+      const buffer = await file.arrayBuffer();
+      const data = new Uint8Array(buffer);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
+
+      if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+        setValidationErrors([`अपलोड की गई फ़ाइल (${file.name}) में कोई वर्कशीट नहीं मिली।`]);
+        return;
+      }
+
+      // Find first non-empty sheet
+      let targetWs: XLSX.WorkSheet | null = null;
+      let rawSheetRows: any[][] = [];
+
+      for (const name of wb.SheetNames) {
+        const sheet = wb.Sheets[name];
+        if (sheet && sheet['!ref']) {
+          const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          const nonBlank = rows.filter(r => Array.isArray(r) && r.some(c => String(c).trim() !== ''));
+          if (nonBlank.length > 0) {
+            targetWs = sheet;
+            rawSheetRows = rows;
+            break;
+          }
+        }
+      }
+
+      if (!targetWs || rawSheetRows.length === 0) {
+        setValidationErrors([`अपलोड की गई फ़ाइल (${file.name}) में कोई डेटा पंक्तियाँ नहीं मिलीं। कृपया सुनिश्चित करें कि फ़ाइल में प्रश्न भरे गए हैं।`]);
+        return;
+      }
+
+      // Detect header row index (scanning first 10 rows)
+      let headerRowIndex = -1;
+      let headerCols: string[] = [];
+
+      for (let r = 0; r < Math.min(rawSheetRows.length, 10); r++) {
+        const row = rawSheetRows[r];
+        if (!Array.isArray(row)) continue;
+        const rowText = row.map(c => String(c).replace(/[\u200B-\u200D\uFEFF]/g, '').toLowerCase().trim());
+        const hasQ = rowText.some(c => c.includes('प्रश्न') || c.includes('question') || c.includes('सवाल') || c === 'q' || c === 'q.');
+        const hasOpt = rowText.some(c => c.includes('विकल्प') || c.includes('option') || c === 'a' || c === 'opt' || c === 'opta');
+        const hasAns = rowText.some(c => c.includes('उत्तर') || c.includes('answer') || c.includes('correct') || c === 'ans');
+
+        if (hasQ || (hasOpt && hasAns)) {
+          headerRowIndex = r;
+          headerCols = row.map(c => String(c).replace(/[\u200B-\u200D\uFEFF]/g, '').trim());
+          break;
+        }
+      }
+
+      // Convert rows into row objects
+      const dataRows: any[] = [];
+      const startIdx = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
+
+      for (let r = startIdx; r < rawSheetRows.length; r++) {
+        const row = rawSheetRows[r];
+        if (!Array.isArray(row)) continue;
+        // Skip purely blank rows
+        const hasAnyContent = row.some(cell => String(cell).trim() !== '');
+        if (!hasAnyContent) continue;
+
+        if (headerRowIndex >= 0) {
+          const rowObj: Record<string, any> = {};
+          headerCols.forEach((colName, cIdx) => {
+            if (colName) {
+              rowObj[colName] = row[cIdx] !== undefined ? row[cIdx] : '';
+            }
+          });
+          dataRows.push(rowObj);
+        } else {
+          // Positional fallback if no header row detected
+          dataRows.push({
+            'प्रश्न (हिन्दी)': row[0] || '',
+            'विकल्प A': row[1] || '',
+            'विकल्प B': row[2] || '',
+            'विकल्प C': row[3] || '',
+            'विकल्प D': row[4] || '',
+            'सही उत्तर': row[5] || 'A',
+            'विषय (Subject)': row[6] || '',
+            'व्याख्या': row[7] || ''
+          });
+        }
+      }
+
+      setRawRowCount(dataRows.length);
+
+      if (dataRows.length === 0) {
+        setValidationErrors(['फ़ाइल में कोई प्रश्न प्रविष्टियाँ (Question entries) नहीं मिलीं।']);
+        return;
+      }
+
+      const validQuestions: Question[] = [];
+      const errors: string[] = [];
+      const baseSlot = currentCount + 1;
+
+      dataRows.forEach((row, idx) => {
+        const rowNum = idx + (headerRowIndex >= 0 ? headerRowIndex + 2 : 1);
+
+        const qHi = getVal(row, ['प्रश्न (हिन्दी)', 'Question (Hindi)', 'प्रश्न', 'Question', 'qHi', 'questionHi', 'सवाल', 'Q']);
+        const qEn = getVal(row, ['प्रश्न (English)', 'Question (English)', 'Question_En', 'qEn', 'questionEn']);
+
+        const optA = getVal(row, ['विकल्प A', 'Option A', 'optA', 'Option 1', 'विकल्प 1', 'A', 'Option_A']);
+        const optB = getVal(row, ['विकल्प B', 'Option B', 'optB', 'Option 2', 'विकल्प 2', 'B', 'Option_B']);
+        const optC = getVal(row, ['विकल्प C', 'Option C', 'optC', 'Option 3', 'विकल्प 3', 'C', 'Option_C']);
+        const optD = getVal(row, ['विकल्प D', 'Option D', 'optD', 'Option 4', 'विकल्प 4', 'D', 'Option_D']);
+
+        const correctVal = getVal(row, ['सही उत्तर विकल्प', 'सही उत्तर', 'Correct Option', 'Answer', 'Ans', 'Correct', 'उत्तर', 'Key']);
+        const explanationHi = getVal(row, ['व्याख्या (Solution)', 'व्याख्या (हिन्दी)', 'व्याख्या', 'Explanation', 'Solution', 'हल', 'विवरण', 'Note']);
+        const explanationEn = getVal(row, ['व्याख्या (English)', 'Explanation (English)', 'Explanation_En']);
+
+        // Per-question Subject & Topic mapping!
+        const subjectVal = getVal(row, ['विषय (Subject)', 'विषय', 'Subject', 'Subject Name', 'Section', 'विभाग', 'विषय का नाम']) || defaultSubject;
+        const topicVal = getVal(row, ['टॉपिक', 'Topic', 'अध्याय', 'Chapter']) || defaultTopic || subjectVal;
+
+        if (!qHi && !qEn) {
+          errors.push(`पंक्ति ${rowNum}: प्रश्न का विवरण (Question text) खाली है।`);
           return;
         }
 
-        const validQuestions: Question[] = [];
-        const errors: string[] = [];
-        const baseSlot = currentCount + 1;
-
-        rawData.forEach((row, idx) => {
-          const rowNum = idx + 2;
-
-          const qHi = getVal(row, ['प्रश्न (हिन्दी)', 'Question (Hindi)', 'प्रश्न', 'Question', 'qHi', 'questionHi', 'सवाल']);
-          const qEn = getVal(row, ['प्रश्न (English)', 'Question (English)', 'Question_En', 'qEn', 'questionEn']);
-
-          const optA = getVal(row, ['विकल्प A', 'Option A', 'optA', 'Option 1', 'विकल्प 1', 'A']);
-          const optB = getVal(row, ['विकल्प B', 'Option B', 'optB', 'Option 2', 'विकल्प 2', 'B']);
-          const optC = getVal(row, ['विकल्प C', 'Option C', 'optC', 'Option 3', 'विकल्प 3', 'C']);
-          const optD = getVal(row, ['विकल्प D', 'Option D', 'optD', 'Option 4', 'विकल्प 4', 'D']);
-
-          const correctVal = getVal(row, ['सही उत्तर विकल्प', 'सही उत्तर', 'Correct Option', 'Answer', 'Ans', 'Correct', 'उत्तर']);
-          const explanationHi = getVal(row, ['व्याख्या (Solution)', 'व्याख्या (हिन्दी)', 'व्याख्या', 'Explanation', 'Solution', 'हल', 'विवरण']);
-          const explanationEn = getVal(row, ['व्याख्या (English)', 'Explanation (English)', 'Explanation_En']);
-
-          if (!qHi && !qEn) {
-            errors.push(`पंक्ति ${rowNum}: प्रश्न का विवरण (Question text) खाली है।`);
-            return;
-          }
-
-          if (!optA || !optB) {
-            errors.push(`पंक्ति ${rowNum}: कम से कम विकल्प A और B होना अनिवार्य है।`);
-            return;
-          }
-
-          const correctIndex = parseCorrectOptionIndex(correctVal);
-          const qId = `q_xl_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
-          const slotNum = Math.min(targetLimit, baseSlot + validQuestions.length);
-
-          const subjectVal = getVal(row, ['विषय (Subject)', 'विषय', 'Subject']) || defaultSubject;
-          const topicVal = getVal(row, ['टॉपिक', 'Topic']) || defaultTopic || subjectVal;
-
-          validQuestions.push({
-            id: qId,
-            seriesId: targetSeriesId,
-            setNumber: targetSetNumber,
-            slotNumber: slotNum,
-            subject: subjectVal,
-            topic: topicVal,
-            section: subjectVal,
-            difficulty: 'medium',
-            marks: 1,
-            negativeMarks: 0,
-            questionHi: qHi || qEn,
-            questionEn: qEn || '',
-            options: [
-              { id: `${qId}_1`, textHi: optA, textEn: '' },
-              { id: `${qId}_2`, textHi: optB, textEn: '' },
-              { id: `${qId}_3`, textHi: optC || 'विकल्प C', textEn: '' },
-              { id: `${qId}_4`, textHi: optD || 'विकल्प D', textEn: '' }
-            ],
-            correctOption: correctIndex,
-            correctOptionIndex: correctIndex,
-            explanationHi: explanationHi || '',
-            explanationEn: explanationEn || '',
-            isLocked: true, // LOCKED FOR SAFETY
-            lockedAt: new Date().toISOString()
-          });
-        });
-
-        setValidationErrors(errors);
-
-        if (validQuestions.length > 0) {
-          showToast(`✅ ${validQuestions.length} प्रश्न फ़ाइल से लोड हुए!`);
-          let finalQs = validQuestions;
-          if (autoTranslateEnabled) {
-            showToast('🔄 AI द्वारा अंग्रेजी अनुवाद प्रारंभ...');
-            finalQs = await performAutoTranslate(validQuestions);
-            showToast('🎉 अनुवाद पूर्ण!');
-          }
-          setParsedQuestions(finalQs);
-          setActiveTab('preview');
-        } else {
-          showToast('❌ फ़ाइल में कोई वैध प्रश्न नहीं मिले।');
+        if (!optA || !optB) {
+          errors.push(`पंक्ति ${rowNum}: कम से कम विकल्प A और B होना अनिवार्य है।`);
+          return;
         }
-      } catch (err: any) {
-        console.error('File parsing error:', err);
-        setValidationErrors([`फ़ाइल पढ़ने में त्रुटि: ${err.message || 'फ़ाइल का प्रारूप अमान्य है'}`]);
+
+        let correctIndex = parseCorrectOptionIndex(correctVal);
+        // Smart fallback: if user wrote the option text directly in correct answer cell
+        if (correctVal && !['A','B','C','D','1','2','3','4','क','ख','ग','घ'].includes(String(correctVal).trim().toUpperCase())) {
+          const normAns = String(correctVal).trim().toLowerCase();
+          if (normAns === String(optA).trim().toLowerCase()) correctIndex = 0;
+          else if (normAns === String(optB).trim().toLowerCase()) correctIndex = 1;
+          else if (normAns === String(optC).trim().toLowerCase()) correctIndex = 2;
+          else if (normAns === String(optD).trim().toLowerCase()) correctIndex = 3;
+        }
+
+        const qId = `q_xl_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+        const slotNum = Math.min(targetLimit, baseSlot + validQuestions.length);
+
+        validQuestions.push({
+          id: qId,
+          seriesId: targetSeriesId,
+          setNumber: targetSetNumber,
+          slotNumber: slotNum,
+          subject: subjectVal,
+          topic: topicVal,
+          section: subjectVal,
+          difficulty: 'medium',
+          marks: 1,
+          negativeMarks: 0,
+          questionHi: qHi || qEn,
+          questionEn: qEn || '',
+          options: [
+            { id: `${qId}_1`, textHi: optA, textEn: '' },
+            { id: `${qId}_2`, textHi: optB, textEn: '' },
+            { id: `${qId}_3`, textHi: optC || 'विकल्प C', textEn: '' },
+            { id: `${qId}_4`, textHi: optD || 'विकल्प D', textEn: '' }
+          ],
+          correctOption: correctIndex,
+          correctOptionIndex: correctIndex,
+          explanationHi: explanationHi || '',
+          explanationEn: explanationEn || '',
+          isLocked: true, // LOCKED FOR SAFETY
+          lockedAt: new Date().toISOString()
+        });
+      });
+
+      setValidationErrors(errors);
+
+      if (validQuestions.length > 0) {
+        showToast(`✅ ${validQuestions.length} प्रश्न फ़ाइल से सफलतापूर्वक लोड हुए!`);
+        let finalQs = validQuestions;
+        if (autoTranslateEnabled) {
+          showToast('🔄 AI द्वारा अंग्रेजी अनुवाद व व्याख्या निर्माण प्रारंभ...');
+          finalQs = await performAutoTranslate(validQuestions);
+          showToast('🎉 अनुवाद व प्रामाणिक व्याख्या तैयार!');
+        }
+        setParsedQuestions(finalQs);
+        setActiveTab('preview');
+      } else {
+        showToast('❌ फ़ाइल में कोई वैध प्रश्न नहीं मिले। कृपया कॉलम हेडर जांचें।');
       }
-    };
-    reader.readAsBinaryString(file);
+    } catch (err: any) {
+      console.error('File parsing error:', err);
+      setValidationErrors([`फ़ाइल पढ़ने में त्रुटि: ${err.message || 'फ़ाइल का प्रारूप अमान्य है'}`]);
+    }
   };
 
-  // Download Sample Files
+  // Download Sample Files with Per-Question Subject column
   const handleDownloadSample = (type: 'simple' | 'detailed', format: 'xls' | 'csv') => {
     let sampleData: any[] = [];
 
+    // Dynamically pick subjects from current test series
+    const sub1 = availableSubjectsForSeries[0] || 'सामान्य ज्ञान व म.प्र. सामान्य ज्ञान';
+    const sub2 = availableSubjectsForSeries[1] || 'सामान्य गणित एवं संख्यात्मक अभिरुचि';
+    const sub3 = availableSubjectsForSeries[2] || 'सामान्य विज्ञान (भौतिक, रसायन, जीव)';
+    const sub4 = availableSubjectsForSeries[3] || 'सामान्य हिन्दी';
+
     if (type === 'simple') {
-      // Simple 7-column format as shown in founder's table:
-      // [ प्रश्न (हिन्दी) | विकल्प A | विकल्प B | विकल्प C | विकल्प D | सही उत्तर | व्याख्या ]
+      // 8-column format with individual per-question Subject!
       sampleData = [
         {
           'प्रश्न (हिन्दी)': 'मध्य प्रदेश का सबसे बड़ा राष्ट्रीय उद्यान कौन सा है?',
@@ -608,6 +753,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'विकल्प C': 'पेंच राष्ट्रीय उद्यान',
           'विकल्प D': 'पन्ना राष्ट्रीय उद्यान',
           'सही उत्तर': 'A',
+          'विषय (Subject)': sub1,
           'व्याख्या': 'कान्हा किसली राष्ट्रीय उद्यान मण्डला व बालाघाट जिले में 940 वर्ग किमी क्षेत्र में स्थित है। यह 1955 में नेशनल पार्क और 1973-74 में म.प्र. का पहला प्रोजेक्ट टाइगर बना।'
         },
         {
@@ -617,6 +763,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'विकल्प C': 'बैतूल (मुलताई)',
           'विकल्प D': 'धार (सरदारपुर)',
           'सही उत्तर': 'A',
+          'विषय (Subject)': sub1,
           'व्याख्या': '' // (खाली छोड़ सकते हैं - AI पूरी विस्तृत व्याख्या, अन्य विकल्पों का विश्लेषण व परीक्षा तथ्य स्वतः तैयार करेगा!)
         },
         {
@@ -626,15 +773,37 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'विकल्प C': '1 और 6',
           'विकल्प D': '0 और 5',
           'सही उत्तर': 'A',
+          'विषय (Subject)': sub2,
           'व्याख्या': '' // (गणित: AI स्वतः सूत्र, नियम और चरण-दर-चरण पूरा हल लिखेगा!)
         },
         {
-          'प्रश्न (हिन्दी)': 'साधारण ब्याज का सूत्र क्या है?',
+          'प्रश्न (हिन्दी)': 'साधारण ब्याज (Simple Interest) का सही सूत्र क्या है?',
           'विकल्प A': 'SI = (P × R × T) / 100',
           'विकल्प B': 'SI = P(1 + R/100)ⁿ',
           'विकल्प C': 'SI = P + R + T',
           'विकल्प D': 'SI = (P × R) / T',
           'सही उत्तर': 'A',
+          'विषय (Subject)': sub2,
+          'व्याख्या': ''
+        },
+        {
+          'प्रश्न (हिन्दी)': 'मानव शरीर में रक्त का शुद्धिकरण (Blood Purification) किस अंग द्वारा होता है?',
+          'विकल्प A': 'वृक्क (Kidney)',
+          'विकल्प B': 'हृदय (Heart)',
+          'विकल्प C': 'यकृत (Liver)',
+          'विकल्प D': 'फेफड़े (Lungs)',
+          'सही उत्तर': 'A',
+          'विषय (Subject)': sub3,
+          'व्याख्या': ''
+        },
+        {
+          'प्रश्न (हिन्दी)': 'संधि के कितने मुख्य भेद होते हैं?',
+          'विकल्प A': 'तीन (स्वर, व्यंजन, विसर्ग)',
+          'विकल्प B': 'दो',
+          'विकल्प C': 'चार',
+          'विकल्प D': 'पांच',
+          'सही उत्तर': 'A',
+          'विषय (Subject)': sub4,
           'व्याख्या': ''
         }
       ];
@@ -645,7 +814,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'क्र.सं. (Q#)': 1,
           'मॉक सीरीज़': selectedSeriesObj?.titleHi || 'पटवारी',
           'सेट नं.': targetSetNumber,
-          'विषय (Subject)': defaultSubject,
+          'विषय (Subject)': sub1,
           'टॉपिक': 'म.प्र. राष्ट्रीय उद्यान',
           'कठिनाई (Difficulty)': 'medium',
           'प्रश्न (हिन्दी)': 'मध्य प्रदेश में कान्हा राष्ट्रीय उद्यान किस जिले में है?',
@@ -656,17 +825,48 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'विकल्प D': 'रीवा',
           'सही उत्तर': 'A',
           'व्याख्या (Solution)': 'कान्हा किसली राष्ट्रीय उद्यान मण्डला जिले में है।'
+        },
+        {
+          'क्र.सं. (Q#)': 2,
+          'मॉक सीरीज़': selectedSeriesObj?.titleHi || 'पटवारी',
+          'सेट नं.': targetSetNumber,
+          'विषय (Subject)': sub2,
+          'टॉपिक': 'द्विघात समीकरण',
+          'कठिनाई (Difficulty)': 'medium',
+          'प्रश्न (हिन्दी)': 'यदि x² - 5x + 6 = 0 है, तो x के मान क्या होंगे?',
+          'प्रश्न (English)': 'If x² - 5x + 6 = 0, what are the values of x?',
+          'विकल्प A': '2 और 3',
+          'विकल्प B': '-2 और -3',
+          'विकल्प C': '1 और 6',
+          'विकल्प D': '0 और 5',
+          'सही उत्तर': 'A',
+          'व्याख्या (Solution)': 'गुणनखंड विधि द्वारा: x² - 2x - 3x + 6 = 0 => (x - 2)(x - 3) = 0 => x = 2 या 3।'
         }
       ];
     }
 
-    const fileName = `MP_Pariksha_Setu_${type === 'simple' ? 'Simple_6Column' : 'Full'}_Template_${new Date().toISOString().split('T')[0]}`;
+    const fileName = `MP_Pariksha_Setu_${type === 'simple' ? 'Simple_Question' : 'Full'}_Template_${new Date().toISOString().split('T')[0]}`;
+    
     if (format === 'xls') {
-      exportToXls(sampleData, fileName);
+      // Create a genuine .xlsx workbook using SheetJS
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      ws['!cols'] = [
+        { wch: 45 }, // Question
+        { wch: 25 }, // Opt A
+        { wch: 25 }, // Opt B
+        { wch: 25 }, // Opt C
+        { wch: 25 }, // Opt D
+        { wch: 12 }, // Answer
+        { wch: 32 }, // Subject
+        { wch: 55 }, // Explanation
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+      XLSX.writeFile(wb, `${fileName}.xlsx`);
     } else {
       exportToCsv(sampleData, fileName);
     }
-    showToast(`📥 ${type === 'simple' ? 'सरल 6-कॉलम' : 'विस्तृत'} टेम्पलेट डाउनलोड हो गया!`);
+    showToast(`📥 ${type === 'simple' ? 'सरल (विषय सहित)' : 'विस्तृत'} एक्सेल टेम्पलेट डाउनलोड हो गया!`);
   };
 
   // Confirm Import & Save Bulk
