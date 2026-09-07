@@ -30,6 +30,7 @@ import {
   FileQuestion,
   Image as ImageIcon,
   RotateCcw,
+  RefreshCw,
   UploadCloud,
   Save,
   Lock,
@@ -110,6 +111,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
   const [aiTopicInput, setAiTopicInput] = useState<string>('');
   const [aiSubjectInput, setAiSubjectInput] = useState<string>('म.प्र. सामान्य ज्ञान');
   const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
+  const [enrichingQId, setEnrichingQId] = useState<string | null>(null);
 
   // Dynamic Mock category list synchronized with user-configured Test Packages
   const categoryOptions = useMemo(() => {
@@ -290,6 +292,53 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
         ? `🔒 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न लॉक व टेस्ट हेतु सुरक्षित कर दिए गए!` 
         : `🔓 वर्तमान व्यू के सभी ${questionsToUpdate.length} प्रश्न अनलॉक कर दिए गए!`
     );
+  };
+
+  // 1-Click AI In-Depth Academic Explanation Generator & Enricher
+  const handleEnrichQuestionExplanation = async (q: Question) => {
+    setEnrichingQId(q.id);
+    showToast('🧠 AI द्वारा विस्तृत एवं प्रामाणिक व्याख्या तैयार हो रही है...');
+    try {
+      const res = await fetch('/api/questions/auto-translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questions: [{
+            id: q.id,
+            questionHi: q.questionHi,
+            optionsHi: q.options.map(o => o.textHi),
+            correctOptionIndex: Number(q.correctOptionIndex ?? q.correctOption) || 0,
+            explanationHi: q.explanationHi || '',
+            subject: q.subject
+          }],
+          enrichExplanation: true
+        })
+      });
+
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.translations) && data.translations[0]) {
+        const t = data.translations[0];
+        const updatedQ: Question = {
+          ...q,
+          questionEn: t.questionEn || q.questionEn || q.questionHi,
+          options: q.options.map((opt, oIdx) => ({
+            ...opt,
+            textEn: (t.optionsEn && t.optionsEn[oIdx]) || opt.textEn || opt.textHi
+          })),
+          explanationHi: t.explanationHi || q.explanationHi,
+          explanationEn: t.explanationEn || q.explanationEn || q.explanationHi
+        };
+        saveQuestion(updatedQ);
+        showToast('🎉 प्रश्न की विस्तृत प्रामाणिक व्याख्या सहेज दी गई!');
+      } else {
+        showToast('⚠️ व्याख्या तैयार नहीं हो सकी।');
+      }
+    } catch (err) {
+      console.error('Error enriching explanation:', err);
+      showToast('❌ व्याख्या तैयार करने में समस्या आई।');
+    } finally {
+      setEnrichingQId(null);
+    }
   };
 
   // Download Complete Question Bank Backup (JSON)
@@ -1467,20 +1516,49 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                   </div>
                 </div>
 
-                {/* Explanation Box */}
-                {(q.explanationHi || q.explanationEn) && (
-                  <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl text-[11px] text-amber-950 dark:text-amber-200 space-y-1">
-                    <div>
-                      <span className="font-black text-[#7A2A1E] dark:text-[#D4A017]">💡 विस्तृत व्याख्या: </span>
-                      <span><MathFormattedText text={q.explanationHi} /></span>
-                    </div>
-                    {q.explanationEn && q.explanationEn !== q.explanationHi && (
-                      <div className="text-[10px] text-amber-800/80 dark:text-amber-300/80 italic">
-                        <span>Solution: </span><MathFormattedText text={q.explanationEn} />
-                      </div>
-                    )}
+                {/* Detailed Explanation Box with 1-Click AI Enricher */}
+                <div className="pt-2 border-t border-stone-200/80 dark:border-stone-700/80 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-stone-800 dark:text-amber-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>विस्तृत प्रामाणिक व्याख्या (Comprehensive Solution & Analysis)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleEnrichQuestionExplanation(q)}
+                      disabled={enrichingQId === q.id}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 text-[10px] font-bold flex items-center gap-1 border border-amber-300/50 transition cursor-pointer disabled:opacity-40"
+                      title="AI द्वारा इस प्रश्न की विस्तृत अकादमिक व्याख्या व हल तैयार करें"
+                    >
+                      {enrichingQId === q.id ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 animate-spin text-amber-600" />
+                          <span>AI व्याख्या बना रहा है...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span>{q.explanationHi ? '⚡ AI से व्याख्या और गहरी बनाएं' : '⚡ AI से व्याख्या तैयार करें'}</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                )}
+
+                  {q.explanationHi ? (
+                    <div className="p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl text-[11px] text-stone-800 dark:text-stone-200 leading-relaxed whitespace-pre-line font-sans space-y-1">
+                      <MathFormattedText text={q.explanationHi} />
+                      {q.explanationEn && q.explanationEn !== q.explanationHi && (
+                        <div className="text-[10px] text-stone-500 dark:text-stone-400 italic pt-1.5 border-t border-amber-200/40 dark:border-stone-800">
+                          <strong>EN: </strong><MathFormattedText text={q.explanationEn} />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-stone-50 dark:bg-stone-800/50 border border-dashed border-stone-200 dark:border-stone-700 rounded-xl text-[11px] text-stone-400 flex items-center justify-between">
+                      <span>💡 वर्तमान में कोई व्याख्या नहीं है — ऊपर दिए गए बटन से AI द्वारा स्वतः गहन व्याख्या बनाएं</span>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })

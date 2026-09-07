@@ -205,12 +205,12 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
     return 0;
   };
 
-  // Auto-translate batch of questions via server endpoint
+  // Auto-translate & in-depth academic explanation generator via server endpoint
   const performAutoTranslate = async (questionsList: Question[]) => {
     if (questionsList.length === 0) return questionsList;
     setIsTranslating(true);
     try {
-      const batchSize = 25;
+      const batchSize = 15; // smaller batch for rich, detailed explanations
       const updated = [...questionsList];
       
       for (let i = 0; i < updated.length; i += batchSize) {
@@ -225,8 +225,11 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
               id: q.id,
               questionHi: q.questionHi,
               optionsHi: q.options.map(o => o.textHi),
-              explanationHi: q.explanationHi
-            }))
+              correctOptionIndex: Number(q.correctOptionIndex ?? q.correctOption) || 0,
+              explanationHi: q.explanationHi || '',
+              subject: q.subject || defaultSubject
+            })),
+            enrichExplanation: true
           })
         });
 
@@ -246,6 +249,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                   ...opt,
                   textEn: (t.optionsEn && t.optionsEn[oIdx]) || opt.textEn || opt.textHi
                 })),
+                explanationHi: t.explanationHi || q.explanationHi,
                 explanationEn: t.explanationEn || q.explanationEn || q.explanationHi
               };
             }
@@ -254,11 +258,63 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
       }
       return updated;
     } catch (err) {
-      console.warn('Auto translate warning:', err);
+      console.warn('Auto translate & explanation warning:', err);
       return questionsList;
     } finally {
       setIsTranslating(false);
       setTranslationProgress(null);
+    }
+  };
+
+  // Enrich a single question's explanation in 1 click
+  const handleEnrichSingleQuestion = async (index: number) => {
+    const targetQ = parsedQuestions[index];
+    if (!targetQ) return;
+    setIsTranslating(true);
+    showToast(`🧠 प्रश्न #${index + 1} की विस्तृत व्याख्या AI द्वारा तैयार हो रही है...`);
+    try {
+      const res = await fetch('/api/questions/auto-translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questions: [{
+            id: targetQ.id,
+            questionHi: targetQ.questionHi,
+            optionsHi: targetQ.options.map(o => o.textHi),
+            correctOptionIndex: Number(targetQ.correctOptionIndex ?? targetQ.correctOption) || 0,
+            explanationHi: targetQ.explanationHi || '',
+            subject: targetQ.subject || defaultSubject
+          }],
+          enrichExplanation: true
+        })
+      });
+
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.translations) && data.translations[0]) {
+        const t = data.translations[0];
+        setParsedQuestions(prev => {
+          const next = [...prev];
+          next[index] = {
+            ...targetQ,
+            questionEn: t.questionEn || targetQ.questionEn || targetQ.questionHi,
+            options: targetQ.options.map((opt, oIdx) => ({
+              ...opt,
+              textEn: (t.optionsEn && t.optionsEn[oIdx]) || opt.textEn || opt.textHi
+            })),
+            explanationHi: t.explanationHi || targetQ.explanationHi,
+            explanationEn: t.explanationEn || targetQ.explanationEn || targetQ.explanationHi
+          };
+          return next;
+        });
+        showToast(`🎉 प्रश्न #${index + 1} की विस्तृत प्रामाणिक व्याख्या तैयार!`);
+      } else {
+        showToast('⚠️ व्याख्या तैयार करने में समस्या आई।');
+      }
+    } catch (err) {
+      console.error('Error enriching question:', err);
+      showToast('❌ तकनीकी त्रुटि, पुनः प्रयास करें।');
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -542,7 +598,8 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
     let sampleData: any[] = [];
 
     if (type === 'simple') {
-      // Simple 6-column format requested by founder
+      // Simple 7-column format as shown in founder's table:
+      // [ प्रश्न (हिन्दी) | विकल्प A | विकल्प B | विकल्प C | विकल्प D | सही उत्तर | व्याख्या ]
       sampleData = [
         {
           'प्रश्न (हिन्दी)': 'मध्य प्रदेश का सबसे बड़ा राष्ट्रीय उद्यान कौन सा है?',
@@ -551,16 +608,25 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'विकल्प C': 'पेंच राष्ट्रीय उद्यान',
           'विकल्प D': 'पन्ना राष्ट्रीय उद्यान',
           'सही उत्तर': 'A',
-          'व्याख्या': 'कान्हा किसली राष्ट्रीय उद्यान मण्डला जिले में स्थित है एवं यह मध्य प्रदेश का सबसे बड़ा राष्ट्रीय उद्यान (940 वर्ग किमी) है।'
+          'व्याख्या': 'कान्हा किसली राष्ट्रीय उद्यान मण्डला व बालाघाट जिले में 940 वर्ग किमी क्षेत्र में स्थित है। यह 1955 में नेशनल पार्क और 1973-74 में म.प्र. का पहला प्रोजेक्ट टाइगर बना।'
         },
         {
-          'प्रश्न (हिन्दी)': 'यदि x² - 9 = 0 है, तो x का मान क्या होगा?',
-          'विकल्प A': '±3',
-          'विकल्प B': '9',
-          'विकल्प C': '0',
-          'विकल्प D': '3',
+          'प्रश्न (हिन्दी)': 'चंबल नदी का उद्गम मध्य प्रदेश के किस जिले से होता है?',
+          'विकल्प A': 'इंदौर (महू, जानापाव पहाड़ी)',
+          'विकल्प B': 'अनूपपुर (अमरकंटक)',
+          'विकल्प C': 'बैतूल (मुलताई)',
+          'विकल्प D': 'धार (सरदारपुर)',
           'सही उत्तर': 'A',
-          'व्याख्या': 'x² = 9 ⟹ x = ±√9 = ±3'
+          'व्याख्या': '' // (खाली छोड़ सकते हैं - AI पूरी विस्तृत व्याख्या, अन्य विकल्पों का विश्लेषण व परीक्षा तथ्य स्वतः तैयार करेगा!)
+        },
+        {
+          'प्रश्न (हिन्दी)': 'यदि x² - 5x + 6 = 0 है, तो x के मान क्या होंगे?',
+          'विकल्प A': '2 और 3',
+          'विकल्प B': '-2 और -3',
+          'विकल्प C': '1 और 6',
+          'विकल्प D': '0 और 5',
+          'सही उत्तर': 'A',
+          'व्याख्या': '' // (गणित: AI स्वतः सूत्र, नियम और चरण-दर-चरण पूरा हल लिखेगा!)
         },
         {
           'प्रश्न (हिन्दी)': 'साधारण ब्याज का सूत्र क्या है?',
@@ -569,7 +635,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
           'विकल्प C': 'SI = P + R + T',
           'विकल्प D': 'SI = (P × R) / T',
           'सही उत्तर': 'A',
-          'व्याख्या': 'साधारण ब्याज = (मूलधन × दर × समय) / 100'
+          'व्याख्या': ''
         }
       ];
     } else {
@@ -919,19 +985,24 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
               />
             </div>
 
-            {/* Action Bar: Auto-Translate Toggle + Parse Button */}
-            <div className="p-4 rounded-2xl bg-stone-100 dark:bg-stone-800 flex flex-wrap items-center justify-between gap-3 border border-stone-200 dark:border-stone-700">
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-black text-stone-800 dark:text-stone-200">
+            {/* Action Bar: Auto-Translate & Deep Explanation Toggle + Parse Button */}
+            <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-stone-800 flex flex-wrap items-center justify-between gap-3 border border-amber-200 dark:border-stone-700">
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs font-black text-stone-800 dark:text-stone-200 max-w-xl">
                 <input
                   type="checkbox"
                   checked={autoTranslateEnabled}
                   onChange={(e) => setAutoTranslateEnabled(e.target.checked)}
-                  className="w-4 h-4 rounded accent-[#7A2A1E] cursor-pointer"
+                  className="w-4 h-4 rounded accent-[#7A2A1E] cursor-pointer mt-0.5"
                 />
-                <span className="flex items-center gap-1.5">
-                  <Languages className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>🤖 पार्स करते ही स्वतः AI से अंग्रेजी अनुवाद करें (Auto-Translate to English)</span>
-                </span>
+                <div className="space-y-0.5">
+                  <span className="flex items-center gap-1.5 text-stone-900 dark:text-amber-300">
+                    <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>🤖 AI द्वारा अंग्रेजी अनुवाद + गहन व विस्तृत व्याख्या बनाएं (Auto-Translate & Deep Explanation)</span>
+                  </span>
+                  <p className="text-[11px] font-normal text-stone-500 dark:text-stone-400">
+                    व्याख्या खाली होने पर भी AI मुख्य अवधारणा, अन्य विकल्पों का विश्लेषण, परीक्षा उपयोगी तथ्य व गणित के चरण-दर-चरण हल स्वतः तैयार करेगा।
+                  </p>
+                </div>
               </label>
 
               <button
@@ -943,7 +1014,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                 {isTranslating ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
-                    <span>अनुवाद हो रहा है... ({translationProgress?.current}/{translationProgress?.total})</span>
+                    <span>AI प्रोसेस कर रहा है... ({translationProgress?.current}/{translationProgress?.total})</span>
                   </>
                 ) : (
                   <>
@@ -1003,18 +1074,23 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
               </label>
             </div>
 
-            {/* Auto-translate toggle for Excel mode */}
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-stone-700 dark:text-stone-300 p-3 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+            {/* Auto-translate & Deep Explanation toggle for Excel mode */}
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs font-bold text-stone-700 dark:text-stone-300 p-3.5 rounded-xl bg-amber-50/60 dark:bg-stone-800 border border-amber-200 dark:border-stone-700">
               <input
                 type="checkbox"
                 checked={autoTranslateEnabled}
                 onChange={(e) => setAutoTranslateEnabled(e.target.checked)}
-                className="w-4 h-4 rounded accent-[#7A2A1E] cursor-pointer"
+                className="w-4 h-4 rounded accent-[#7A2A1E] cursor-pointer mt-0.5"
               />
-              <span className="flex items-center gap-1.5">
-                <Languages className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>फ़ाइल अपलोड होते ही स्वतः AI से अंग्रेजी अनुवाद करें (Auto-Translate on Upload)</span>
-              </span>
+              <div className="space-y-0.5">
+                <span className="flex items-center gap-1.5 text-stone-900 dark:text-amber-300 font-black">
+                  <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>अपलोड होते ही स्वतः AI से अंग्रेजी अनुवाद व गहन व्याख्या बनाएं (Auto-Translate & Deep AI Explanation)</span>
+                </span>
+                <p className="text-[11px] font-normal text-stone-500 dark:text-stone-400">
+                  'व्याख्या' कॉलम खाली छोड़ सकते हैं — AI खुद पूरी विस्तृत व्याख्या, हल व परीक्षा तथ्य तैयार कर देगा!
+                </p>
+              </div>
             </label>
 
             {validationErrors.length > 0 && (
@@ -1036,7 +1112,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
         {/* TAB 3: PREVIEW & AI TRANSLATE TAB */}
         {activeTab === 'preview' && (
           <div className="space-y-4">
-            {/* Header with Auto-Translate Button */}
+            {/* Header with Auto-Translate & Deep Explanation Button */}
             <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-stone-850 border border-amber-300 dark:border-amber-800 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-black text-stone-900 dark:text-amber-300 flex items-center gap-2">
@@ -1046,7 +1122,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                   </span>
                 </span>
                 <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                  सभी प्रश्नों को नीचे जांचें। यदि कोई प्रश्न अंग्रेजी में नहीं है, तो AI अनुवाद बटन दबाएं।
+                  नीचे प्रश्नों की व्याख्या जांचें। 'AI से व्याख्या गहरी बनाएं' बटन से AI पूरी गहराई से विस्तृत व्याख्या तैयार करता है।
                 </p>
               </div>
 
@@ -1056,20 +1132,20 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                   onClick={async () => {
                     const translated = await performAutoTranslate(parsedQuestions);
                     setParsedQuestions(translated);
-                    showToast('🎉 सभी प्रश्नों का अंग्रेजी अनुवाद पूर्ण!');
+                    showToast('🎉 सभी प्रश्नों की गहन व्याख्या व अंग्रेजी अनुवाद तैयार!');
                   }}
                   disabled={isTranslating}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
                 >
                   {isTranslating ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>अनुवाद हो रहा है ({translationProgress?.current}/{translationProgress?.total})...</span>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-300" />
+                      <span>AI तैयार कर रहा है ({translationProgress?.current}/{translationProgress?.total})...</span>
                     </>
                   ) : (
                     <>
-                      <Languages className="w-3.5 h-3.5 text-amber-300" />
-                      <span>✨ AI से अंग्रेजी में अनुवाद करें</span>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>🧠 AI से सभी की गहन व्याख्या व अनुवाद बनाएं</span>
                     </>
                   )}
                 </button>
@@ -1081,7 +1157,7 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
               {parsedQuestions.map((q, idx) => (
                 <div 
                   key={q.id || idx}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 space-y-2 shadow-2xs"
+                  className="p-3.5 rounded-2xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 space-y-2.5 shadow-2xs"
                 >
                   {/* Question header */}
                   <div className="flex items-center justify-between text-xs">
@@ -1152,12 +1228,49 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                     })}
                   </div>
 
-                  {/* Explanation with Math Formatter */}
-                  {q.explanationHi && (
-                    <div className="text-[11px] text-stone-500 dark:text-stone-400 pt-1.5 border-t border-stone-100 dark:border-stone-700/50">
-                      💡 <strong>व्याख्या:</strong> <MathFormattedText text={q.explanationHi} />
+                  {/* Explanation with In-depth AI Formatter & Quick Enrich Button */}
+                  <div className="pt-2 border-t border-stone-200 dark:border-stone-700/80 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-black text-stone-800 dark:text-amber-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>विस्तृत प्रामाणिक व्याख्या (Comprehensive Solution & Analysis)</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleEnrichSingleQuestion(idx)}
+                        disabled={isTranslating}
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 text-[10px] font-bold flex items-center gap-1 border border-amber-300/40 transition cursor-pointer disabled:opacity-40"
+                        title="इस प्रश्न की व्याख्या AI द्वारा और गहरी, विस्तृत व प्रामाणिक बनाएं"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                        <span>⚡ AI से व्याख्या और गहरी बनाएं</span>
+                      </button>
                     </div>
-                  )}
+
+                    {q.explanationHi ? (
+                      <div className="p-3 rounded-xl bg-amber-50/40 dark:bg-stone-900/60 border border-amber-200/60 dark:border-stone-700/60 text-[11px] leading-relaxed text-stone-800 dark:text-stone-200 whitespace-pre-line font-sans">
+                        <MathFormattedText text={q.explanationHi} />
+                      </div>
+                    ) : (
+                      <div className="p-2.5 rounded-xl bg-stone-100 dark:bg-stone-900/40 border border-dashed border-stone-300 dark:border-stone-700 text-[11px] text-stone-400 flex items-center justify-between">
+                        <span>💡 कोई व्याख्या नहीं दी गई है — AI से स्वतः बनाने हेतु दाईं ओर का बटन दबाएं</span>
+                        <button
+                          type="button"
+                          onClick={() => handleEnrichSingleQuestion(idx)}
+                          disabled={isTranslating}
+                          className="text-[10px] font-bold text-amber-700 dark:text-amber-400 underline cursor-pointer"
+                        >
+                          व्याख्या तैयार करें →
+                        </button>
+                      </div>
+                    )}
+
+                    {q.explanationEn && q.explanationEn !== q.explanationHi && (
+                      <div className="text-[10px] text-stone-500 dark:text-stone-400 italic bg-stone-50 dark:bg-stone-900/40 p-2 rounded-lg border border-stone-200/50 dark:border-stone-800 whitespace-pre-line">
+                        <strong>EN Explanation:</strong> <MathFormattedText text={q.explanationEn} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1218,9 +1331,9 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                   4
                 </div>
                 <div>
-                  <div className="font-black text-stone-900 dark:text-white">🤖 AI स्वतः अंग्रेजी अनुवाद (Auto-Translate)</div>
+                  <div className="font-black text-stone-900 dark:text-white">🤖 AI स्वतः अनुवाद + विस्तृत व प्रामाणिक व्याख्या (Deep AI Explanation)</div>
                   <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
-                    "AI से अनुवाद करें" टिक रहने पर सिस्टम आपके पूरे प्रश्न, चारों विकल्पों और व्याख्या को शुद्ध अकादमिक अंग्रेजी में स्वयं बदल देगा!
+                    संस्थापक के निर्देशानुसार AI केवल एक पंक्ति का संक्षेप नहीं, बल्कि पूरा गहराई से समझाता है — <strong>मुख्य अवधारणा, पृष्ठभूमि, अन्य 3 विकल्पों का विश्लेषण, परीक्षा-उपयोगी महत्वपूर्ण तथ्य</strong> तथा गणित के प्रश्नों में <strong>सूत्र व चरण-दर-चरण पूरा हल</strong>। 'व्याख्या' खाली छोड़ने पर भी AI इसे स्वतः तैयार करता है!
                   </p>
                 </div>
               </div>

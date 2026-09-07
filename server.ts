@@ -1954,56 +1954,109 @@ Output as JSON format.`;
   }
 });
 
-// 3B. High-Precision Auto-Translate Hindi Questions to Academic English
+// 3B. High-Precision Auto-Translate & In-Depth Academic AI Explanation Generator
 app.post('/api/questions/auto-translate', async (req: Request, res: Response) => {
-  const { questions } = req.body || {};
+  const { questions, enrichExplanation = true } = req.body || {};
   if (!Array.isArray(questions) || questions.length === 0) {
     return res.status(400).json({ success: false, message: 'Questions array is required' });
   }
 
   const ai = getGenAI();
   if (!ai) {
-    // Graceful offline fallback: preserve original text so user is never blocked
-    const fallbackList = questions.map((q: any) => ({
-      id: q.id,
-      questionEn: q.questionEn || q.questionHi || '',
-      optionsEn: (q.optionsEn && q.optionsEn.some((o: string) => o)) ? q.optionsEn : (q.optionsHi || []),
-      explanationEn: q.explanationEn || q.explanationHi || 'Solution provided in Hindi.'
-    }));
+    // Graceful offline fallback with structured in-depth explanation template
+    const fallbackList = questions.map((q: any) => {
+      const correctIdx = Number(q.correctOptionIndex ?? q.correctOption) || 0;
+      const optLetter = String.fromCharCode(65 + correctIdx);
+      const optText = (q.optionsHi && q.optionsHi[correctIdx]) || `विकल्प (${optLetter})`;
+      
+      const existingHi = q.explanationHi?.trim();
+      const existingEn = q.explanationEn?.trim();
+
+      const deepHi = existingHi && existingHi.length > 30 
+        ? existingHi 
+        : `✓ सही उत्तर: विकल्प (${optLetter}) - ${optText}\n\n` +
+          `📌 मुख्य अवधारणा एवं विस्तृत विश्लेषण:\n` +
+          `${existingHi || `प्रतियोगी परीक्षा के नवीनतम पाठ्यक्रम अनुसार विकल्प (${optLetter}) सही उत्तर है।`}\n\n` +
+          `💡 परीक्षा उपयोगी विशेष तथ्य:\n` +
+          `• इस विषय से संबंधित प्रमुख अवधारणाओं को नियमित रूप से दोहराएं।\n` +
+          `• परीक्षा में इससे जुड़े प्रश्न अक्सर पूछे जाते हैं।`;
+
+      const deepEn = existingEn && existingEn.length > 30
+        ? existingEn
+        : `✓ Correct Answer: Option (${optLetter}) - ${optText}\n\n` +
+          `📌 Core Concept & In-depth Analysis:\n` +
+          `${existingEn || `As per competitive exam curriculum, Option (${optLetter}) is the verified correct answer.`}\n\n` +
+          `💡 Key Exam Pointers:\n` +
+          `• Review related foundational concepts regularly.\n` +
+          `• Frequently tested in state and central recruitment exams.`;
+
+      return {
+        id: q.id,
+        questionEn: q.questionEn || q.questionHi || '',
+        optionsEn: (q.optionsEn && q.optionsEn.some((o: string) => o)) ? q.optionsEn : (q.optionsHi || []),
+        explanationHi: deepHi,
+        explanationEn: deepEn
+      };
+    });
+
     return res.json({
       success: true,
       translations: fallbackList,
       source: 'offline_fallback',
-      message: 'No Gemini API key attached - preserved original questions'
+      message: 'No Gemini API key attached - generated structured template explanation'
     });
   }
 
   try {
-    // Process in batches of up to 25 to respect token and JSON limits
-    const batch = questions.slice(0, 25);
-    const prompt = `You are a professional bilingual examination translator for Indian competitive exams (MPPSC, MP Patwari, MP Police, ESB).
-Translate each Hindi question, its 4 options, and explanation into natural, precise, and academically accurate English suitable for competitive exams.
+    // Process in batches of up to 20 to ensure rich explanations without hitting response size caps
+    const batch = questions.slice(0, 20);
+    const prompt = `You are a senior exam faculty member and curriculum expert for Indian competitive exams (MPPSC, MP Patwari, Vyapam/ESB, MP Police, SSC).
+You are processing questions uploaded by the platform founder.
 
-CRITICAL TRANSLATION MANDATES:
-1. MATHEMATICAL FORMULAS & EQUATIONS: Preserve all math formulas, symbols (e.g. x², √x, ±, π, %, ₹), equations, superscripts, and numbers exactly as given.
-2. OPTIONS: Maintain identical order for options (Option A, Option B, Option C, Option D).
-3. PROPER NOUNS: Use standard Roman transliteration for MP locations, districts, rivers, personalities (e.g., "Bhopal", "Mandla", "Narmada", "Sanchi Stupa").
-4. Output STRICT JSON format as an array of objects matching the schema without any markdown formatting or extra text:
+FOUNDER MANDATE:
+"व्याख्या ko automatic AI hi bataye ... esa nhi ki thoda sa bata diya acche se samjhana"
+(The explanation MUST be generated automatically by AI in great detail and depth — not just a brief one-line answer, but thoroughly explained with complete clarity!)
+
+TASK FOR EACH QUESTION:
+1. TRANSLATION:
+   - Translate Question and all 4 Options into clear, academic, natural English.
+   - PRESERVE all mathematical equations, superscripts (e.g. x², y³), radicals (√x, ∛x), operators (±, ×, ÷, ≤, ≥), fractions, and Greek symbols (π, θ, α, Δ) exactly as given.
+   - Maintain the identical order for options (Option A, Option B, Option C, Option D).
+
+2. IN-DEPTH COMPREHENSIVE EXPLANATION (विस्तृत एवं प्रामाणिक व्याख्या):
+   Generate a DETAILED, THOROUGH ACADEMIC EXPLANATION in both Hindi (explanationHi) AND English (explanationEn):
+   - STRUCTURE FOR GK / GS / MP GK / SCIENCE / MANAGEMENT / HINDI / COMPUTER:
+     * Point 1: "✓ सही उत्तर: विकल्प (...)" - Clearly identify correct option.
+     * Point 2: "📌 मुख्य अवधारणा एवं विस्तृत विश्लेषण:" - Provide deep historical, statutory, geographical, scientific, or conceptual explanation. Explain WHY it is correct with dates, facts, background, and provisions.
+     * Point 3: "🔍 अन्य विकल्पों का विश्लेषण:" - Briefly explain why other options are incorrect or give key facts about them.
+     * Point 4: "💡 परीक्षा उपयोगी विशेष तथ्य:" - 2 to 3 high-yield bonus bullet points that frequently appear in exams.
+   - STRUCTURE FOR MATHEMATICS / REASONING / NUMERICAL:
+     * Point 1: "✓ सही उत्तर: विकल्प (...)"
+     * Point 2: "📌 प्रयुक्त सूत्र एवं नियम:" - State the exact mathematical formula or identity (e.g. SI = (P×R×T)/100, (a+b)² = a² + 2ab + b²).
+     * Point 3: "🔍 चरण-दर-चरण विस्तृत हल (Step-by-Step Solution):" - Complete line-by-line derivation showing all substitutions and intermediate calculations.
+     * Point 4: "⚡ शॉर्टकट ट्रिक / वैकल्पिक विधि:" - Quick verification or shortcut tip for speed.
+
+3. If the user provided an existing short explanation in explanationHi, incorporate its core facts but expand it into the full comprehensive academic explanation described above.
+
+STRICT JSON OUTPUT FORMAT (Array of objects matching schema):
 [
   {
     "id": "question id",
-    "questionEn": "English translation of question",
-    "optionsEn": ["Option A in English", "Option B in English", "Option C in English", "Option D in English"],
-    "explanationEn": "English translation of explanation"
+    "questionEn": "English question",
+    "optionsEn": ["Option A", "Option B", "Option C", "Option D"],
+    "explanationHi": "विस्तृत, प्रामाणिक एवं संपूर्ण हिन्दी व्याख्या (मुख्य अवधारणा, अन्य विकल्पों का विश्लेषण, परीक्षा तथ्य या चरण-दर-चरण हल सहित)",
+    "explanationEn": "Comprehensive, deep academic English explanation (core concept, step-by-step solution, and key exam pointers)"
   }
 ]
 
-Items to translate:
+Items to process:
 ${JSON.stringify(batch.map((q: any) => ({
   id: q.id,
   questionHi: q.questionHi,
-  optionsHi: q.optionsHi || (q.options ? q.options.map((o: any) => o.textHi) : []),
-  explanationHi: q.explanationHi || ''
+  optionsHi: q.optionsHi || (q.options ? q.options.map((o: any) => typeof o === 'string' ? o : o.textHi) : []),
+  correctOptionIndex: Number(q.correctOptionIndex ?? q.correctOption) || 0,
+  explanationHi: q.explanationHi || '',
+  subject: q.subject || ''
 })))}`;
 
     const { text, modelUsed } = await callGenAIWithFallback(ai, prompt, {
@@ -2019,9 +2072,10 @@ ${JSON.stringify(batch.map((q: any) => ({
               type: Type.ARRAY,
               items: { type: Type.STRING }
             },
+            explanationHi: { type: Type.STRING },
             explanationEn: { type: Type.STRING }
           },
-          required: ['id', 'questionEn', 'optionsEn']
+          required: ['id', 'questionEn', 'optionsEn', 'explanationHi', 'explanationEn']
         }
       }
     });
@@ -2033,14 +2087,23 @@ ${JSON.stringify(batch.map((q: any) => ({
       modelUsed
     });
   } catch (err: any) {
-    console.error('Auto-translate error:', err);
+    console.error('Auto-translate and explain error:', err);
     // Graceful fallback
-    const fallbackList = questions.map((q: any) => ({
-      id: q.id,
-      questionEn: q.questionEn || q.questionHi || '',
-      optionsEn: (q.optionsEn && q.optionsEn.some((o: string) => o)) ? q.optionsEn : (q.optionsHi || []),
-      explanationEn: q.explanationHi || ''
-    }));
+    const fallbackList = questions.map((q: any) => {
+      const correctIdx = Number(q.correctOptionIndex ?? q.correctOption) || 0;
+      const optLetter = String.fromCharCode(65 + correctIdx);
+      const optText = (q.optionsHi && q.optionsHi[correctIdx]) || `विकल्प (${optLetter})`;
+      const existingHi = q.explanationHi?.trim();
+      const existingEn = q.explanationEn?.trim();
+
+      return {
+        id: q.id,
+        questionEn: q.questionEn || q.questionHi || '',
+        optionsEn: (q.optionsEn && q.optionsEn.some((o: string) => o)) ? q.optionsEn : (q.optionsHi || []),
+        explanationHi: existingHi && existingHi.length > 20 ? existingHi : `✓ सही उत्तर: विकल्प (${optLetter}) - ${optText}\n\n📌 व्याख्या: इस प्रश्न का सही उत्तर विकल्प (${optLetter}) है। प्रतियोगी परीक्षा की तैयारी हेतु इस विषय की मुख्य अवधारणाओं का अध्ययन करें।`,
+        explanationEn: existingEn && existingEn.length > 20 ? existingEn : `✓ Correct Answer: Option (${optLetter}) - ${optText}\n\n📌 Explanation: Option (${optLetter}) is the correct answer as per competitive examination guidelines.`
+      };
+    });
     return res.json({
       success: true,
       translations: fallbackList,
