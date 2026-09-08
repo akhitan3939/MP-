@@ -364,6 +364,24 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
     }
   };
 
+  // Update single question's subject
+  const handleUpdateQuestionSubject = (index: number, newSub: string) => {
+    const trimmed = newSub.trim();
+    if (!trimmed) return;
+    setParsedQuestions(prev => prev.map((q, i) => i === index ? { ...q, subject: trimmed, section: trimmed } : q));
+  };
+
+  // Bulk update all questions to a chosen subject
+  const handleApplySubjectToAll = (newSub: string) => {
+    const trimmed = newSub.trim();
+    if (!trimmed) {
+      showToast('⚠️ कृपया कोई विषय चुनें या दर्ज करें।');
+      return;
+    }
+    setParsedQuestions(prev => prev.map(q => ({ ...q, subject: trimmed, section: trimmed })));
+    showToast(`✅ सभी ${parsedQuestions.length} प्रश्नों का विषय "${trimmed}" पर सेट किया गया!`);
+  };
+
   // Intelligent text parser for copy-pasted questions
   const handleParsePastedText = async () => {
     if (!pastedText.trim()) {
@@ -1035,18 +1053,75 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
 
             {/* 3. Default Subject */}
             <div>
-              <label className="block font-black text-stone-600 dark:text-stone-300 mb-1">
-                3. डिफ़ॉल्ट विषय (Subject):
-              </label>
-              <select
-                value={defaultSubject}
-                onChange={(e) => setDefaultSubject(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-bold text-stone-900 dark:text-amber-300"
-              >
-                {DEFAULT_SUBJECTS.map((sub, i) => (
-                  <option key={i} value={sub}>{sub}</option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-black text-stone-600 dark:text-stone-300">
+                  3. डिफ़ॉल्ट विषय (Subject):
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomSubject(!isCustomSubject)}
+                  className="text-[10px] text-[#7A2A1E] dark:text-[#D4A017] font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  {isCustomSubject ? 'सूची से चुनें' : '+ नया विषय'}
+                </button>
+              </div>
+
+              {isCustomSubject ? (
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={customSubjectInput}
+                    onChange={(e) => {
+                      setCustomSubjectInput(e.target.value);
+                      setDefaultSubject(e.target.value);
+                      setBulkChangeSubject(e.target.value);
+                    }}
+                    placeholder="विषय का नाम लिखें"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-amber-400 dark:border-amber-600 font-bold text-stone-900 dark:text-amber-300 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (customSubjectInput.trim()) {
+                        setDefaultSubject(customSubjectInput.trim());
+                        setBulkChangeSubject(customSubjectInput.trim());
+                      }
+                      setIsCustomSubject(false);
+                    }}
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer"
+                  >
+                    ठीक
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={defaultSubject}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomSubject(true);
+                    } else {
+                      setDefaultSubject(e.target.value);
+                      setBulkChangeSubject(e.target.value);
+                    }
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-bold text-stone-900 dark:text-amber-300 text-xs"
+                >
+                  {seriesSyllabusSubjects.length > 0 && (
+                    <optgroup label="📋 इस परीक्षा सीरीज़ के विषय (Syllabus)">
+                      {seriesSyllabusSubjects.map((sub, i) => (
+                        <option key={`syllabus_${i}`} value={sub}>{sub}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="📚 अन्य सामान्य विषय">
+                    {DEFAULT_SUBJECTS.filter(s => !seriesSyllabusSubjects.includes(s)).map((sub, i) => (
+                      <option key={`default_${i}`} value={sub}>{sub}</option>
+                    ))}
+                  </optgroup>
+                  <option value="__custom__">➕ नया / अन्य विषय स्वयं लिखें...</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -1231,22 +1306,32 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
         {activeTab === 'excelUpload' && (
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-stone-850 border border-amber-200 dark:border-stone-800 space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-black text-stone-900 dark:text-amber-300 flex items-center gap-1.5">
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                  <span>सरल 6-कॉलम एक्सेल या विस्तृत 14-कॉलम एक्सेल दोनों समर्थित हैं</span>
+                  <span>सरल एक्सेल (.xlsx) अथवा CSV फ़ाइल समर्थित</span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadSample('simple', 'xls')}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>सरल 6-कॉलम फॉर्मेट डाउनलोड (.xls)</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSample('simple', 'xls')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>नमूना एक्सेल (.xlsx) डाउनलोड</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSample('simple', 'csv')}
+                    className="px-2.5 py-1 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs transition cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>नमूना CSV डाउनलोड</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-stone-600 dark:text-stone-400">
-                सरल 6-कॉलम एक्सेल में केवल: <strong>प्रश्न (हिन्दी)</strong>, <strong>विकल्प A</strong>, <strong>विकल्प B</strong>, <strong>विकल्प C</strong>, <strong>विकल्प D</strong>, <strong>सही उत्तर (A/B/C/D)</strong> भरें। बाकी सब अपने-आप भर जाएगा!
+              <p className="text-[11px] text-stone-600 dark:text-stone-400 leading-relaxed">
+                💡 <strong>प्रति-प्रश्न विषय (Subject) मैपिंग:</strong> एक्सेल में <strong>विषय (Subject)</strong> का कॉलम भी शामिल है, जिससे आप प्रत्येक प्रश्न को अलग-अलग विषय (जैसे गणित, म.प्र. सामान्य ज्ञान, विज्ञान, हिन्दी) में रख सकते हैं। यदि विषय कॉलम खाली छोड़ेंगे तो ऊपर चुना गया डिफ़ॉल्ट विषय लागू होगा, और पूर्वावलोकन में भी आप कभी भी विषय बदल सकते हैं।
               </p>
             </div>
 
@@ -1352,6 +1437,37 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
               </div>
             </div>
 
+            {/* Bulk Subject Changer Bar */}
+            <div className="p-3 rounded-2xl bg-stone-100 dark:bg-stone-850 border border-stone-200 dark:border-stone-700 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-[#7A2A1E] dark:text-amber-400 shrink-0" />
+                <span className="font-bold text-stone-800 dark:text-stone-200">
+                  📦 सभी {parsedQuestions.length} प्रश्नों का विषय एक साथ बदलें:
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={bulkChangeSubject}
+                  onChange={(e) => setBulkChangeSubject(e.target.value)}
+                  className="p-1.5 px-2.5 rounded-xl bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-600 font-bold text-stone-900 dark:text-stone-100 text-xs"
+                >
+                  {availableSubjectsForSeries.map((sub, i) => (
+                    <option key={i} value={sub}>{sub}</option>
+                  ))}
+                  {defaultSubject && !availableSubjectsForSeries.includes(defaultSubject) && (
+                    <option value={defaultSubject}>{defaultSubject}</option>
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => handleApplySubjectToAll(bulkChangeSubject)}
+                  className="px-3 py-1.5 rounded-xl bg-[#7A2A1E] hover:bg-[#963E2F] text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1"
+                >
+                  <span>सभी पर लागू करें (Apply All)</span>
+                </button>
+              </div>
+            </div>
+
             {/* Questions Cards List */}
             <div className="max-h-96 overflow-y-auto space-y-3 pr-1">
               {parsedQuestions.map((q, idx) => (
@@ -1359,18 +1475,43 @@ export const BulkQuestionUploadModal: React.FC<BulkQuestionUploadModalProps> = (
                   key={q.id || idx}
                   className="p-3.5 rounded-2xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 space-y-2.5 shadow-2xs"
                 >
-                  {/* Question header */}
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
+                  {/* Question header with Interactive Subject Selector */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2 py-0.5 rounded bg-[#7A2A1E] text-amber-300 font-mono font-black text-[11px]">
                         Q#{idx + 1}
                       </span>
                       <span className="text-stone-400 font-bold text-[11px]">
                         स्लॉट: {q.slotNumber || (idx + 1)}
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 text-[10px] font-bold">
-                        {q.subject}
-                      </span>
+
+                      {/* Interactive per-question subject selector */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-stone-500">विषय:</span>
+                        <select
+                          value={q.subject}
+                          onChange={(e) => {
+                            if (e.target.value === '__custom__') {
+                              const custom = prompt('इस प्रश्न के लिए विषय का नाम दर्ज करें:', q.subject);
+                              if (custom && custom.trim()) {
+                                handleUpdateQuestionSubject(idx, custom.trim());
+                              }
+                            } else {
+                              handleUpdateQuestionSubject(idx, e.target.value);
+                            }
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-stone-750 text-stone-900 dark:text-amber-200 border border-amber-300 dark:border-stone-600 text-[11px] font-bold focus:outline-none focus:ring-1 focus:ring-[#D4A017] cursor-pointer max-w-[200px] truncate"
+                          title="इस प्रश्न का विषय बदलें"
+                        >
+                          {availableSubjectsForSeries.map((sub, sIdx) => (
+                            <option key={sIdx} value={sub}>{sub}</option>
+                          ))}
+                          {q.subject && !availableSubjectsForSeries.includes(q.subject) && (
+                            <option value={q.subject}>{q.subject}</option>
+                          )}
+                          <option value="__custom__">✏️ अपना विषय लिखें...</option>
+                        </select>
+                      </div>
                     </div>
                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <Lock className="w-3 h-3" /> ऑटो-लॉक
