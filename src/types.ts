@@ -357,6 +357,9 @@ export interface TestAttempt {
   userDistrict: string;
   seriesId: string;
   seriesTitle: string;
+  setNumber?: number;
+  isPaidTest?: boolean;
+  testType?: 'FREE_MOCK' | 'PAID_SERIES';
   startedAt: string;
   completedAt: string;
   durationSeconds: number;

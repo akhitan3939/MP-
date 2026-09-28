@@ -1,18 +1,9 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
-import { 
-  INITIAL_USERS, 
-  INITIAL_TEST_SERIES, 
-  INITIAL_ATTEMPTS, 
-  INITIAL_COUPONS, 
-  INITIAL_ANNOUNCEMENTS, 
-  INITIAL_NOTES,
-  INITIAL_QUESTIONS
-} from './src/data/initialData';
-import { INITIAL_NAV_MENUS, INITIAL_BANNERS } from './src/utils/storage';
 
 dotenv.config();
 
@@ -25,7 +16,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
@@ -334,13 +325,13 @@ if (!Array.isArray(inMemoryAppState.deletedUserIds)) {
 }
 
 if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 0) {
-  inMemoryAppState.users = INITIAL_USERS.filter(u => !(inMemoryAppState.deletedUserIds || []).includes(u.id));
+  inMemoryAppState.users = INITIAL_DEFAULT_USERS.filter(u => !(inMemoryAppState.deletedUserIds || []).includes(u.id));
 } else {
   // Respect deletions: filter out any deleted user ids
   const activeUsers = inMemoryAppState.users.filter(u => u && u.id && !(inMemoryAppState.deletedUserIds || []).includes(u.id));
   
   // Ensure default admin is always present and updated
-  const adminEntry = activeUsers.find(u => u.id === 'usr_admin') || INITIAL_USERS[0];
+  const adminEntry = activeUsers.find(u => u.id === 'usr_admin') || INITIAL_DEFAULT_USERS[0];
   const withoutAdmin = activeUsers.filter(u => u.id !== 'usr_admin');
   
   inMemoryAppState.users = [
@@ -358,12 +349,12 @@ if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 
 
 // 2. Initialize and preserve attempts seed
 if (!Array.isArray(inMemoryAppState.attempts) || inMemoryAppState.attempts.length === 0) {
-  inMemoryAppState.attempts = INITIAL_ATTEMPTS;
+  inMemoryAppState.attempts = INITIAL_DEFAULT_ATTEMPTS;
 }
 
 // 3. Initialize and preserve testSeries seed (Respect admin deletions and modifications)
-if (!Array.isArray(inMemoryAppState.testSeries) || inMemoryAppState.testSeries.length === 0) {
-  inMemoryAppState.testSeries = INITIAL_TEST_SERIES;
+if (!Array.isArray(inMemoryAppState.testSeries)) {
+  inMemoryAppState.testSeries = [];
 } else {
   // Respect existing inMemoryAppState.testSeries as the source of truth
   // Ensure each series is properly merged with base fields if present, but DO NOT resurrect deleted series
@@ -380,33 +371,33 @@ if (!inMemoryAppState.enrolledMap || typeof inMemoryAppState.enrolledMap !== 'ob
 }
 
 // 5. Initialize site banners
-if (!Array.isArray(inMemoryAppState.siteBanners) || inMemoryAppState.siteBanners.length === 0) {
-  inMemoryAppState.siteBanners = INITIAL_BANNERS;
+if (!Array.isArray(inMemoryAppState.siteBanners)) {
+  inMemoryAppState.siteBanners = [];
 }
 
 // 6. Initialize nav menus
-if (!Array.isArray(inMemoryAppState.navMenuItems) || inMemoryAppState.navMenuItems.length === 0) {
-  inMemoryAppState.navMenuItems = INITIAL_NAV_MENUS;
+if (!Array.isArray(inMemoryAppState.navMenuItems)) {
+  inMemoryAppState.navMenuItems = [];
 }
 
 // 7. Initialize coupons
-if (!Array.isArray(inMemoryAppState.coupons) || inMemoryAppState.coupons.length === 0) {
-  inMemoryAppState.coupons = INITIAL_COUPONS;
+if (!Array.isArray(inMemoryAppState.coupons)) {
+  inMemoryAppState.coupons = [];
 }
 
 // 8. Initialize announcements
-if (!Array.isArray(inMemoryAppState.announcements) || inMemoryAppState.announcements.length === 0) {
-  inMemoryAppState.announcements = INITIAL_ANNOUNCEMENTS;
+if (!Array.isArray(inMemoryAppState.announcements)) {
+  inMemoryAppState.announcements = [];
 }
 
 // 9. Initialize notes
-if (!Array.isArray(inMemoryAppState.notes) || inMemoryAppState.notes.length === 0) {
-  inMemoryAppState.notes = INITIAL_NOTES;
+if (!Array.isArray(inMemoryAppState.notes)) {
+  inMemoryAppState.notes = [];
 }
 
 // 9b. Initialize and preserve questions repository
-if (!Array.isArray(inMemoryAppState.questions) || inMemoryAppState.questions.length === 0) {
-  inMemoryAppState.questions = INITIAL_QUESTIONS;
+if (!Array.isArray(inMemoryAppState.questions)) {
+  inMemoryAppState.questions = [];
 }
 
 // 10. Initialize default platform settings if not present
@@ -857,6 +848,21 @@ app.delete('/api/notes/storage-files/:fileName', (req: Request, res: Response) =
 // ==========================================
 // USER REGISTRATION, LOGIN & MANAGEMENT ENDPOINTS
 // ==========================================
+// Endpoint to check if phone is available for registration
+app.get('/api/users/check-phone', (req: Request, res: Response) => {
+  const phone = String(req.query.phone || '').replace(/\D/g, '').slice(-10);
+  const deletedIds = new Set(inMemoryAppState.deletedUserIds || []);
+  const activeUsers = (inMemoryAppState.users || []).filter(u => u && u.id && !deletedIds.has(u.id));
+  const existing = phone.length >= 10 ? activeUsers.find(u => String(u.phone || '').replace(/\D/g, '').slice(-10) === phone) : null;
+  res.json({
+    success: true,
+    phone,
+    isAvailable: !existing,
+    exists: Boolean(existing),
+    userName: existing?.name || null
+  });
+});
+
 app.get('/api/users', (req: Request, res: Response) => {
   const deletedIds = new Set(inMemoryAppState.deletedUserIds || []);
   const activeUsers = (inMemoryAppState.users || []).filter(u => u && u.id && !deletedIds.has(u.id));
@@ -1335,9 +1341,8 @@ app.post('/api/test-series/toggle-active', (req: Request, res: Response) => {
   });
 
   if (!found) {
-    const defaultItem = INITIAL_TEST_SERIES.find(s => s.id === seriesId);
     updatedStatus = isActive !== undefined ? Boolean(isActive) : false;
-    const newEntry = defaultItem ? { ...defaultItem, isActive: updatedStatus } : { id: seriesId, isActive: updatedStatus };
+    const newEntry = { id: seriesId, isActive: updatedStatus };
     list.push(newEntry);
   }
 
@@ -1368,8 +1373,7 @@ app.post('/api/test-series/toggle-set', (req: Request, res: Response) => {
 
   if (!targetSeries) {
     // create default minimal entry if not yet saved
-    const defaultItem = INITIAL_TEST_SERIES.find(s => s.id === seriesId);
-    targetSeries = defaultItem ? { ...defaultItem } : {
+    targetSeries = {
       id: seriesId,
       totalTests: 20,
       disabledSetNumbers: [],

@@ -299,6 +299,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Comprehensive Cloud Data Refresh & State Merging
   const refreshCloudData = async (): Promise<void> => {
+    // If student is currently taking exam, DO NOT poll or parse in background to prevent memory spikes & tab crashes
+    if (activeView === 'cbtExam') {
+      return;
+    }
+
     try {
       setCloudSyncStatus('syncing');
       const res = await fetch('/api/app-data');
@@ -307,7 +312,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (data && data.success && data.data) {
         const s = data.data;
 
-        // 1. Merge Users (Server + Local Storage) with deletion blacklist enforcement
+        // 1. Merge Users (Server is authoritative source of truth for active accounts)
         if (Array.isArray(s.users)) {
           const serverDeleted: string[] = Array.isArray(s.deletedUserIds) ? s.deletedUserIds : [];
           const localDeleted: string[] = StorageService.getDeletedUserIds();
@@ -316,26 +321,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Keep local deleted list in sync with server
           serverDeleted.forEach(id => StorageService.addDeletedUserId(id));
 
-          setUsers(prev => {
-            const userMap = new Map<string, UserProfile>();
-            // Load non-deleted server users first (authoritative)
-            s.users.forEach((u: UserProfile) => {
-              if (u && u.id && !allDeleted.has(u.id)) {
-                userMap.set(u.id, u);
-              }
-            });
-            // Keep local non-deleted users that aren't yet on server (exclude initial dummy/seed users that were deleted on server)
-            (prev || []).forEach(u => {
-              if (u && u.id && !userMap.has(u.id) && !allDeleted.has(u.id)) {
-                if (!u.id.startsWith('usr_student_') && u.id !== 'usr_sample_demo_1') {
-                  userMap.set(u.id, u);
-                }
-              }
-            });
-            const mergedUsers = Array.from(userMap.values());
-            StorageService.setUsers(mergedUsers);
-            return mergedUsers;
-          });
+          // Only keep active, non-deleted users from server
+          const authoritativeUsers: UserProfile[] = s.users.filter(
+            (u: UserProfile) => u && u.id && !allDeleted.has(u.id)
+          );
+
+          setUsers(authoritativeUsers);
+          StorageService.setUsers(authoritativeUsers);
 
           // If current logged-in user was deleted, log out immediately
           if (currentUserId && allDeleted.has(currentUserId)) {
@@ -779,24 +771,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Check duplicates strictly against active (non-deleted) users
     const deletedIds = new Set(StorageService.getDeletedUserIds());
-    const activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
+    let activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
 
-    // Check duplicate phone number
-    if (cleanPhone.length >= 10 && activeUsers.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
-      const msg = lang === 'hi' 
-        ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया अपना पासवर्ड डालकर लॉगिन करें अथवा दूसरा नंबर उपयोग करें।` 
-        : `❌ Mobile number (+91-${cleanPhone}) is already registered! Please login or use another number.`;
-      showToast(msg);
-      return { success: false, message: msg };
+    // If an existing record exists with this phone, purge the stale record so re-registration succeeds seamlessly
+    const existingOldUser = cleanPhone.length >= 10 
+      ? activeUsers.find(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)
+      : null;
+
+    if (existingOldUser) {
+      StorageService.addDeletedUserId(existingOldUser.id);
+      deletedIds.add(existingOldUser.id);
+      activeUsers = activeUsers.filter(u => u.id !== existingOldUser.id);
     }
 
-    // Check if email already registered
-    if (cleanEmail && activeUsers.some(u => (u.email || '').toLowerCase().trim() === cleanEmail)) {
-      const msg = lang === 'hi'
-        ? `❌ यह ईमेल (${cleanEmail}) पहले से पंजीकृत है! कृपया सीधे लॉगिन करें।`
-        : `❌ Email (${cleanEmail}) is already registered! Please login directly.`;
-      showToast(msg);
-      return { success: false, message: msg };
+    // Check if email already registered by another active user
+    const existingOldEmailUser = cleanEmail
+      ? activeUsers.find(u => (u.email || '').toLowerCase().trim() === cleanEmail)
+      : null;
+
+    if (existingOldEmailUser) {
+      if (existingOldUser && existingOldEmailUser.id === existingOldUser.id) {
+        // Same re-registering user, allow
+      } else {
+        const msg = lang === 'hi'
+          ? `❌ यह ईमेल (${cleanEmail}) पहले से पंजीकृत है! कृपया सीधे लॉगिन करें।`
+          : `❌ Email (${cleanEmail}) is already registered! Please login directly.`;
+        showToast(msg);
+        return { success: false, message: msg };
+      }
     }
 
     // Check if username already taken
@@ -824,9 +826,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Remove new user ID from deletedUserIds if ever present
     StorageService.removeDeletedUserId(newUser.id);
+    if (cleanPhone) {
+      const oldWithPhone = users.find(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone);
+      if (oldWithPhone) {
+        StorageService.removeDeletedUserId(oldWithPhone.id);
+      }
+    }
 
     setUsers(prev => {
-      const updated = [newUser, ...prev.filter(u => u && u.id && !deletedIds.has(u.id))];
+      // Filter out any stale record with this phone number to guarantee clean slate
+      const cleanPrev = prev.filter(u => !u || !u.id || (cleanPhone.length >= 10 && (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone ? false : !deletedIds.has(u.id)));
+      const updated = [newUser, ...cleanPrev];
       StorageService.setUsers(updated);
       return updated;
     });
@@ -1409,6 +1419,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       method: 'DELETE'
     }).then(res => res.json())
       .then(data => {
+        if (data && Array.isArray(data.users)) {
+          setUsers(data.users);
+          StorageService.setUsers(data.users);
+        }
         console.log(`[MP Setu] User ${userId} successfully removed on server:`, data);
       })
       .catch(err => console.warn('User delete sync warning:', err));

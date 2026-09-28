@@ -232,6 +232,74 @@ export const CbtExamView: React.FC = () => {
   const initialDuration = series.durationMinutes * 60;
   const [timeLeft, setTimeLeft] = useState<number>(initialDuration);
   const startTimeRef = useRef<number>(Date.now());
+  const activeSessionKey = `mp_cbt_session_${series.id}_set_${isFreeMock40 ? 1 : chosenSetNumber}`;
+  const [hasSavedSession, setHasSavedSession] = useState<{
+    timeLeft: number;
+    answersCount: number;
+    startTime: number;
+  } | null>(null);
+
+  // Check for auto-saved in-progress session on set change or mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(activeSessionKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved.isExamStarted && typeof saved.timeLeft === 'number') {
+          const elapsed = Math.floor((Date.now() - (saved.savedAt || saved.startTime)) / 1000);
+          const remaining = Math.max(0, saved.timeLeft - elapsed);
+          if (remaining > 15) {
+            setHasSavedSession({
+              timeLeft: remaining,
+              answersCount: Object.keys(saved.userAnswers || {}).length,
+              startTime: saved.startTime || Date.now()
+            });
+          } else {
+            localStorage.removeItem(activeSessionKey);
+            setHasSavedSession(null);
+          }
+        }
+      } else {
+        setHasSavedSession(null);
+      }
+    } catch {
+      // safe fallback
+    }
+  }, [activeSessionKey, chosenSetNumber]);
+
+  // Action to resume existing saved test session
+  const handleResumeSavedSession = () => {
+    try {
+      const raw = localStorage.getItem(activeSessionKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      const elapsed = Math.floor((Date.now() - (saved.savedAt || saved.startTime)) / 1000);
+      const remaining = Math.max(0, saved.timeLeft - elapsed);
+
+      if (remaining > 10) {
+        startTimeRef.current = saved.startTime || Date.now();
+        setTimeLeft(remaining);
+        setUserAnswers(saved.userAnswers || {});
+        setReviewedQuestionIds(saved.reviewedQuestionIds || []);
+        setVisitedQuestionIds(saved.visitedQuestionIds || [questionsList[0]?.id || 'q1']);
+        setCurrentIdx(saved.currentIdx || 0);
+        setExamLang(saved.examLang || lang || 'hi');
+        setIsExamStarted(true);
+        setHasSavedSession(null);
+        showToast(
+          lang === 'hi' 
+            ? `⚡ आपकी परीक्षा प्रगति पुनर्स्थापित हो गई है! (${Object.keys(saved.userAnswers || {}).length} उत्तर सुरक्षित, ${Math.floor(remaining / 60)} मिनट शेष)` 
+            : `⚡ Exam session resumed! (${Object.keys(saved.userAnswers || {}).length} answers saved, ${Math.floor(remaining / 60)} mins left)`
+        );
+      } else {
+        localStorage.removeItem(activeSessionKey);
+        setHasSavedSession(null);
+        showToast(lang === 'hi' ? '⚠️ समय समाप्त हो चुका था, नया टेस्ट प्रारंभ करें।' : '⚠️ Previous session expired.');
+      }
+    } catch {
+      // fallback
+    }
+  };
 
   const handleStartExam = () => {
     if (!agreedTerms) {
@@ -243,6 +311,10 @@ export const CbtExamView: React.FC = () => {
       openRazorpayModal(series);
       return;
     }
+
+    // Clear any stale session when starting anew
+    localStorage.removeItem(activeSessionKey);
+    setHasSavedSession(null);
 
     startTimeRef.current = Date.now();
     setTimeLeft(series.durationMinutes * 60);
@@ -263,6 +335,64 @@ export const CbtExamView: React.FC = () => {
             : `🚀 Exam paper Set #${chosenSetNumber} started. All the best!`)
     );
   };
+
+  // Continuous auto-save of running test to localStorage (Zero Data Loss Protection)
+  useEffect(() => {
+    if (!isExamStarted) return;
+    try {
+      const payload = {
+        isExamStarted: true,
+        seriesId: series.id,
+        setNumber: isFreeMock40 ? 1 : chosenSetNumber,
+        userAnswers,
+        reviewedQuestionIds,
+        visitedQuestionIds,
+        currentIdx,
+        timeLeft,
+        startTime: startTimeRef.current,
+        examLang,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(activeSessionKey, JSON.stringify(payload));
+    } catch {
+      // safe fallback
+    }
+  }, [isExamStarted, userAnswers, reviewedQuestionIds, visitedQuestionIds, currentIdx, timeLeft, examLang, activeSessionKey]);
+
+  // Window BeforeUnload prompt to prevent accidental browser close / refresh
+  useEffect(() => {
+    if (!isExamStarted) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isExamStarted]);
+
+  // Protect against accidental mobile swipe-back or browser back navigation
+  useEffect(() => {
+    if (!isExamStarted) return;
+
+    try {
+      window.history.pushState({ inExam: true }, '');
+    } catch {
+      // safe fallback
+    }
+
+    const handlePopState = () => {
+      try {
+        window.history.pushState({ inExam: true }, '');
+      } catch {
+        // safe fallback
+      }
+      setShowExitConfirmModal(true);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isExamStarted]);
 
   // Countdown timer effect - ONLY runs when isExamStarted is true!
   useEffect(() => {
@@ -455,12 +585,20 @@ export const CbtExamView: React.FC = () => {
     });
 
     try {
+      const isPaid = !isFreeMock40;
+      const attemptTitle = isFreeMock40 
+        ? (examLang === 'hi' ? '🎯 40-प्रश्न फ्री मॉक टेस्ट (CBT सिमुलेटर)' : '🎯 40-Questions Free Mock Test (CBT Simulator)')
+        : `${examLang === 'hi' ? series.titleHi : series.titleEn} — सेट #${chosenSetNumber} (200 प्रश्न)`;
+
       const attempt = await submitTestAttempt({
         userId: currentUser?.id || 'usr_guest',
         userName: currentUser?.name || 'परीक्षार्थी (Aspirant)',
         userDistrict: currentUser?.district || 'भोपाल (Bhopal)',
         seriesId: isFreeMock40 ? 'free_mock_40' : (series?.id || 'free_mock_40'),
-        seriesTitle: isFreeMock40 ? 'ऑल-मध्यप्रदेश फ्री मॉक टेस्ट (40 प्रश्न)' : (examLang === 'hi' ? series.titleHi : series.titleEn),
+        setNumber: isFreeMock40 ? 1 : chosenSetNumber,
+        isPaidTest: isPaid,
+        testType: isPaid ? 'PAID_SERIES' : 'FREE_MOCK',
+        seriesTitle: attemptTitle,
         startedAt: new Date(startTimeRef.current).toISOString(),
         completedAt: new Date().toISOString(),
         durationSeconds: elapsedSeconds,
@@ -476,10 +614,16 @@ export const CbtExamView: React.FC = () => {
         sectionScores: sectionBreakdown
       });
 
+      // Clear saved in-progress session after successful submission
+      localStorage.removeItem(activeSessionKey);
+      setHasSavedSession(null);
+
       showToast(lang === 'hi' ? '🎉 परीक्षा सफलतापूर्वक सबमिट हुई! AI रिपोर्ट तैयार है।' : '🎉 Exam submitted! AI report ready.');
       navigate('resultAnalytics', { attemptId: attempt.id });
     } catch (err) {
       console.error('Error submitting exam:', err);
+      localStorage.removeItem(activeSessionKey);
+      setHasSavedSession(null);
       showToast('Error saving score. Redirecting to result...');
       navigate('resultAnalytics');
     } finally {
@@ -557,6 +701,52 @@ export const CbtExamView: React.FC = () => {
         {/* Content Body */}
         <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 flex-1">
           
+          {/* RESUME SAVED SESSION BANNER (Zero Data Loss Protection) */}
+          {hasSavedSession && (
+            <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-700 text-stone-950 rounded-3xl p-5 sm:p-6 shadow-2xl border-4 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-stone-950 text-amber-400 flex items-center justify-center font-black text-2xl shadow-lg shrink-0">
+                  ⚡
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-stone-950 text-amber-300 font-black text-[11px] uppercase tracking-wider mb-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {lang === 'hi' ? 'अधूरी परीक्षा प्रगति सुरक्षित (Auto-Saved In-Progress)' : 'Saved In-Progress Test'}
+                  </div>
+                  <h3 className="font-display font-black text-lg sm:text-xl text-stone-950">
+                    {lang === 'hi' 
+                      ? `आपकी परीक्षा प्रगति सुरक्षित है! (${hasSavedSession.answersCount} प्रश्न हल किए, ${Math.floor(hasSavedSession.timeLeft / 60)} मिनट शेष)` 
+                      : `Your test progress is safe! (${hasSavedSession.answersCount} answers saved, ${Math.floor(hasSavedSession.timeLeft / 60)} mins left)`}
+                  </h3>
+                  <p className="text-stone-900 font-medium text-xs mt-0.5">
+                    {lang === 'hi' 
+                      ? 'यदि ब्राउज़र अचानक बंद हुआ था या त्रुटि आई थी, तो आप बिना कोई उत्तर गंवाए सीधे वहीं से जारी रख सकते हैं।' 
+                      : 'You can resume your exam right where you left off without losing answers or time.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleResumeSavedSession}
+                  className="px-6 py-3 rounded-2xl bg-stone-950 text-amber-300 hover:bg-stone-900 font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl transition flex items-center gap-2 cursor-pointer"
+                >
+                  <Play className="w-4 h-4 fill-amber-300" />
+                  <span>{lang === 'hi' ? '▶️ परीक्षा जारी रखें (Resume)' : '▶️ Resume Exam'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem(activeSessionKey);
+                    setHasSavedSession(null);
+                    showToast(lang === 'hi' ? 'सत्र हटा दिया गया। नया टेस्ट शुरू कर सकते हैं।' : 'Session cleared.');
+                  }}
+                  className="px-3.5 py-3 rounded-2xl bg-stone-800/80 hover:bg-stone-900 text-stone-200 text-xs font-bold transition cursor-pointer"
+                  title="रद्द कर नए सिरे से शुरू करें"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* BANNER: Free vs Paid */}
           {isChosenSetFree ? (
             <div className="bg-gradient-to-r from-emerald-900/90 via-emerald-950 to-stone-900 border-2 border-emerald-500/80 rounded-3xl p-5 sm:p-6 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1469,10 +1659,12 @@ export const CbtExamView: React.FC = () => {
             <div className="space-y-2 pt-2">
               <button
                 onClick={() => {
+                  localStorage.removeItem(activeSessionKey);
+                  setHasSavedSession(null);
                   setShowExitConfirmModal(false);
                   navigate('studentDashboard');
                 }}
-                className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 dark:bg-stone-100 dark:hover:bg-white text-stone-100 dark:text-stone-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition"
+                className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 dark:bg-stone-100 dark:hover:bg-white text-stone-100 dark:text-stone-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <Home className="w-4 h-4" />
                 <span>{lang === 'hi' ? 'हाँ, छात्र डैशबोर्ड पर जाएँ (Dashboard)' : 'Go to Student Dashboard'}</span>
@@ -1480,10 +1672,12 @@ export const CbtExamView: React.FC = () => {
 
               <button
                 onClick={() => {
+                  localStorage.removeItem(activeSessionKey);
+                  setHasSavedSession(null);
                   setShowExitConfirmModal(false);
                   navigate('catalog');
                 }}
-                className="w-full py-2.5 bg-stone-200 hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition"
+                className="w-full py-2.5 bg-stone-200 hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <BookOpen className="w-4 h-4" />
                 <span>{lang === 'hi' ? 'सभी टेस्ट सीरीज़ देखें (Catalog)' : 'Go to Test Catalog'}</span>

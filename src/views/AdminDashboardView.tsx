@@ -237,6 +237,7 @@ export const AdminDashboardView: React.FC = () => {
   const [searchOrders, setSearchOrders] = useState('');
   const [searchStudents, setSearchStudents] = useState('');
   const [searchAttempts, setSearchAttempts] = useState('');
+  const [attemptTypeFilter, setAttemptTypeFilter] = useState<'ALL' | 'PAID' | 'FREE'>('ALL');
   const [searchQuestions, setSearchQuestions] = useState('');
   const [searchMenus, setSearchMenus] = useState('');
   const [searchAnnouncements, setSearchAnnouncements] = useState('');
@@ -3619,8 +3620,43 @@ export const AdminDashboardView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Filter Search */}
-                <div className="pt-2">
+                {/* Filter Search & Category Pills */}
+                <div className="pt-2 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setAttemptTypeFilter('ALL')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        attemptTypeFilter === 'ALL'
+                          ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                      }`}
+                    >
+                      सभी टेस्ट परिणाम ({attempts.length})
+                    </button>
+                    <button
+                      onClick={() => setAttemptTypeFilter('PAID')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                        attemptTypeFilter === 'PAID'
+                          ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                      }`}
+                    >
+                      <span>💎</span>
+                      <span>सशुल्क टेस्ट सीरीज़ ({attempts.filter(a => (a as any).isPaidTest === true || a.seriesId !== 'free_mock_40' || ((a as any).totalQuestions || 40) > 40).length})</span>
+                    </button>
+                    <button
+                      onClick={() => setAttemptTypeFilter('FREE')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                        attemptTypeFilter === 'FREE'
+                          ? 'bg-amber-500 text-stone-950 font-black shadow-xs'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
+                      }`}
+                    >
+                      <span>🎯</span>
+                      <span>40-प्रश्न फ्री मॉक ({attempts.filter(a => (a as any).isPaidTest === false || a.seriesId === 'free_mock_40' || ((a as any).totalQuestions || 40) === 40).length})</span>
+                    </button>
+                  </div>
+
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
                     <input
@@ -3648,6 +3684,7 @@ export const AdminDashboardView: React.FC = () => {
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-stone-50 dark:bg-stone-800/80 border-b-2 border-stone-200 dark:border-stone-700 text-stone-500 uppercase text-[10px] font-black">
+                          <th className="py-3 px-4">प्रकार / Type</th>
                           <th className="py-3 px-4">परीक्षार्थी विवरण</th>
                           <th className="py-3 px-4">टेस्ट सीरीज़ / मॉक पेपर</th>
                           <th className="py-3 px-4">प्राप्तांक / कुल अंक</th>
@@ -3660,17 +3697,41 @@ export const AdminDashboardView: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-stone-100 dark:divide-stone-800 font-medium">
                         {attempts
-                          .filter(a => !searchAttempts ||
-                            (a.userName && a.userName.toLowerCase().includes(searchAttempts.toLowerCase())) ||
-                            (a.userDistrict && a.userDistrict.toLowerCase().includes(searchAttempts.toLowerCase())) ||
-                            (a.seriesTitle && a.seriesTitle.toLowerCase().includes(searchAttempts.toLowerCase()))
-                          )
+                          .filter(a => {
+                            if (attemptTypeFilter === 'PAID') {
+                              const isPaid = (a as any).isPaidTest === true || a.seriesId !== 'free_mock_40' || ((a as any).totalQuestions || 40) > 40;
+                              if (!isPaid) return false;
+                            } else if (attemptTypeFilter === 'FREE') {
+                              const isFree = (a as any).isPaidTest === false || a.seriesId === 'free_mock_40' || ((a as any).totalQuestions || 40) === 40;
+                              if (!isFree) return false;
+                            }
+                            if (!searchAttempts) return true;
+                            const q = searchAttempts.toLowerCase();
+                            return (a.userName && a.userName.toLowerCase().includes(q)) ||
+                              (a.userDistrict && a.userDistrict.toLowerCase().includes(q)) ||
+                              (a.seriesTitle && a.seriesTitle.toLowerCase().includes(q));
+                          })
                           .map((attempt) => {
                             const totalQ = attempt.totalQuestions || 40;
-                            const isFree = attempt.seriesId === 'free_mock_40' || totalQ === 40;
+                            const isPaid = (attempt as any).isPaidTest === true || attempt.seriesId !== 'free_mock_40' || totalQ > 40;
+                            const isFree = !isPaid;
+                            const setNum = (attempt as any).setNumber || 1;
 
                             return (
                               <tr key={attempt.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                                <td className="py-3.5 px-4">
+                                  {isPaid ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 font-black text-[10px] border border-amber-300 dark:border-amber-800">
+                                      <span>💎</span>
+                                      <span>सशुल्क SET #{setNum}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 font-black text-[10px] border border-emerald-300 dark:border-emerald-800">
+                                      <span>🎯</span>
+                                      <span>फ्री मॉक</span>
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="py-3.5 px-4">
                                   <div className="font-black text-stone-800 dark:text-white flex items-center gap-1.5">
                                     <span>{attempt.userName || 'परीक्षार्थी'}</span>

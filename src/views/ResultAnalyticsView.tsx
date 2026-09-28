@@ -75,13 +75,15 @@ export const ResultAnalyticsView: React.FC = () => {
     (attempt.seriesTitle && (attempt.seriesTitle.includes('40 प्रश्न') || attempt.seriesTitle.toLowerCase().includes('free mock') || attempt.seriesTitle.includes('फ्री मॉक'))) ||
     Object.keys(attempt.answers || {}).some(k => k.startsWith('free_q'));
 
+  const attemptSetNumber = (attempt as any).setNumber || 1;
+
   let questionsList: Question[] = [];
   if (isFreeMockAttempt) {
     questionsList = EXCLUSIVE_FREE_MOCK_QUESTIONS;
   } else if (attempt.seriesId === 'ts_agri_ext_2026') {
-    questionsList = getAgriQuestionsForSet(1);
+    questionsList = getAgriQuestionsForSet(attemptSetNumber);
   } else if (attempt.seriesId === 'ts_patwari_2026') {
-    questionsList = getPatwariQuestionsForSet(1);
+    questionsList = getPatwariQuestionsForSet(attemptSetNumber);
   } else {
     const attemptQuestions = questions.filter(q => q.seriesId === attempt.seriesId);
     questionsList = attemptQuestions.length > 0 ? attemptQuestions : questions.slice(0, 40);
@@ -175,6 +177,19 @@ export const ResultAnalyticsView: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
             <span>{lang === 'hi' ? 'डैशबोर्ड पर वापस जाएँ' : 'Back to Dashboard'}</span>
           </button>
+          <div className="flex items-center gap-2 my-1">
+            {!isFreeMockAttempt ? (
+              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 font-black text-[11px] border border-amber-300 dark:border-amber-800">
+                <span>💎</span>
+                <span>सशुल्क टेस्ट सीरीज़ — सेट #{attemptSetNumber} ({attempt.totalQuestions || 200} प्रश्न)</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 font-black text-[11px] border border-emerald-300 dark:border-emerald-800">
+                <span>🎯</span>
+                <span>ऑल-मध्यप्रदेश 40-प्रश्न फ्री मॉक टेस्ट</span>
+              </span>
+            )}
+          </div>
           <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-stone-900 dark:text-white">
             {lang === 'hi' ? 'परीक्षा परिणाम व AI विस्तृत विश्लेषण' : 'Test Result & AI Comprehensive Analytics'}
           </h1>

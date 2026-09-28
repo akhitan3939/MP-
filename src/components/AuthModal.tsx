@@ -151,10 +151,26 @@ export const AuthModal: React.FC = () => {
       }
 
       // Check if mobile number is already registered (ignoring permanently deleted users)
-      const deletedIds = new Set(StorageService.getDeletedUserIds());
-      const activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
+      const cleanEmail = email.trim().toLowerCase();
+      let deletedIds = new Set(StorageService.getDeletedUserIds());
+      let activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
 
-      if (activeUsers.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)) {
+      // Authoritative server check for phone availability
+      let isPhoneAvailable = true;
+      try {
+        const checkRes = await fetch(`/api/users/check-phone?phone=${cleanPhone}`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.exists) {
+            isPhoneAvailable = false;
+          }
+        }
+      } catch {
+        // Fallback to local activeUsers check
+        isPhoneAvailable = !activeUsers.some(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone);
+      }
+
+      if (!isPhoneAvailable) {
         setErrorMsg(
           lang === 'hi' 
             ? `❌ यह मोबाइल नंबर (+91-${cleanPhone}) पहले से पंजीकृत है! कृपया अपना पासवर्ड डालकर लॉगिन करें अथवा नीचे "पासवर्ड भूल गए?" का उपयोग करें।` 
@@ -163,8 +179,19 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      // Check if email already registered
-      const cleanEmail = email.trim().toLowerCase();
+      // If phone is available on server, purge any stale local user with this phone or email that admin deleted
+      const staleUser = users.find(u => 
+        (u.phone && (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone) ||
+        (cleanEmail && u.email && (u.email || '').toLowerCase().trim() === cleanEmail)
+      );
+      if (staleUser) {
+        StorageService.addDeletedUserId(staleUser.id);
+        deletedIds.add(staleUser.id);
+        activeUsers = activeUsers.filter(u => u.id !== staleUser.id);
+        setUsers(prev => prev.filter(u => u.id !== staleUser.id));
+      }
+
+      // Check if email already registered by an active non-deleted user
       if (cleanEmail && activeUsers.some(u => (u.email || '').toLowerCase().trim() === cleanEmail)) {
         setErrorMsg(
           lang === 'hi' 
@@ -174,7 +201,7 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      // Check if username already taken
+      // Check if username already taken by an active non-deleted user
       const desiredUsername = (username.trim() || cleanEmail.split('@')[0]).toLowerCase();
       if (activeUsers.some(u => u.username && u.username.toLowerCase() === desiredUsername)) {
         setErrorMsg(
