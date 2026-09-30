@@ -103,6 +103,7 @@ import { AdminQuestionBankHub } from '../components/admin/AdminQuestionBankHub';
 import { AdminNotesPdfManager } from '../components/admin/AdminNotesPdfManager';
 import { AdminStorageManager } from '../components/AdminStorageManager';
 import { getAllQuestionsForSeries, getSeriesAndSetInfo, getResolvedMockQuestions } from '../utils/questionBankHelper';
+import { reconcileOrdersAndUsers } from '../context/AppContext';
 
 type AdminModuleTab = 
   | 'OVERVIEW'
@@ -854,7 +855,7 @@ export const AdminDashboardView: React.FC = () => {
 
   // Generic export dispatcher for Students
   const handleExportUsers = (format: 'xls' | 'csv' | 'pdf') => {
-    const data = users.map(u => {
+    const data = allPortalUsers.map(u => {
       const userEnrolled = enrolledMap[u.id] || u.purchasedSeries || [];
       return {
         'छात्र ID': u.id,
@@ -1081,12 +1082,17 @@ export const AdminDashboardView: React.FC = () => {
     }
   }, [questions]);
 
+  // Synchronized & Locked Users List: Reconcile all users from orders with users state so no user is ever missing
+  const allPortalUsers = useMemo(() => {
+    return reconcileOrdersAndUsers(orders, users);
+  }, [orders, users]);
+
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
     { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
-    { id: 'STUDENTS', label: 'छात्र व एक्सेस नियंत्रण', subLabel: 'Students & Role Access', icon: Users, count: users.length, badgeColor: 'bg-blue-600' },
+    { id: 'STUDENTS', label: 'छात्र व एक्सेस नियंत्रण', subLabel: 'Students & Role Access', icon: Users, count: allPortalUsers.length, badgeColor: 'bg-blue-600' },
     { id: 'STORAGE', label: 'क्लाउड स्टोरेज व फ़ाइल लिंक', subLabel: 'PDF, Images, Copy Links', icon: HardDrive, count: storedFiles.length, badgeColor: 'bg-teal-700' },
-    { id: 'REPORTS', label: 'रिपोर्ट्स व डेटा एक्सपोर्ट', subLabel: 'XLS, PDF, CSV Reports', icon: FileSpreadsheet, count: users.length + orders.length, badgeColor: 'bg-emerald-600' },
+    { id: 'REPORTS', label: 'रिपोर्ट्स व डेटा एक्सपोर्ट', subLabel: 'XLS, PDF, CSV Reports', icon: FileSpreadsheet, count: allPortalUsers.length + orders.length, badgeColor: 'bg-emerald-600' },
     { 
       id: 'SUCCESSFUL_PAYMENTS', 
       label: 'सफल भुगतान रिपोर्ट (Success Only)', 
@@ -4963,13 +4969,13 @@ export const AdminDashboardView: React.FC = () => {
                     <Filter className="w-3 h-3" /> फ़िल्टर:
                   </span>
                   {[
-                    { id: 'all', label: `📋 सभी छात्र (${users.length})` },
-                    { id: 'granted', label: `🎁 मुफ़्त / अनलॉक एक्सेस (${users.filter(u => (((enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || [])).length > 0) || orders.some(o => o.userId === u.id && o.status === 'SUCCESS') || u.role === 'admin').length})` },
-                    { id: 'valid', label: `✅ वास्तविक छात्र (${users.filter(u => !u.isDummyUser).length})` },
+                    { id: 'all', label: `📋 सभी छात्र (${allPortalUsers.length})` },
+                    { id: 'granted', label: `🎁 मुफ़्त / अनलॉक एक्सेस (${allPortalUsers.filter(u => (((enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || [])).length > 0) || orders.some(o => o.userId === u.id && o.status === 'SUCCESS') || u.role === 'admin').length})` },
+                    { id: 'valid', label: `✅ वास्तविक छात्र (${allPortalUsers.filter(u => !u.isDummyUser).length})` },
                     { id: 'archived', label: `📦 आर्काइव छात्र (${archivedUsers.length})` },
-                    { id: 'tagged', label: `🏷️ टैग प्राप्त (${users.filter(u => Boolean(u.customTag || u.grantReason)).length})` },
-                    { id: 'admin', label: `👑 व्यवस्थापक / Admin (${users.filter(u => u.role === 'admin').length})` },
-                    { id: 'dummy', label: `🧪 डमी / टेस्ट खाते (${users.filter(u => u.isDummyUser).length})` }
+                    { id: 'tagged', label: `🏷️ टैग प्राप्त (${allPortalUsers.filter(u => Boolean(u.customTag || u.grantReason)).length})` },
+                    { id: 'admin', label: `👑 व्यवस्थापक / Admin (${allPortalUsers.filter(u => u.role === 'admin').length})` },
+                    { id: 'dummy', label: `🧪 डमी / टेस्ट खाते (${allPortalUsers.filter(u => u.isDummyUser).length})` }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -4999,6 +5005,31 @@ export const AdminDashboardView: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Live Portal Auto-Lock Protection Banner */}
+                <div className="bg-emerald-50 dark:bg-emerald-950/60 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-emerald-950 dark:text-emerald-200 flex items-center flex-wrap gap-1.5">
+                        <span>🔒 लाइव पोर्टल सुरक्षा लॉक सक्रिय (Permanent Auto-Lock Active)</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 text-[10px] font-black uppercase font-mono">
+                          ALL USERS LOCKED & LIVE
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800/90 dark:text-emerald-300 font-medium mt-0.5">
+                        रेज़रपे ट्रांजैक्शन एवं साइनअप वाले समस्त <strong>{allPortalUsers.length} छात्र</strong> स्वतः लॉक हैं और लाइव पोर्टल से कभी नहीं हटेंगे।
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-3 py-1 rounded-xl bg-white dark:bg-stone-900 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-300 text-xs font-black font-mono">
+                      {allPortalUsers.length} / {allPortalUsers.length} लॉक्ड
+                    </span>
+                  </div>
+                </div>
+
                 {/* Filter Alert Banner if Filter or Search is active */}
                 {(studentFilterType !== 'all' || searchStudents) && (
                   <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 rounded-xl text-xs font-bold text-amber-900 dark:text-amber-200">
@@ -5018,7 +5049,7 @@ export const AdminDashboardView: React.FC = () => {
                       className="px-3 py-1 bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] rounded-lg font-black text-xs transition cursor-pointer shadow-xs flex items-center gap-1"
                     >
                       <Users className="w-3.5 h-3.5" />
-                      <span>📋 सभी {users.length} छात्र व पासवर्ड दिखाएं</span>
+                      <span>📋 सभी {allPortalUsers.length} छात्र व पासवर्ड दिखाएं</span>
                     </button>
                   </div>
                 )}
@@ -5026,7 +5057,7 @@ export const AdminDashboardView: React.FC = () => {
 
               {/* Students Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(studentFilterType === 'archived' ? archivedUsers : users)
+                {(studentFilterType === 'archived' ? archivedUsers : allPortalUsers)
                   .filter(u => {
                     const userEnrolled = (enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || []);
                     const isGranted = userEnrolled.length > 0 || 
@@ -5109,6 +5140,12 @@ export const AdminDashboardView: React.FC = () => {
                                       👑 ADMIN
                                     </span>
                                   )}
+                                  {user.isLocked && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-black font-mono border border-emerald-300/80 dark:border-emerald-700/80 flex items-center gap-1">
+                                      <Lock className="w-2.5 h-2.5 text-emerald-600" />
+                                      <span>🔒 लॉक्ड (सुरक्षित)</span>
+                                    </span>
+                                  )}
                                   {isDummy && (
                                     <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-black font-mono">
                                       🧪 DUMMY
@@ -5144,6 +5181,25 @@ export const AdminDashboardView: React.FC = () => {
                               <span className="text-[10px] font-mono opacity-70 shrink-0">असाइन किया गया टैग</span>
                             </div>
                           )}
+
+                          {/* Order / Transaction Summary Banner if Orders Exist */}
+                          {(() => {
+                            const cleanP = user.phone ? String(user.phone).replace(/\D/g, '').slice(-10) : '';
+                            const userOrders = orders.filter(o => o.userId === user.id || (cleanP.length >= 10 && o.userPhone && String(o.userPhone).replace(/\D/g, '').slice(-10) === cleanP));
+                            if (userOrders.length === 0) return null;
+                            const totalSpent = userOrders.reduce((sum, o) => sum + (o.finalAmount || 0), 0);
+                            return (
+                              <div className="px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 text-xs font-bold flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <CreditCard className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                  <span className="truncate">रेज़रपे लेन-देन: <strong>{userOrders.length} सफल ऑर्डर</strong> (₹{totalSpent.toLocaleString()})</span>
+                                </span>
+                                <span className="text-[10px] font-mono text-teal-800 dark:text-teal-200 bg-teal-200/70 dark:bg-teal-900 px-2 py-0.5 rounded-md font-black shrink-0">
+                                  सत्यापित
+                                </span>
+                              </div>
+                            );
+                          })()}
 
                           {/* User Details Grid */}
                           <div className="p-3 bg-stone-50 dark:bg-stone-800/80 rounded-2xl text-xs space-y-2">
@@ -5408,8 +5464,26 @@ export const AdminDashboardView: React.FC = () => {
                                 {order.razorpayPaymentId}
                               </td>
                               <td className="py-3.5 px-4">
-                                <div className="font-bold">{order.userName}</div>
-                                <div className="text-[10px] text-stone-400">{order.userPhone}</div>
+                                <div className="font-bold text-stone-900 dark:text-stone-100">{order.userName}</div>
+                                <div className="text-[10px] text-stone-400 font-mono">{order.userPhone}</div>
+                                <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 px-1.5 py-0.5 rounded font-mono">
+                                    <Lock className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>छात्र सुरक्षित (Locked)</span>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveTab('STUDENTS');
+                                      setStudentFilterType('all');
+                                      setSearchStudents(order.userName || order.userId);
+                                    }}
+                                    className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-0.5"
+                                    title="छात्र व एक्सेस नियंत्रण मॉड्यूल में देखें"
+                                  >
+                                    <span>छात्र देखें →</span>
+                                  </button>
+                                </div>
                               </td>
                               <td className="py-3.5 px-4">
                                 <button

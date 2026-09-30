@@ -27,6 +27,8 @@ export interface UserProfile {
   isArchived?: boolean;
   archivedAt?: string;
   archiveReason?: string;
+  isLocked?: boolean;
+  lockedAt?: string;
   purchasedSeries?: string[];
 }
 

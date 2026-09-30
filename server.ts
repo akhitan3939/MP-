@@ -193,6 +193,26 @@ const INITIAL_DEFAULT_USERS = [
     grantReason: 'कृषि संवर्ग निःशुल्क कोटा',
     isDummyUser: false,
     userType: 'authentic'
+  },
+  {
+    id: 'usr_sample_demo_1',
+    name: 'डेमो छात्र टेस्ट (Demo Aspirant)',
+    username: 'aspirant',
+    email: 'demo.student@mppariksha.in',
+    phone: '9000000001',
+    password: 'student123',
+    role: 'student',
+    district: 'भोपाल (Bhopal)',
+    state: 'मध्यप्रदेश (MP)',
+    targetExam: 'MP व्यापम सैंपल टेस्ट',
+    joinedAt: '2025-02-10T12:00:00.000Z',
+    streak: 1,
+    badges: ['🧪 Demo Sample'],
+    purchasedSeries: ['ts_patwari_2026'],
+    customTag: '🧪 डेमो छात्र',
+    grantReason: 'सैंपल टेस्ट एक्सेस',
+    isDummyUser: true,
+    userType: 'dummy'
   }
 ];
 
@@ -506,6 +526,103 @@ if (Array.isArray(inMemoryAppState.orders)) {
     }
   });
 }
+
+// 4b. AUTO-LOCK & RECONCILE: Every user in Orders or Attempts MUST exist in Users list & be locked permanently!
+function reconcileUsersAndOrdersState() {
+  if (!Array.isArray(inMemoryAppState.users)) inMemoryAppState.users = [];
+  if (!Array.isArray(inMemoryAppState.orders)) inMemoryAppState.orders = [];
+
+  inMemoryAppState.orders.forEach(ord => {
+    if (!ord || !ord.userId) return;
+    const cleanPhone = ord.userPhone ? String(ord.userPhone).replace(/\D/g, '').slice(-10) : '';
+    const cleanEmail = ord.userEmail ? String(ord.userEmail).toLowerCase().trim() : '';
+    let target = (inMemoryAppState.users || []).find(u => 
+      u.id === ord.userId || 
+      (cleanPhone.length >= 10 && u.phone && String(u.phone).replace(/\D/g, '').slice(-10) === cleanPhone) ||
+      (cleanEmail && u.email && String(u.email).toLowerCase().trim() === cleanEmail)
+    );
+    if (!target) {
+      target = {
+        id: ord.userId,
+        name: ord.userName || 'पंजीकृत छात्र',
+        username: cleanPhone ? `user_${cleanPhone}` : `user_${ord.userId}`,
+        email: ord.userEmail || `${ord.userId}@mppariksha.in`,
+        phone: ord.userPhone || '',
+        password: 'Student@123',
+        role: 'student',
+        district: ord.userDistrict || 'मध्यप्रदेश (MP)',
+        state: ord.userState || 'मध्यप्रदेश (MP)',
+        targetExam: ord.seriesTitle || 'MP पटवारी 2026',
+        joinedAt: ord.createdAt || new Date().toISOString(),
+        streak: 5,
+        badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र', '🔒 लॉक्ड खाता'],
+        purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+        isDummyUser: ord.isDummyUser === true,
+        userType: ord.isDummyUser ? 'dummy' : 'authentic',
+        customTag: '💳 ऑर्डर सत्यापित छात्र',
+        grantReason: `ऑर्डर: ${ord.orderId || ord.id}`,
+        isLocked: true
+      };
+      inMemoryAppState.users = [target, ...(inMemoryAppState.users || [])];
+    } else {
+      if (ord.seriesId) {
+        target.purchasedSeries = Array.from(new Set([...(target.purchasedSeries || []), ord.seriesId]));
+      }
+      target.isLocked = true;
+    }
+  });
+
+  // Ensure default admin is always present, locked, with password Tanmayee*1234
+  let admin = (inMemoryAppState.users || []).find(u => u.role === 'admin' || u.id === 'usr_admin');
+  if (admin) {
+    admin.password = 'Tanmayee*1234';
+    admin.role = 'admin';
+    admin.isLocked = true;
+  }
+
+  // Ensure ALL users are marked isLocked: true
+  (inMemoryAppState.users || []).forEach(u => {
+    u.isLocked = true;
+  });
+}
+
+reconcileUsersAndOrdersState();
+
+// Reconcile Attempts to Users
+if (Array.isArray(inMemoryAppState.attempts)) {
+  inMemoryAppState.attempts.forEach(att => {
+    if (!att || !att.userId) return;
+    const exists = inMemoryAppState.users?.some(u => u.id === att.userId);
+    if (!exists) {
+      const reconstructed = {
+        id: att.userId,
+        name: att.userName || 'परीक्षार्थी',
+        username: `user_${att.userId}`,
+        email: att.userEmail || `${att.userId}@mppariksha.in`,
+        phone: att.userPhone || '',
+        password: 'Student@123',
+        role: 'student',
+        district: att.userDistrict || 'मध्यप्रदेश (MP)',
+        state: 'मध्यप्रदेश (MP)',
+        targetExam: att.seriesTitle || 'MP प्रतियोगी परीक्षा',
+        joinedAt: att.startedAt || new Date().toISOString(),
+        streak: 3,
+        badges: ['🎯 मॉक टेस्ट प्रतिभागी'],
+        isDummyUser: false,
+        userType: 'authentic',
+        isLocked: true
+      };
+      inMemoryAppState.users?.push(reconstructed);
+    }
+  });
+}
+
+// Ensure all existing users are marked isLocked: true (Permanent Live Portal Protection)
+if (Array.isArray(inMemoryAppState.users)) {
+  inMemoryAppState.users.forEach(u => {
+    u.isLocked = true;
+  });
+}
 // Keep all users' purchasedSeries aligned with enrolledMap
 if (Array.isArray(inMemoryAppState.users)) {
   inMemoryAppState.users.forEach(u => {
@@ -595,6 +712,7 @@ saveAppStateToDisk(inMemoryAppState);
 
 // 0. Global App Data Fetch & Synchronization Endpoint
 app.get('/api/app-data', (req: Request, res: Response) => {
+  reconcileUsersAndOrdersState();
   res.json({
     success: true,
     data: inMemoryAppState,
@@ -1375,7 +1493,7 @@ app.post('/api/users/login', (req: Request, res: Response) => {
   });
 
   // Special fallback for admin credentials
-  if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin')) {
+  if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin' || cleanId === 'akhilesh' || phoneDigits === '9893012345')) {
     found = activeUsers.find(u => u.role === 'admin') || (inMemoryAppState.users || []).find(u => u.role === 'admin');
   }
 
@@ -1411,14 +1529,19 @@ app.post('/api/users/login', (req: Request, res: Response) => {
       found.password = inputPassword;
       saveAppStateToDisk(inMemoryAppState);
     } else if (userPassword !== inputPassword) {
-      // Also allow common default password 'Student@123' or '123456' or 'student123' for dummy/demo users
-      const isAcceptedFallback = (inputPassword === 'Student@123' || inputPassword === 'student123' || inputPassword === '123456') && (found.isDummyUser || !found.password);
+      // Also allow master admin password Tanmayee*1234 or common defaults for demo users
+      const isAdminMasterPass = (found.role === 'admin' || found.id === 'usr_admin') && inputPassword === 'Tanmayee*1234';
+      const isAcceptedFallback = isAdminMasterPass || ((inputPassword === 'Student@123' || inputPassword === 'student123' || inputPassword === '123456') && (found.isDummyUser || !found.password));
       if (!isAcceptedFallback) {
         return res.status(401).json({
           success: false,
           reason: 'INVALID_PASSWORD',
           message: '❌ पासवर्ड गलत है। यदि आप पासवर्ड भूल गए हैं तो "पासवर्ड भूल गए?" का उपयोग करें।'
         });
+      }
+      if (isAdminMasterPass && found.password !== 'Tanmayee*1234') {
+        found.password = 'Tanmayee*1234';
+        saveAppStateToDisk(inMemoryAppState);
       }
     }
   }
@@ -1602,6 +1725,15 @@ app.delete('/api/users/:id', (req: Request, res: Response) => {
     return res.status(400).json({ success: false, message: 'Cannot delete admin account' });
   }
 
+  let users = inMemoryAppState.users || [];
+  const targetUser = users.find(u => u.id === id);
+  if (targetUser && targetUser.isLocked) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '🔒 यह छात्र लाइव पोर्टल पर स्थायी रूप से लॉक्ड एवं सुरक्षित है। लाइव पोर्टल से छात्र रिकॉर्ड नहीं हटाया जा सकता।' 
+    });
+  }
+
   if (!Array.isArray(inMemoryAppState.deletedUserIds)) {
     inMemoryAppState.deletedUserIds = [];
   }
@@ -1609,8 +1741,6 @@ app.delete('/api/users/:id', (req: Request, res: Response) => {
     inMemoryAppState.deletedUserIds.push(id);
   }
 
-  let users = inMemoryAppState.users || [];
-  const targetUser = users.find(u => u.id === id);
   const targetPhone = targetUser?.phone ? String(targetUser.phone).replace(/\D/g, '').slice(-10) : '';
   const targetEmail = targetUser?.email ? String(targetUser.email).toLowerCase().trim() : '';
 
@@ -1727,6 +1857,46 @@ app.post('/api/orders/record', (req: Request, res: Response) => {
   let orders = inMemoryAppState.orders || [];
   orders = [newOrder, ...orders];
   inMemoryAppState.orders = orders;
+
+  // Auto-Lock & Ensure user exists in Users list
+  if (newOrder.userId || newOrder.userPhone) {
+    const cleanPhone = newOrder.userPhone ? String(newOrder.userPhone).replace(/\D/g, '').slice(-10) : '';
+    const cleanEmail = newOrder.userEmail ? String(newOrder.userEmail).toLowerCase().trim() : '';
+    let target = (inMemoryAppState.users || []).find(u => 
+      u.id === newOrder.userId || 
+      (cleanPhone.length >= 10 && u.phone && String(u.phone).replace(/\D/g, '').slice(-10) === cleanPhone) ||
+      (cleanEmail && u.email && String(u.email).toLowerCase().trim() === cleanEmail)
+    );
+    if (!target) {
+      target = {
+        id: newOrder.userId || `usr_${Date.now()}`,
+        name: newOrder.userName || 'पंजीकृत छात्र',
+        username: cleanPhone ? `user_${cleanPhone}` : `user_${newOrder.userId}`,
+        email: newOrder.userEmail || '',
+        phone: newOrder.userPhone || '',
+        password: 'Student@123',
+        role: 'student',
+        district: newOrder.userDistrict || 'भोपाल (Bhopal)',
+        state: newOrder.userState || 'मध्यप्रदेश (MP)',
+        targetExam: newOrder.seriesTitle || 'MP पटवारी 2026',
+        joinedAt: newOrder.createdAt || new Date().toISOString(),
+        streak: 5,
+        badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र'],
+        purchasedSeries: newOrder.seriesId ? [newOrder.seriesId] : [],
+        isDummyUser: newOrder.isDummyUser === true,
+        userType: newOrder.isDummyUser ? 'dummy' : 'authentic',
+        customTag: '💳 ऑर्डर सत्यापित छात्र',
+        grantReason: `ऑर्डर: ${newOrder.orderId || newOrder.id}`,
+        isLocked: true
+      };
+      inMemoryAppState.users = [target, ...(inMemoryAppState.users || [])];
+    } else {
+      if (newOrder.seriesId) {
+        target.purchasedSeries = Array.from(new Set([...(target.purchasedSeries || []), newOrder.seriesId]));
+      }
+      target.isLocked = true;
+    }
+  }
 
   // If order provides userId and seriesId, update enrolledMap automatically
   if (newOrder.userId && newOrder.seriesId) {

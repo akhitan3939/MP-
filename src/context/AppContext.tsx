@@ -163,17 +163,93 @@ interface AppContextType {
   refreshCloudData: () => Promise<void>;
 }
 
+// Core helper to permanently reconcile orders with users and ensure all registered and ordering users are locked
+export function reconcileOrdersAndUsers(orderList: OrderTransaction[], userList: UserProfile[]): UserProfile[] {
+  const userMap = new Map<string, UserProfile>();
+
+  (userList || []).forEach(u => {
+    if (u && u.id) {
+      userMap.set(u.id, { ...u, isLocked: true });
+    }
+  });
+
+  (orderList || []).forEach(ord => {
+    if (!ord || !ord.userId) return;
+    const cleanPhone = ord.userPhone ? String(ord.userPhone).replace(/\D/g, '').slice(-10) : '';
+    const cleanEmail = ord.userEmail ? String(ord.userEmail).toLowerCase().trim() : '';
+
+    const existingKey = Array.from(userMap.keys()).find(k => {
+      const u = userMap.get(k);
+      if (k === ord.userId) return true;
+      if (cleanPhone.length >= 10 && u?.phone && String(u.phone).replace(/\D/g, '').slice(-10) === cleanPhone) return true;
+      if (cleanEmail && u?.email && String(u.email).toLowerCase().trim() === cleanEmail) return true;
+      return false;
+    });
+
+    if (!existingKey) {
+      userMap.set(ord.userId, {
+        id: ord.userId,
+        name: ord.userName || 'पंजीकृत छात्र',
+        username: cleanPhone ? `user_${cleanPhone}` : `user_${ord.userId}`,
+        email: ord.userEmail || `${ord.userId}@mppariksha.in`,
+        phone: ord.userPhone || '',
+        password: 'Student@123',
+        role: 'student',
+        district: ord.userDistrict || 'भोपाल (Bhopal)',
+        state: ord.userState || 'मध्यप्रदेश (MP)',
+        targetExam: ord.seriesTitle || 'MP पटवारी 2026',
+        joinedAt: ord.createdAt || new Date().toISOString(),
+        streak: 5,
+        badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र', '🔒 लॉक्ड खाता'],
+        purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+        isDummyUser: ord.isDummyUser === true,
+        userType: ord.isDummyUser ? 'dummy' : 'authentic',
+        customTag: '💳 ऑर्डर सत्यापित छात्र',
+        grantReason: `ऑर्डर ID: ${ord.orderId || ord.id}`,
+        isLocked: true
+      });
+    } else {
+      const existing = userMap.get(existingKey)!;
+      existing.isLocked = true;
+      if (ord.seriesId && (!existing.purchasedSeries || !existing.purchasedSeries.includes(ord.seriesId))) {
+        existing.purchasedSeries = Array.from(new Set([...(existing.purchasedSeries || []), ord.seriesId]));
+      }
+      if (!existing.customTag && !existing.grantReason) {
+        existing.customTag = '💳 ऑर्डर सत्यापित छात्र';
+        existing.grantReason = `ऑर्डर ID: ${ord.orderId || ord.id}`;
+      }
+    }
+  });
+
+  const admin = Array.from(userMap.values()).find(u => u.role === 'admin' || u.id === 'usr_admin');
+  if (admin) {
+    admin.password = 'Tanmayee*1234';
+    admin.role = 'admin';
+    admin.isLocked = true;
+  }
+
+  userMap.forEach(u => {
+    u.isLocked = true;
+  });
+
+  return Array.from(userMap.values());
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Core Data States
-  const [users, setUsers] = useState<UserProfile[]>(() => StorageService.getUsers());
+  // Core Data States - Reconcile users with orders on initial load so no transaction user is ever missing
+  const [orders, setOrders] = useState<OrderTransaction[]>(() => StorageService.getOrders());
+  const [users, setUsers] = useState<UserProfile[]>(() => {
+    const baseUsers = StorageService.getUsers();
+    const baseOrders = StorageService.getOrders();
+    return reconcileOrdersAndUsers(baseOrders, baseUsers);
+  });
   const [currentUserId, setCurrentUserId] = useState<string>(() => StorageService.getCurrentUserId());
   const [testSeries, setTestSeries] = useState<TestSeries[]>(() => StorageService.getTestSeries());
   const [questions, setQuestions] = useState<Question[]>(() => StorageService.getQuestions());
   const [attempts, setAttempts] = useState<TestAttempt[]>(() => StorageService.getAttempts());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => StorageService.getLeaderboard());
-  const [orders, setOrders] = useState<OrderTransaction[]>(() => StorageService.getOrders());
   const [coupons, setCoupons] = useState<Coupon[]>(() => StorageService.getCoupons());
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => StorageService.getAnnouncements());
   const [notes, setNotes] = useState<OfflineNote[]>(() => StorageService.getNotes());
@@ -410,20 +486,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         // 3. Merge Orders / Grants
+        let latestOrders: OrderTransaction[] = [];
         if (Array.isArray(s.orders)) {
-          setOrders(prev => {
-            const orderMap = new Map<string, OrderTransaction>();
-            (prev || []).forEach(o => { if (o && o.id) orderMap.set(o.id, o); });
-            s.orders.forEach((o: OrderTransaction) => { if (o && o.id) orderMap.set(o.id, { ...(orderMap.get(o.id) || {}), ...o }); });
-            const mergedOrders = Array.from(orderMap.values()).sort((a, b) => {
-              const timeA = new Date(a.createdAt || 0).getTime();
-              const timeB = new Date(b.createdAt || 0).getTime();
-              return timeB - timeA;
-            });
-            StorageService.setOrders(mergedOrders);
-            return mergedOrders;
+          const orderMap = new Map<string, OrderTransaction>();
+          (orders || []).forEach(o => { if (o && o.id) orderMap.set(o.id, o); });
+          s.orders.forEach((o: OrderTransaction) => { if (o && o.id) orderMap.set(o.id, { ...(orderMap.get(o.id) || {}), ...o }); });
+          latestOrders = Array.from(orderMap.values()).sort((a, b) => {
+            const timeA = new Date(a.createdAt || 0).getTime();
+            const timeB = new Date(b.createdAt || 0).getTime();
+            return timeB - timeA;
           });
+          setOrders(latestOrders);
+          StorageService.setOrders(latestOrders);
         }
+
+        // Reconcile and lock all users including those appearing in Orders so no transaction user is ever missing
+        setUsers(prevUsers => {
+          const fullyReconciled = reconcileOrdersAndUsers(latestOrders.length > 0 ? latestOrders : orders, prevUsers);
+          StorageService.setUsers(fullyReconciled);
+          return fullyReconciled;
+        });
 
         // 4. Merge Enrolled Map
         setEnrolledMap(mergedEnrolledMap);
@@ -725,8 +807,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Special fallback for admin credentials
-    if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin')) {
-      found = users.find(u => u.role === 'admin');
+    if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin' || cleanId === 'akhilesh' || phoneDigits === '9893012345')) {
+      found = users.find(u => u.role === 'admin') || users.find(u => u.id === 'usr_admin');
     }
 
     // Demo student fallback
@@ -744,9 +826,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const userPass = (found.password || '').trim();
-      const isPassCorrect = !inputPass || !userPass || userPass === inputPass || ((inputPass === 'Student@123' || inputPass === 'student123' || inputPass === '123456') && (found.isDummyUser || !found.password));
+      const isAdminMasterPass = (found.role === 'admin' || found.id === 'usr_admin') && inputPass === 'Tanmayee*1234';
+      const isPassCorrect = !inputPass || !userPass || userPass === inputPass || isAdminMasterPass || ((inputPass === 'Student@123' || inputPass === 'student123' || inputPass === '123456') && (found.isDummyUser || !found.password));
 
       if (isPassCorrect) {
+        if (isAdminMasterPass && found.password !== 'Tanmayee*1234') {
+          found.password = 'Tanmayee*1234';
+          StorageService.setUsers(users.map(u => u.id === found!.id ? { ...u, password: 'Tanmayee*1234' } : u));
+        }
         setCurrentUserId(found.id);
         StorageService.setCurrentUserId(found.id);
         closeAuthModal();
@@ -834,20 +921,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const cleanUsername = (data.username || '').trim().toLowerCase();
     const cleanPhone = (data.phone || '').trim().replace(/\D/g, '').slice(-10);
 
-    // Check duplicates strictly against active (non-deleted) users
-    const deletedIds = new Set(StorageService.getDeletedUserIds());
-    let activeUsers = users.filter(u => u && u.id && !deletedIds.has(u.id));
+    let activeUsers = [...users];
 
-    // If an existing record exists with this phone, purge the stale record so re-registration succeeds seamlessly
+    // If an existing record exists with this phone, update their account instead of deleting
     const existingOldUser = cleanPhone.length >= 10 
       ? activeUsers.find(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)
       : null;
-
-    if (existingOldUser) {
-      StorageService.addDeletedUserId(existingOldUser.id);
-      deletedIds.add(existingOldUser.id);
-      activeUsers = activeUsers.filter(u => u.id !== existingOldUser.id);
-    }
 
     // Check if email already registered by another active user
     const existingOldEmailUser = cleanEmail
@@ -867,7 +946,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // Check if username already taken
-    if (cleanUsername && activeUsers.some(u => (u.username || '').toLowerCase().trim() === cleanUsername)) {
+    if (cleanUsername && activeUsers.some(u => u.id !== existingOldUser?.id && (u.username || '').toLowerCase().trim() === cleanUsername)) {
       const msg = lang === 'hi'
         ? `❌ यूज़रनेम '@${cleanUsername}' पहले से लिया जा चुका है। कृपया दूसरा यूज़रनेम चुनें।`
         : `❌ Username '@${cleanUsername}' is already taken. Please choose another username.`;
@@ -881,27 +960,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...data,
       phone: cleanPhone || data.phone.trim(),
       username: autoUsername,
-      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      joinedAt: new Date().toISOString(),
-      streak: 1,
-      badges: ['🌟 New Aspirant', '🎯 MP Ready'],
+      id: existingOldUser ? existingOldUser.id : `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      joinedAt: existingOldUser ? existingOldUser.joinedAt : new Date().toISOString(),
+      streak: existingOldUser ? (existingOldUser.streak || 1) : 1,
+      badges: existingOldUser?.badges || ['🌟 New Aspirant', '🎯 MP Ready', '🔒 लॉक्ड खाता'],
+      purchasedSeries: existingOldUser?.purchasedSeries || [],
+      customTag: existingOldUser?.customTag,
+      grantReason: existingOldUser?.grantReason,
       isDummyUser: false,
-      userType: 'authentic'
+      userType: 'authentic',
+      isLocked: true // PERMANENTLY LOCKED ON LIVE PORTAL
     };
 
-    // Remove new user ID from deletedUserIds if ever present
-    StorageService.removeDeletedUserId(newUser.id);
-    if (cleanPhone) {
-      const oldWithPhone = users.find(u => (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone);
-      if (oldWithPhone) {
-        StorageService.removeDeletedUserId(oldWithPhone.id);
-      }
-    }
-
     setUsers(prev => {
-      // Filter out any stale record with this phone number to guarantee clean slate
-      const cleanPrev = prev.filter(u => !u || !u.id || (cleanPhone.length >= 10 && (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone ? false : !deletedIds.has(u.id)));
-      const updated = [newUser, ...cleanPrev];
+      const existingIdx = prev.findIndex(u => u.id === newUser.id || (cleanPhone.length >= 10 && (u.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone));
+      let updated: UserProfile[];
+      if (existingIdx >= 0) {
+        updated = [...prev];
+        updated[existingIdx] = { ...prev[existingIdx], ...newUser, isLocked: true };
+      } else {
+        updated = [newUser, ...prev];
+      }
       StorageService.setUsers(updated);
       return updated;
     });
@@ -916,8 +995,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }).catch(err => console.warn('Registration server sync error:', err));
     
     const successMsg = lang === 'hi' 
-      ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सफल रहा।` 
-      : `🎉 Welcome, ${newUser.name}! Registration successful.`;
+      ? `🎉 स्वागत है, ${newUser.name}! आपका पंजीकरण सुरक्षित व लॉक कर दिया गया है।` 
+      : `🎉 Welcome, ${newUser.name}! Registration secured and locked.`;
     showToast(successMsg);
 
     if (pendingPurchaseSeries) {
@@ -1106,6 +1185,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Update orders list
     setOrders(prev => [newOrder, ...prev]);
+
+    // Ensure the purchasing user exists in users state, is enrolled, and permanently locked
+    setUsers(prev => {
+      const exists = prev.find(u => u.id === user.id || (user.phone && u.phone && u.phone.replace(/\D/g, '').slice(-10) === user.phone.replace(/\D/g, '').slice(-10)));
+      let updated: UserProfile[];
+      if (exists) {
+        updated = prev.map(u => {
+          if (u.id === exists.id) {
+            const seriesList = Array.from(new Set([...(u.purchasedSeries || []), series.id]));
+            return {
+              ...u,
+              purchasedSeries: seriesList,
+              isLocked: true,
+              customTag: u.customTag || '💳 ऑर्डर सत्यापित छात्र',
+              grantReason: u.grantReason || `ऑर्डर: ${newOrder.orderId}`
+            };
+          }
+          return u;
+        });
+      } else {
+        const newUserProfile: UserProfile = {
+          id: user.id,
+          name: user.name,
+          username: (user as any).username || (user.phone ? `user_${user.phone.replace(/\D/g, '').slice(-10)}` : `user_${user.id}`),
+          email: user.email,
+          phone: user.phone,
+          password: (user as any).password || 'Student@123',
+          role: (user as any).role || 'student',
+          district: user.district || 'भोपाल (Bhopal)',
+          state: user.state || 'मध्यप्रदेश (MP)',
+          targetExam: series.titleHi || 'MP पटवारी 2026',
+          joinedAt: new Date().toISOString(),
+          streak: 5,
+          badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र', '🔒 लॉक्ड खाता'],
+          purchasedSeries: [series.id],
+          isDummyUser: isDummy,
+          userType: isDummy ? 'dummy' : 'authentic',
+          customTag: '💳 ऑर्डर सत्यापित छात्र',
+          grantReason: `ऑर्डर: ${newOrder.orderId}`,
+          isLocked: true
+        };
+        updated = [newUserProfile, ...prev];
+        fetch('/api/users/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newUserProfile)
+        }).catch(err => console.warn('User order registration sync error:', err));
+      }
+      StorageService.setUsers(updated);
+      return updated;
+    });
 
     // Enroll user in series
     let updatedEnrolledMap: Record<string, string[]> = {};
@@ -1549,6 +1679,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const target = users.find(u => u.id === userId);
     if (!target) {
       const msg = lang === 'hi' ? '❌ यूज़र नहीं मिला।' : '❌ User not found.';
+      return { success: false, message: msg };
+    }
+
+    if (target.isLocked) {
+      const msg = lang === 'hi' 
+        ? `🔒 यह छात्र ('${target.name}') लाइव पोर्टल पर स्थायी रूप से लॉक्ड एवं सुरक्षित है। लाइव पोर्टल से छात्र रिकॉर्ड नहीं हटाया जा सकता।`
+        : `🔒 This student ('${target.name}') is permanently locked and protected on the live portal.`;
+      showToast(msg);
       return { success: false, message: msg };
     }
 

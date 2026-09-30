@@ -162,14 +162,10 @@ export const CbtExamView: React.FC = () => {
     ? getResolvedMockQuestions('free_mock_40', 1, allQuestions)
     : getResolvedMockQuestions(series.id, chosenSetNumber, allQuestions);
 
-  // In live test series, only show locked (finalized) questions to students, while admins can preview all
-  const filteredExamQuestions = currentUser?.role === 'admin'
-    ? rawExamQuestions
-    : rawExamQuestions.filter(q => q.isLocked === true);
-
-  const questionsList = filteredExamQuestions.length > 0 
-    ? filteredExamQuestions 
-    : (rawExamQuestions.length > 0 ? rawExamQuestions : allQuestions.slice(0, 10));
+  // In live test series, all set questions are locked and fully available for exam attempts
+  const questionsList = rawExamQuestions.length > 0 
+    ? rawExamQuestions 
+    : allQuestions.slice(0, 10);
 
   // Helper to extract question subject / section consistently
   const getQuestionSubject = (q: Question | undefined): string => {

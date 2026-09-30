@@ -250,7 +250,7 @@ export function getResolvedMockQuestions(
 
     const baseIds = new Set(base.map(q => q.id));
     const extra = appContextQuestions.filter(q => (q.seriesId === 'free_mock_40' || q.id.startsWith('free_q_')) && !baseIds.has(q.id));
-    return [...base, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+    return [...base, ...extra].map(q => ({ ...q, isLocked: q.isLocked !== undefined ? q.isLocked : true })).sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
   }
 
   if (mockType === 'ts_patwari_2026') {
@@ -282,7 +282,7 @@ export function getResolvedMockQuestions(
       return qSet === targetSet;
     });
 
-    return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+    return [...resolvedBase, ...extra].map(q => ({ ...q, isLocked: q.isLocked !== undefined ? q.isLocked : true })).sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
   }
 
   if (mockType === 'ts_agri_ext_2026') {
@@ -314,7 +314,7 @@ export function getResolvedMockQuestions(
       return qSet === targetSet;
     });
 
-    return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+    return [...resolvedBase, ...extra].map(q => ({ ...q, isLocked: q.isLocked !== undefined ? q.isLocked : true })).sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
   }
 
   if (mockType === 'ts_police_si_2026') {
@@ -346,7 +346,7 @@ export function getResolvedMockQuestions(
       return qSet === targetSet;
     });
 
-    return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+    return [...resolvedBase, ...extra].map(q => ({ ...q, isLocked: q.isLocked !== undefined ? q.isLocked : true })).sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
   }
 
   if (mockType === 'all_questions') {
@@ -362,7 +362,7 @@ export function getResolvedMockQuestions(
     return qSet === targetSet;
   });
 
-  return matching.sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+  return matching.map(q => ({ ...q, isLocked: q.isLocked !== undefined ? q.isLocked : true })).sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
 }
 
 /**

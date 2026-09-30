@@ -703,7 +703,7 @@ export const AuthModal: React.FC = () => {
                       type="text"
                       value={adminUsername}
                       onChange={(e) => setAdminUsername(e.target.value)}
-                      placeholder="अपना एडमिन यूज़रनेम दर्ज करें"
+                      placeholder="akhitan_3939 या admin या मोबाइल नंबर"
                       required
                       autoComplete="username"
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-emerald-500"
@@ -721,7 +721,7 @@ export const AuthModal: React.FC = () => {
                       type={showPassword ? 'text' : 'password'}
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
-                      placeholder="अपना पासवर्ड दर्ज करें"
+                      placeholder="गोपनीय एडमिन पासवर्ड (Tanmayee*1234)"
                       required
                       autoComplete="current-password"
                       className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white font-medium focus:outline-none focus:border-emerald-500"

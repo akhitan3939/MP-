@@ -600,10 +600,56 @@ export const StorageService = {
 
     // Ensure all registered students are always present and never suppressed
     const userMap = new Map<string, UserProfile>();
-    INITIAL_USERS.forEach(u => userMap.set(u.id, u));
+    INITIAL_USERS.forEach(u => userMap.set(u.id, { ...u, isLocked: true }));
     list.forEach(u => {
       if (u && u.id) {
-        userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u });
+        userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u, isLocked: true });
+      }
+    });
+
+    // Reconcile and Auto-Lock any users appearing in Orders so they always show in Students & Role Access
+    const rawOrders = getStorage<OrderTransaction[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
+    const orderList: OrderTransaction[] = Array.isArray(rawOrders) ? rawOrders : INITIAL_ORDERS;
+    orderList.forEach(ord => {
+      if (!ord || !ord.userId) return;
+      const cleanPhone = ord.userPhone ? ord.userPhone.replace(/\D/g, '').slice(-10) : '';
+      const cleanEmail = ord.userEmail ? ord.userEmail.toLowerCase().trim() : '';
+      const existingKey = Array.from(userMap.keys()).find(k => {
+        const u = userMap.get(k);
+        if (k === ord.userId) return true;
+        if (cleanPhone.length >= 10 && u?.phone && u.phone.replace(/\D/g, '').slice(-10) === cleanPhone) return true;
+        if (cleanEmail && u?.email && u.email.toLowerCase().trim() === cleanEmail) return true;
+        return false;
+      });
+
+      if (!existingKey) {
+        userMap.set(ord.userId, {
+          id: ord.userId,
+          name: ord.userName || 'पंजीकृत छात्र',
+          username: cleanPhone ? `user_${cleanPhone}` : `user_${ord.userId}`,
+          email: ord.userEmail || '',
+          phone: ord.userPhone || '',
+          password: 'Student@123',
+          role: 'student',
+          district: ord.userDistrict || 'मध्यप्रदेश (MP)',
+          state: ord.userState || 'मध्यप्रदेश (MP)',
+          targetExam: ord.seriesTitle || 'MP पटवारी 2026',
+          joinedAt: ord.createdAt || new Date().toISOString(),
+          streak: 5,
+          badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र'],
+          purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+          isDummyUser: ord.isDummyUser === true,
+          userType: ord.isDummyUser ? 'dummy' : 'authentic',
+          customTag: '💳 ऑर्डर सत्यापित छात्र',
+          grantReason: `ऑर्डर: ${ord.orderId || ord.id}`,
+          isLocked: true
+        });
+      } else {
+        const u = userMap.get(existingKey)!;
+        if (ord.seriesId && (!u.purchasedSeries || !u.purchasedSeries.includes(ord.seriesId))) {
+          u.purchasedSeries = Array.from(new Set([...(u.purchasedSeries || []), ord.seriesId]));
+        }
+        u.isLocked = true;
       }
     });
 
@@ -620,11 +666,15 @@ export const StorageService = {
       }
       return {
         ...u,
-        password: u.password || 'Student@123'
+        password: u.password || 'Student@123',
+        isLocked: true
       };
     });
   },
-  setUsers: (users: UserProfile[]) => setStorage(STORAGE_KEYS.USERS, users),
+  setUsers: (users: UserProfile[]) => {
+    const lockedUsers = (users || []).map(u => ({ ...u, isLocked: true }));
+    setStorage(STORAGE_KEYS.USERS, lockedUsers);
+  },
 
   getCurrentUserId: (): string => {
     const stored = getStorage<string>(STORAGE_KEYS.CURRENT_USER_ID, '');
