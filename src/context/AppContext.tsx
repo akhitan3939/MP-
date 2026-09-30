@@ -16,7 +16,8 @@ import {
   PlatformSettings,
   MockSetMetadata,
   ShareModalParams,
-  NavigationMenuItem 
+  NavigationMenuItem,
+  StoredFile
 } from '../types';
 import { StorageService, INITIAL_NAV_MENUS } from '../utils/storage';
 
@@ -32,6 +33,7 @@ interface AppContextType {
   coupons: Coupon[];
   announcements: Announcement[];
   notes: OfflineNote[];
+  storedFiles: StoredFile[];
   reminders: StudyReminder[];
   siteBanners: SiteBanner[];
   platformSettings: PlatformSettings;
@@ -149,6 +151,14 @@ interface AppContextType {
   toggleUserRole: (userId: string) => void;
   toggleUserDummyStatus: (userId: string) => void;
   resetStudentPassword: (userId: string, newPass: string) => void;
+  regenerateUserCredentials: (userId: string, customPass?: string) => Promise<{ success: boolean; user?: UserProfile; newPassword?: string }>;
+  uploadStoredFile: (payload: { name: string; originalName?: string; mimeType: string; size: number; dataBase64: string; category?: 'pdf' | 'image' | 'doc' | 'other' }) => Promise<StoredFile | null>;
+  deleteStoredFile: (id: string) => Promise<boolean>;
+  archivedUsers: UserProfile[];
+  isDataLocked: boolean;
+  toggleDataLock: (locked?: boolean) => Promise<boolean>;
+  archiveUser: (userId: string, reason?: string) => Promise<{ success: boolean; message: string }>;
+  restoreUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   broadcastPushNotification: (title: string, message: string) => void;
   refreshCloudData: () => Promise<void>;
 }
@@ -167,6 +177,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [coupons, setCoupons] = useState<Coupon[]>(() => StorageService.getCoupons());
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => StorageService.getAnnouncements());
   const [notes, setNotes] = useState<OfflineNote[]>(() => StorageService.getNotes());
+  const [storedFiles, setStoredFiles] = useState<StoredFile[]>(() => StorageService.getStoredFiles());
+  const [archivedUsers, setArchivedUsers] = useState<UserProfile[]>(() => StorageService.getArchivedUsers());
+  const [isDataLocked, setIsDataLocked] = useState<boolean>(() => StorageService.isDataLocked());
   const [reminders, setReminders] = useState<StudyReminder[]>(() => StorageService.getReminders());
   const [siteBanners, setSiteBanners] = useState<SiteBanner[]>(() => StorageService.getSiteBanners());
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(() => StorageService.getPlatformSettings());
@@ -312,7 +325,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (data && data.success && data.data) {
         const s = data.data;
 
-        // 1. Merge Users (Server is authoritative source of truth for active accounts)
+        // 1. Merge Enrolled Map & User access safely
+        const serverEnrolledMap = (s.enrolledMap && typeof s.enrolledMap === 'object') ? s.enrolledMap : {};
+        const localEnrolledMap = StorageService.getEnrolledMap() || {};
+        const mergedEnrolledMap: Record<string, string[]> = { ...localEnrolledMap, ...serverEnrolledMap };
+
+        // 1b. Merge Archived Users
+        if (Array.isArray(s.archivedUsers)) {
+          setArchivedUsers(prev => {
+            const archMap = new Map<string, UserProfile>();
+            (prev || []).forEach(u => { if (u && u.id) archMap.set(u.id, u); });
+            s.archivedUsers.forEach((u: UserProfile) => { if (u && u.id) archMap.set(u.id, { ...(archMap.get(u.id) || {}), ...u }); });
+            const merged = Array.from(archMap.values());
+            StorageService.setArchivedUsers(merged);
+            return merged;
+          });
+        }
+
+        // 1c. Sync isDataLocked state
+        if (s.isDataLocked !== undefined) {
+          setIsDataLocked(s.isDataLocked);
+          StorageService.setDataLocked(s.isDataLocked);
+        }
+
+        // 1d. Merge Active Users safely (preserving passwords, tags, and enrolled access)
         if (Array.isArray(s.users)) {
           const serverDeleted: string[] = Array.isArray(s.deletedUserIds) ? s.deletedUserIds : [];
           const localDeleted: string[] = StorageService.getDeletedUserIds();
@@ -321,11 +357,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Keep local deleted list in sync with server
           serverDeleted.forEach(id => StorageService.addDeletedUserId(id));
 
-          // Only keep active, non-deleted users from server
-          const authoritativeUsers: UserProfile[] = s.users.filter(
-            (u: UserProfile) => u && u.id && !allDeleted.has(u.id)
-          );
+          const localUsers = StorageService.getUsers() || [];
+          const localUserMap = new Map(localUsers.map(u => [u.id, u]));
+          const userMap = new Map<string, UserProfile>();
 
+          // Merge server users with local data to never lose passwords or granted access
+          s.users.forEach((srvUser: UserProfile) => {
+            if (!srvUser || !srvUser.id || allDeleted.has(srvUser.id)) return;
+            const loc = localUserMap.get(srvUser.id);
+            const userSeries = Array.from(new Set([
+              ...(Array.isArray(srvUser.purchasedSeries) ? srvUser.purchasedSeries : []),
+              ...(Array.isArray(loc?.purchasedSeries) ? loc.purchasedSeries : []),
+              ...(Array.isArray(mergedEnrolledMap[srvUser.id]) ? mergedEnrolledMap[srvUser.id] : [])
+            ]));
+            userMap.set(srvUser.id, {
+              ...loc,
+              ...srvUser,
+              password: srvUser.password || loc?.password || 'Student@123',
+              purchasedSeries: userSeries,
+              customTag: srvUser.customTag || loc?.customTag,
+              grantReason: srvUser.grantReason || loc?.grantReason,
+              tagColor: srvUser.tagColor || loc?.tagColor || 'amber'
+            });
+            if (userSeries.length > 0) {
+              mergedEnrolledMap[srvUser.id] = userSeries;
+            }
+          });
+
+          // Also retain any active local users that haven't been deleted or synced yet
+          localUsers.forEach(locUser => {
+            if (!locUser || !locUser.id || allDeleted.has(locUser.id)) return;
+            if (!userMap.has(locUser.id)) {
+              userMap.set(locUser.id, locUser);
+            }
+          });
+
+          const authoritativeUsers: UserProfile[] = Array.from(userMap.values());
           setUsers(authoritativeUsers);
           StorageService.setUsers(authoritativeUsers);
 
@@ -369,18 +436,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         // 4. Merge Enrolled Map
-        if (s.enrolledMap && typeof s.enrolledMap === 'object') {
-          setEnrolledMap(prev => {
-            const merged: Record<string, string[]> = { ...prev };
-            Object.keys(s.enrolledMap).forEach(uid => {
-              const serverList = Array.isArray(s.enrolledMap[uid]) ? s.enrolledMap[uid] : [];
-              const localList = merged[uid] || [];
-              merged[uid] = Array.from(new Set([...localList, ...serverList]));
-            });
-            StorageService.setEnrolledMap(merged);
-            return merged;
-          });
-        }
+        setEnrolledMap(mergedEnrolledMap);
+        StorageService.setEnrolledMap(mergedEnrolledMap);
 
         // 5. Test Series
         if (Array.isArray(s.testSeries) && s.testSeries.length > 0) {
@@ -449,6 +506,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             StorageService.setQuestions(mergedQuestions);
             return mergedQuestions;
           });
+        }
+
+        // 9. Sync Universal Stored Files (PDFs, Images, Docs)
+        if (Array.isArray(s.storedFiles)) {
+          setStoredFiles(s.storedFiles);
+          StorageService.setStoredFiles(s.storedFiles);
+        } else {
+          fetch('/api/storage/files')
+            .then(r => r.json())
+            .then(res => {
+              if (res.success && Array.isArray(res.files)) {
+                setStoredFiles(res.files);
+                StorageService.setStoredFiles(res.files);
+              }
+            })
+            .catch(() => {});
         }
       }
     } catch (err) {
@@ -537,6 +610,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { StorageService.setNavMenus(navMenuItems); }, [navMenuItems]);
   useEffect(() => { StorageService.setEnrolledMap(enrolledMap); }, [enrolledMap]);
   useEffect(() => { StorageService.setBookmarkedQuestions(bookmarkedIds); }, [bookmarkedIds]);
+  useEffect(() => { StorageService.setArchivedUsers(archivedUsers); }, [archivedUsers]);
+  useEffect(() => { StorageService.setDataLocked(isDataLocked); }, [isDataLocked]);
 
   const currentUser = users.find(u => u.id === currentUserId) || null;
   const enrolledSeriesIds = currentUser ? (enrolledMap[currentUser.id] || []) : [];
@@ -1369,6 +1444,111 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return { success: true, message: successMsg };
   };
 
+  const archiveUser = async (userId: string, reason?: string): Promise<{ success: boolean; message: string }> => {
+    if (userId === 'usr_admin') {
+      const msg = '⚠️ एडमिन खाते को आर्काइव नहीं किया जा सकता।';
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+    const target = users.find(u => u.id === userId);
+    if (!target) {
+      return { success: false, message: 'यूज़र नहीं मिला।' };
+    }
+    const archivedItem: UserProfile = {
+      ...target,
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      archiveReason: reason || 'एडमिन द्वारा आर्काइव में सुरक्षित किया गया'
+    };
+
+    setUsers(prev => {
+      const next = prev.filter(u => u.id !== userId);
+      StorageService.setUsers(next);
+      return next;
+    });
+    setArchivedUsers(prev => {
+      const next = [archivedItem, ...prev.filter(u => u.id !== userId)];
+      StorageService.setArchivedUsers(next);
+      return next;
+    });
+
+    if (currentUserId === userId) {
+      setCurrentUserId('');
+      StorageService.setCurrentUserId('');
+    }
+
+    try {
+      await fetch(`/api/users/archive/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: archivedItem.archiveReason })
+      });
+    } catch (e) {
+      console.warn('Archive user sync error:', e);
+    }
+
+    const msg = `📦 छात्र '${target.name}' को आर्काइव में सुरक्षित रख दिया गया है। रिकॉर्ड सुरक्षित है और आप इसे कभी भी रीस्टोर कर सकते हैं।`;
+    showToast(msg);
+    return { success: true, message: msg };
+  };
+
+  const restoreUser = async (userId: string): Promise<{ success: boolean; message: string }> => {
+    const target = archivedUsers.find(u => u.id === userId);
+    if (!target) {
+      return { success: false, message: 'आर्काइव में छात्र नहीं मिला।' };
+    }
+    const restoredUser: UserProfile = {
+      ...target,
+      isArchived: false,
+      archivedAt: undefined,
+      archiveReason: undefined
+    };
+
+    StorageService.removeDeletedUserId(userId);
+
+    setArchivedUsers(prev => {
+      const next = prev.filter(u => u.id !== userId);
+      StorageService.setArchivedUsers(next);
+      return next;
+    });
+    setUsers(prev => {
+      const next = [restoredUser, ...prev.filter(u => u.id !== userId)];
+      StorageService.setUsers(next);
+      return next;
+    });
+
+    try {
+      await fetch(`/api/users/restore/${userId}`, { method: 'POST' });
+    } catch (e) {
+      console.warn('Restore user sync error:', e);
+    }
+
+    const msg = `🔄 छात्र '${target.name}' को सक्रिय छात्र सूची में पुनः पुनर्स्थापित (Restore) कर दिया गया है।`;
+    showToast(msg);
+    return { success: true, message: msg };
+  };
+
+  const toggleDataLock = async (locked?: boolean): Promise<boolean> => {
+    const nextVal = locked !== undefined ? locked : !isDataLocked;
+    setIsDataLocked(nextVal);
+    StorageService.setDataLocked(nextVal);
+    try {
+      await fetch('/api/data/lock-toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: nextVal })
+      });
+    } catch (e) {
+      console.warn('Data lock sync error:', e);
+    }
+    showToast(
+      nextVal 
+        ? '🔒 रिपोर्ट डेटा लॉक सक्रिय: सभी लाइव रिपोर्ट्स एवं रिकॉर्ड्स पूर्णतः सुरक्षित हैं।' 
+        : '🔓 रिपोर्ट डेटा लॉक निष्क्रिय: डेटा संपादन एवं बदलाव सक्षम हैं।'
+    );
+    return nextVal;
+  };
+
   const deleteUser = (userId: string): { success: boolean; message: string } => {
     if (userId === currentUser?.id) {
       const msg = lang === 'hi' ? '⚠️ आप वर्तमान में सक्रिय लॉगिन किए गए स्वयं के एडमिन खाते को नहीं हटा सकते।' : '⚠️ Cannot delete currently active logged in admin account.';
@@ -1382,54 +1562,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return { success: false, message: msg };
     }
 
-    const targetPhone = (target.phone || '').replace(/\D/g, '').slice(-10);
-    const targetEmail = (target.email || '').trim().toLowerCase();
-
-    // 1. Blacklist user ID in local storage so cloud sync never resurrects it
-    StorageService.addDeletedUserId(userId);
-
-    // 2. If the active session belongs to this user, log out immediately
-    if (currentUserId === userId) {
-      setCurrentUserId('');
-      StorageService.setCurrentUserId('');
-    }
-
-    // 3. Remove user from local users state (and any matching phone/email duplicate)
-    setUsers(prev => {
-      const updated = prev.filter(u => {
-        if (u.id === userId) return false;
-        if (targetPhone.length === 10 && (u.phone || '').replace(/\D/g, '').slice(-10) === targetPhone) return false;
-        if (targetEmail && (u.email || '').trim().toLowerCase() === targetEmail) return false;
-        return true;
-      });
-      StorageService.setUsers(updated);
-      return updated;
-    });
-
-    // 4. Remove enrolled series mapping for this user
-    setEnrolledMap(prev => {
-      const updated = { ...prev };
-      delete updated[userId];
-      StorageService.setEnrolledMap(updated);
-      return updated;
-    });
-
-    // 5. Delete on server and persist to server disk
-    fetch(`/api/users/${userId}`, {
-      method: 'DELETE'
-    }).then(res => res.json())
-      .then(data => {
-        if (data && Array.isArray(data.users)) {
-          setUsers(data.users);
-          StorageService.setUsers(data.users);
-        }
-        console.log(`[MP Setu] User ${userId} successfully removed on server:`, data);
-      })
-      .catch(err => console.warn('User delete sync warning:', err));
-
-    const successMsg = lang === 'hi' ? `🗑️ यूज़र '${target.name}' को सफलतापूर्वक पोर्टल से स्थायी रूप से हटा दिया गया है।` : `🗑️ User '${target.name}' permanently deleted.`;
-    showToast(successMsg);
-    return { success: true, message: successMsg };
+    // Always preserve data in archive so no records are lost
+    archiveUser(userId, 'Deleted by Administrator / Moved to Archive');
+    return { success: true, message: `📦 छात्र '${target.name}' को आर्काइव में सुरक्षित रख दिया गया है।` };
   };
 
   const saveTestSeries = (series: TestSeries) => {
@@ -1952,26 +2087,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const studentName = targetUser?.name || 'छात्र';
     const seriesTitle = targetSeries ? (lang === 'hi' ? targetSeries.titleHi : targetSeries.titleEn) : 'टेस्ट सीरीज़';
 
-    let updatedEnrolledMap: Record<string, string[]> = {};
-    let willBeEnrolled = false;
-    setEnrolledMap(prev => {
-      const list = prev[userId] || [];
-      const has = list.includes(seriesId);
-      if (has) {
-        willBeEnrolled = false;
-        updatedEnrolledMap = { ...prev, [userId]: list.filter(id => id !== seriesId) };
-      } else {
-        willBeEnrolled = true;
-        updatedEnrolledMap = { ...prev, [userId]: [...list, seriesId] };
-      }
-      return updatedEnrolledMap;
-    });
+    const currentList = enrolledMap[userId] || (targetUser?.purchasedSeries || []);
+    const alreadyHas = currentList.includes(seriesId);
+    const willBeEnrolled = !alreadyHas;
+    const nextUserSeries = alreadyHas 
+      ? currentList.filter(id => id !== seriesId)
+      : [...currentList, seriesId];
 
+    const nextEnrolledMap: Record<string, string[]> = {
+      ...enrolledMap,
+      [userId]: nextUserSeries
+    };
+
+    setEnrolledMap(nextEnrolledMap);
+    StorageService.setEnrolledMap(nextEnrolledMap);
+
+    const updatedUsers = users.map(u => u.id === userId ? { ...u, purchasedSeries: nextUserSeries } : u);
+    setUsers(updatedUsers);
+    StorageService.setUsers(updatedUsers);
+
+    // Sync to server endpoints immediately
     fetch('/api/enrolled-map/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedEnrolledMap)
+      body: JSON.stringify({ enrolledMap: nextEnrolledMap })
     }).catch(err => console.warn('Enrolled sync error:', err));
+
+    fetch('/api/enrolled-map/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, seriesIds: nextUserSeries })
+    }).catch(err => console.warn('User enrolled sync error:', err));
+
+    fetch('/api/users/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: userId, purchasedSeries: nextUserSeries })
+    }).catch(err => console.warn('User update sync error:', err));
 
     if (willBeEnrolled) {
       // Create ₹0 Admin Free Grant Transaction for records & audit
@@ -2021,23 +2173,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetUser = users.find(u => u.id === userId);
     const studentName = targetUser?.name || 'छात्र';
 
-    let updatedEnrolledMap: Record<string, string[]> = {};
-    setEnrolledMap(prev => {
-      if (seriesIds.length === 0) {
-        const copy = { ...prev };
-        delete copy[userId];
-        updatedEnrolledMap = copy;
-        return copy;
-      }
-      updatedEnrolledMap = { ...prev, [userId]: seriesIds };
-      return updatedEnrolledMap;
-    });
+    const nextEnrolledMap: Record<string, string[]> = { ...enrolledMap };
+    if (seriesIds.length === 0) {
+      delete nextEnrolledMap[userId];
+    } else {
+      nextEnrolledMap[userId] = seriesIds;
+    }
+
+    setEnrolledMap(nextEnrolledMap);
+    StorageService.setEnrolledMap(nextEnrolledMap);
+
+    const updatedUsers = users.map(u => u.id === userId ? {
+      ...u,
+      purchasedSeries: seriesIds,
+      customTag: u.customTag || (seriesIds.length > 0 ? (reason || '🎁 मुफ़्त एक्सेस') : u.customTag),
+      grantReason: seriesIds.length > 0 ? (reason || 'विशेष छात्रवृत्ति') : u.grantReason
+    } : u);
+    setUsers(updatedUsers);
+    StorageService.setUsers(updatedUsers);
 
     fetch('/api/enrolled-map/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedEnrolledMap)
+      body: JSON.stringify({ enrolledMap: nextEnrolledMap })
     }).catch(err => console.warn('Enrolled sync error:', err));
+
+    fetch('/api/enrolled-map/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, seriesIds })
+    }).catch(err => console.warn('User enrolled sync error:', err));
+
+    fetch('/api/users/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: userId,
+        purchasedSeries: seriesIds,
+        customTag: targetUser?.customTag || (seriesIds.length > 0 ? (reason || '🎁 मुफ़्त एक्सेस') : undefined),
+        grantReason: seriesIds.length > 0 ? (reason || 'विशेष छात्रवृत्ति') : undefined
+      })
+    }).catch(err => console.warn('User update sync error:', err));
 
     // Audit and record free grant transaction for each assigned series
     if (targetUser && seriesIds.length > 0) {
@@ -2210,20 +2386,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetUser = users.find(u => u.id === userId);
     const studentName = targetUser?.name || 'छात्र';
     const allActiveSeriesIds = testSeries.filter(s => s.isActive !== false).map(s => s.id);
+    const existing = enrolledMap[userId] || (targetUser?.purchasedSeries || []);
+    const combined = Array.from(new Set([...existing, ...allActiveSeriesIds, 'all_series_vip']));
 
-    let updatedEnrolledMap: Record<string, string[]> = {};
-    setEnrolledMap(prev => {
-      const existing = prev[userId] || [];
-      const combined = Array.from(new Set([...existing, ...allActiveSeriesIds]));
-      updatedEnrolledMap = { ...prev, [userId]: combined };
-      return updatedEnrolledMap;
-    });
+    const nextEnrolledMap: Record<string, string[]> = {
+      ...enrolledMap,
+      [userId]: combined
+    };
+
+    setEnrolledMap(nextEnrolledMap);
+    StorageService.setEnrolledMap(nextEnrolledMap);
+
+    const updatedUsers = users.map(u => u.id === userId ? {
+      ...u,
+      purchasedSeries: combined,
+      customTag: '🌟 VIP ऑल-एक्सेस पास',
+      grantReason: reason || 'विशेष छात्रवृत्ति VIP पास'
+    } : u);
+    setUsers(updatedUsers);
+    StorageService.setUsers(updatedUsers);
 
     fetch('/api/enrolled-map/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedEnrolledMap)
+      body: JSON.stringify({ enrolledMap: nextEnrolledMap })
     }).catch(err => console.warn('Enrolled sync error:', err));
+
+    fetch('/api/enrolled-map/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, seriesIds: combined })
+    }).catch(err => console.warn('User enrolled sync error:', err));
+
+    fetch('/api/users/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: userId,
+        purchasedSeries: combined,
+        customTag: '🌟 VIP ऑल-एक्सेस पास',
+        grantReason: reason || 'विशेष छात्रवृत्ति VIP पास'
+      })
+    }).catch(err => console.warn('User update sync error:', err));
 
     // Create VIP Free Grant record
     if (targetUser) {
@@ -2266,19 +2470,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetUser = users.find(u => u.id === userId);
     const studentName = targetUser?.name || 'छात्र';
 
-    let updatedEnrolledMap: Record<string, string[]> = {};
-    setEnrolledMap(prev => {
-      const copy = { ...prev };
-      delete copy[userId];
-      updatedEnrolledMap = copy;
-      return copy;
-    });
+    const nextEnrolledMap: Record<string, string[]> = { ...enrolledMap };
+    delete nextEnrolledMap[userId];
+
+    setEnrolledMap(nextEnrolledMap);
+    StorageService.setEnrolledMap(nextEnrolledMap);
+
+    const updatedUsers = users.map(u => u.id === userId ? { ...u, purchasedSeries: [] } : u);
+    setUsers(updatedUsers);
+    StorageService.setUsers(updatedUsers);
 
     fetch('/api/enrolled-map/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedEnrolledMap)
+      body: JSON.stringify({ enrolledMap: nextEnrolledMap })
     }).catch(err => console.warn('Enrolled sync error:', err));
+
+    fetch('/api/enrolled-map/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, seriesIds: [] })
+    }).catch(err => console.warn('User enrolled sync error:', err));
+
+    fetch('/api/users/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: userId, purchasedSeries: [] })
+    }).catch(err => console.warn('User update sync error:', err));
 
     showToast(
       lang === 'hi' 
@@ -2373,6 +2591,76 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast(lang === 'hi' ? 'पासवर्ड सफलतापूर्वक रीसेट हुआ' : 'Password reset successfully');
   };
 
+  const regenerateUserCredentials = async (userId: string, customPass?: string): Promise<{ success: boolean; user?: UserProfile; newPassword?: string }> => {
+    try {
+      const res = await fetch('/api/users/regenerate-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, newPassword: customPass })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        const newPassword = data.newPassword || customPass || 'MP@123456';
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: newPassword } : u));
+        StorageService.setUsers(users.map(u => u.id === userId ? { ...u, password: newPassword } : u));
+        showToast(lang === 'hi' ? `🔑 नया पासवर्ड/कोड रीजेनरेट हुआ: ${newPassword}` : `Credentials regenerated: ${newPassword}`);
+        return { success: true, user: { ...data.user, password: newPassword }, newPassword };
+      }
+      return { success: false };
+    } catch (e) {
+      console.error('Regenerate credentials error:', e);
+      return { success: false };
+    }
+  };
+
+  const uploadStoredFile = async (payload: { name: string; originalName?: string; mimeType: string; size: number; dataBase64: string; category?: 'pdf' | 'image' | 'doc' | 'other' }): Promise<StoredFile | null> => {
+    try {
+      const res = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success && data.file) {
+        setStoredFiles(prev => {
+          const updated = [data.file, ...prev.filter(f => f.id !== data.file.id)];
+          StorageService.setStoredFiles(updated);
+          return updated;
+        });
+        showToast(lang === 'hi' ? '📁 फ़ाइल सफलतापूर्वक क्लाउड स्टोरेज पर अपलोड हो गई!' : 'File uploaded successfully to storage!');
+        return data.file;
+      } else {
+        showToast(data.message || 'फ़ाइल अपलोड असफल');
+        return null;
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      showToast('फ़ाइल अपलोड में त्रुटि आई');
+      return null;
+    }
+  };
+
+  const deleteStoredFile = async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/storage/files/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setStoredFiles(prev => {
+          const updated = prev.filter(f => f.id !== id);
+          StorageService.setStoredFiles(updated);
+          return updated;
+        });
+        showToast(lang === 'hi' ? '🗑️ फ़ाइल स्टोरेज से हटा दी गई।' : 'File removed from storage.');
+        return true;
+      }
+      showToast(data.message || 'फ़ाइल हटाने में त्रुटि');
+      return false;
+    } catch (err) {
+      console.error('Delete error:', err);
+      return false;
+    }
+  };
+
   const broadcastPushNotification = (title: string, message: string) => {
     showToast(`📢 [BROADCAST]: ${title} — ${message}`);
   };
@@ -2390,6 +2678,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         coupons,
         announcements,
         notes,
+        storedFiles,
         reminders,
         siteBanners,
         platformSettings,
@@ -2494,6 +2783,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleUserRole,
         toggleUserDummyStatus,
         resetStudentPassword,
+        regenerateUserCredentials,
+        uploadStoredFile,
+        deleteStoredFile,
+        archivedUsers,
+        isDataLocked,
+        toggleDataLock,
+        archiveUser,
+        restoreUser,
         broadcastPushNotification,
         refreshCloudData
       }}

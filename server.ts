@@ -100,6 +100,7 @@ const INITIAL_DEFAULT_USERS = [
     username: 'amit_kumar_mp',
     email: 'amit.kumar@gmail.com',
     phone: '9826011223',
+    password: 'Amit@2026',
     role: 'student',
     district: 'जबलपुर (Jabalpur)',
     state: 'मध्यप्रदेश (MP)',
@@ -107,6 +108,11 @@ const INITIAL_DEFAULT_USERS = [
     joinedAt: '2025-01-15T09:30:00.000Z',
     streak: 14,
     badges: ['🥈 Rank 2 (MP Topper)', '🔥 14-Day Streak', '🎯 40-Q Free Mock Master'],
+    purchasedSeries: ['ts_patwari_2026'],
+    customTag: '🎁 विशेष छात्रवृत्ति (Free Access)',
+    grantReason: 'विशेष छात्रवृत्ति मेरिट कोटा',
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_2',
@@ -114,6 +120,7 @@ const INITIAL_DEFAULT_USERS = [
     username: 'priya_sharma_indore',
     email: 'priya.sharma99@gmail.com',
     phone: '9752044556',
+    password: 'Priya@2026',
     role: 'student',
     district: 'इंदौर (Indore)',
     state: 'मध्यप्रदेश (MP)',
@@ -121,6 +128,11 @@ const INITIAL_DEFAULT_USERS = [
     joinedAt: '2025-01-10T14:20:00.000Z',
     streak: 22,
     badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
+    purchasedSeries: ['ts_mpsi_2026', 'ts_patwari_2026'],
+    customTag: '🌟 MP Topper VIP (अनलॉक)',
+    grantReason: 'ऑल एमपी रैंक 1 मेरिट स्कॉलरशिप',
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_3',
@@ -128,6 +140,7 @@ const INITIAL_DEFAULT_USERS = [
     username: 'rohit_verma_gwl',
     email: 'rohit.verma@yahoo.com',
     phone: '9425077889',
+    password: 'Rohit@2026',
     role: 'student',
     district: 'ग्वालियर (Gwalior)',
     state: 'मध्यप्रदेश (MP)',
@@ -135,6 +148,11 @@ const INITIAL_DEFAULT_USERS = [
     joinedAt: '2025-01-20T11:15:00.000Z',
     streak: 8,
     badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
+    purchasedSeries: ['ts_vyapam_group4'],
+    customTag: '🎖️ पुलिस आरक्षक फ्री पैकेज',
+    grantReason: 'शहीद परिजन निःशुल्क छात्रवृत्ति',
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_4',
@@ -142,6 +160,7 @@ const INITIAL_DEFAULT_USERS = [
     username: 'anita_patel_ujjain',
     email: 'anita.patel@gmail.com',
     phone: '9827033445',
+    password: 'Anita@2026',
     role: 'student',
     district: 'उज्जैन (Ujjain)',
     state: 'मध्यप्रदेश (MP)',
@@ -149,6 +168,11 @@ const INITIAL_DEFAULT_USERS = [
     joinedAt: '2025-01-25T16:45:00.000Z',
     streak: 11,
     badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
+    purchasedSeries: ['ts_constable_2026'],
+    customTag: '📜 MPPSC एस्पिरेंट स्कॉलरशिप',
+    grantReason: 'विशेष तैयारी प्रोत्साहन',
+    isDummyUser: false,
+    userType: 'authentic'
   },
   {
     id: 'usr_student_5',
@@ -156,6 +180,7 @@ const INITIAL_DEFAULT_USERS = [
     username: 'vikas_yadav_rewa',
     email: 'vikas.yadav@gmail.com',
     phone: '9179066778',
+    password: 'Vikas@2026',
     role: 'student',
     district: 'रीवा (Rewa)',
     state: 'मध्यप्रदेश (MP)',
@@ -163,6 +188,11 @@ const INITIAL_DEFAULT_USERS = [
     joinedAt: '2025-02-01T10:00:00.000Z',
     streak: 6,
     badges: ['🌱 Agri Warrior', '🎯 Free Mock Completed'],
+    purchasedSeries: ['ts_patwari_2026'],
+    customTag: '🌱 कृषि छात्रवृत्ति',
+    grantReason: 'कृषि संवर्ग निःशुल्क कोटा',
+    isDummyUser: false,
+    userType: 'authentic'
   }
 ];
 
@@ -379,6 +409,21 @@ if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 
     },
     ...withoutAdmin
   ];
+
+  // Backfill missing fields (passwords, purchasedSeries, customTags) from INITIAL_DEFAULT_USERS
+  inMemoryAppState.users.forEach(u => {
+    const seed = INITIAL_DEFAULT_USERS.find(s => s.id === u.id);
+    if (seed) {
+      if (!u.password) u.password = seed.password;
+      if (!Array.isArray(u.purchasedSeries) || u.purchasedSeries.length === 0) {
+        u.purchasedSeries = seed.purchasedSeries;
+      }
+      if (!u.customTag) u.customTag = seed.customTag;
+      if (!u.grantReason) u.grantReason = seed.grantReason;
+      if (u.isDummyUser === undefined) u.isDummyUser = seed.isDummyUser;
+      if (!u.userType) u.userType = seed.userType;
+    }
+  });
 }
 
 // 2. Initialize and preserve attempts seed
@@ -402,6 +447,67 @@ if (!Array.isArray(inMemoryAppState.orders)) {
 }
 if (!inMemoryAppState.enrolledMap || typeof inMemoryAppState.enrolledMap !== 'object') {
   inMemoryAppState.enrolledMap = {};
+}
+
+// Reconcile and synchronize enrolledMap with all users' purchasedSeries and successful orders
+if (Array.isArray(inMemoryAppState.users)) {
+  inMemoryAppState.users.forEach(u => {
+    if (u && u.id && Array.isArray(u.purchasedSeries) && u.purchasedSeries.length > 0) {
+      const existing = inMemoryAppState.enrolledMap![u.id] || [];
+      inMemoryAppState.enrolledMap![u.id] = Array.from(new Set([...existing, ...u.purchasedSeries]));
+    }
+  });
+}
+if (Array.isArray(inMemoryAppState.orders)) {
+  if (inMemoryAppState.orders.length === 0 && Array.isArray(inMemoryAppState.users)) {
+    inMemoryAppState.users.forEach((u, idx) => {
+      if (u.role === 'admin' || !Array.isArray(u.purchasedSeries) || u.purchasedSeries.length === 0) return;
+      u.purchasedSeries.forEach((sid, sIdx) => {
+        inMemoryAppState.orders.push({
+          id: `ord_grant_seed_${u.id}_${sid}`,
+          orderId: `ORD-GRANT-${1000 + idx * 10 + sIdx}`,
+          razorpayPaymentId: `PAY_SCHOLARSHIP_${u.id.toUpperCase()}`,
+          userId: u.id,
+          userName: u.name,
+          userEmail: u.email,
+          userPhone: u.phone,
+          userDistrict: u.district,
+          userState: u.state,
+          seriesId: sid,
+          seriesTitle: sid === 'ts_patwari_2026' ? 'MP पटवारी 2026 — 20 फुल मॉक टेस्ट सीरीज़' : 
+                       sid === 'ts_mpsi_2026' ? 'MP पुलिस सब-इंस्पेक्टर (SI) 2026' : 
+                       sid === 'ts_constable_2026' ? 'MP पुलिस आरक्षक 2026' : sid,
+          amount: 299,
+          discount: 299,
+          gstAmount: 0,
+          finalAmount: 0,
+          paymentMethod: 'UPI',
+          status: 'SUCCESS',
+          couponCode: u.customTag || 'FREE_ADMIN_SCHOLARSHIP',
+          createdAt: u.joinedAt || new Date().toISOString(),
+          invoiceNumber: `INV-2025-${2000 + idx * 10 + sIdx}`,
+          isDummyUser: false
+        });
+      });
+    });
+  }
+
+  inMemoryAppState.orders.forEach(o => {
+    if (o && o.userId && o.seriesId && o.status === 'SUCCESS') {
+      const existing = inMemoryAppState.enrolledMap![o.userId] || [];
+      if (!existing.includes(o.seriesId)) {
+        inMemoryAppState.enrolledMap![o.userId] = [...existing, o.seriesId];
+      }
+    }
+  });
+}
+// Keep all users' purchasedSeries aligned with enrolledMap
+if (Array.isArray(inMemoryAppState.users)) {
+  inMemoryAppState.users.forEach(u => {
+    if (u && u.id && inMemoryAppState.enrolledMap![u.id]) {
+      u.purchasedSeries = inMemoryAppState.enrolledMap![u.id];
+    }
+  });
 }
 
 // 5. Initialize site banners
@@ -1353,9 +1459,20 @@ app.post('/api/users/register', (req: Request, res: Response) => {
     if (newUser.password) target.password = newUser.password;
     if (newUser.name) target.name = newUser.name;
     if (newUser.district) target.district = newUser.district;
+    if (newUser.state) target.state = newUser.state;
     if (newUser.targetExam) target.targetExam = newUser.targetExam;
     if (newUser.customTag) target.customTag = newUser.customTag;
     if (newUser.grantReason) target.grantReason = newUser.grantReason;
+    if (newUser.tagColor) target.tagColor = newUser.tagColor;
+    if (newUser.isDummyUser !== undefined) {
+      target.isDummyUser = newUser.isDummyUser === true;
+      target.userType = target.isDummyUser ? 'dummy' : 'authentic';
+    }
+    if (Array.isArray(newUser.purchasedSeries) && newUser.purchasedSeries.length > 0) {
+      target.purchasedSeries = Array.from(new Set([...(target.purchasedSeries || []), ...newUser.purchasedSeries]));
+      if (!inMemoryAppState.enrolledMap) inMemoryAppState.enrolledMap = {};
+      inMemoryAppState.enrolledMap[target.id] = target.purchasedSeries;
+    }
     saveAppStateToDisk(inMemoryAppState);
     return res.json({
       success: true,
@@ -1378,12 +1495,23 @@ app.post('/api/users/register', (req: Request, res: Response) => {
     targetExam: newUser.targetExam || 'MP पटवारी 2026',
     joinedAt: newUser.joinedAt || new Date().toISOString(),
     streak: typeof newUser.streak === 'number' ? newUser.streak : 1,
-    badges: Array.isArray(newUser.badges) ? newUser.badges : ['🌱 New Aspirant']
+    badges: Array.isArray(newUser.badges) ? newUser.badges : ['🌱 New Aspirant'],
+    purchasedSeries: Array.isArray(newUser.purchasedSeries) ? newUser.purchasedSeries : [],
+    isDummyUser: newUser.isDummyUser === true,
+    userType: newUser.userType || (newUser.isDummyUser ? 'dummy' : 'authentic'),
+    customTag: newUser.customTag || undefined,
+    grantReason: newUser.grantReason || undefined,
+    tagColor: newUser.tagColor || undefined
   };
 
   // If this ID was previously deleted, remove from deletedUserIds
   if (Array.isArray(inMemoryAppState.deletedUserIds)) {
     inMemoryAppState.deletedUserIds = inMemoryAppState.deletedUserIds.filter(id => id !== userWithDefaults.id);
+  }
+
+  if (!inMemoryAppState.enrolledMap) inMemoryAppState.enrolledMap = {};
+  if (userWithDefaults.purchasedSeries.length > 0) {
+    inMemoryAppState.enrolledMap[userWithDefaults.id] = userWithDefaults.purchasedSeries;
   }
 
   users = [userWithDefaults, ...users];
@@ -1446,6 +1574,11 @@ app.post('/api/users/update', (req: Request, res: Response) => {
     users[idx] = { ...users[idx], ...updatedUser };
   } else {
     users.push(updatedUser);
+  }
+
+  if (Array.isArray(updatedUser.purchasedSeries)) {
+    if (!inMemoryAppState.enrolledMap) inMemoryAppState.enrolledMap = {};
+    inMemoryAppState.enrolledMap[updatedUser.id] = updatedUser.purchasedSeries;
   }
 
   inMemoryAppState.users = users;
@@ -1616,21 +1749,76 @@ app.get('/api/enrolled-map', (req: Request, res: Response) => {
 });
 
 app.post('/api/enrolled-map/sync', (req: Request, res: Response) => {
-  const { enrolledMap } = req.body;
-  if (!enrolledMap || typeof enrolledMap !== 'object') {
+  const mapData = req.body?.enrolledMap || (typeof req.body === 'object' ? req.body : null);
+  if (!mapData || typeof mapData !== 'object') {
     return res.status(400).json({ success: false, message: 'Invalid enrolled map' });
   }
 
   inMemoryAppState.enrolledMap = {
     ...(inMemoryAppState.enrolledMap || {}),
-    ...enrolledMap
+    ...mapData
   };
+
+  // Keep users' purchasedSeries aligned
+  if (Array.isArray(inMemoryAppState.users)) {
+    inMemoryAppState.users.forEach(u => {
+      if (u && inMemoryAppState.enrolledMap && inMemoryAppState.enrolledMap[u.id]) {
+        u.purchasedSeries = inMemoryAppState.enrolledMap[u.id];
+      }
+    });
+  }
+
   saveAppStateToDisk(inMemoryAppState);
 
   res.json({
     success: true,
     enrolledMap: inMemoryAppState.enrolledMap,
     message: 'Enrollment mapping saved to disk'
+  });
+});
+
+app.post('/api/enrolled-map/user', (req: Request, res: Response) => {
+  const { userId, seriesIds } = req.body;
+  if (!userId) return res.status(400).json({ success: false, message: 'User ID required' });
+  if (!inMemoryAppState.enrolledMap) inMemoryAppState.enrolledMap = {};
+  
+  if (!Array.isArray(seriesIds) || seriesIds.length === 0) {
+    delete inMemoryAppState.enrolledMap[userId];
+  } else {
+    inMemoryAppState.enrolledMap[userId] = seriesIds;
+  }
+
+  const u = (inMemoryAppState.users || []).find(usr => usr.id === userId);
+  if (u) {
+    u.purchasedSeries = Array.isArray(seriesIds) ? seriesIds : [];
+  }
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    enrolledMap: inMemoryAppState.enrolledMap,
+    userId,
+    seriesIds: inMemoryAppState.enrolledMap[userId] || []
+  });
+});
+
+// Regenerate Student Password / Code Endpoint
+app.post('/api/users/regenerate-credentials', (req: Request, res: Response) => {
+  const { userId, newPassword } = req.body;
+  if (!userId) return res.status(400).json({ success: false, message: 'User ID required' });
+  
+  const user = (inMemoryAppState.users || []).find(u => u.id === userId);
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  
+  const generatedCode = newPassword || `MP@${Math.floor(100000 + Math.random() * 900000)}`;
+  user.password = generatedCode;
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    user,
+    newPassword: generatedCode,
+    message: `पासवर्ड/कोड सफलतापूर्वक रीजेनरेट कर दिया गया: ${generatedCode}`
   });
 });
 

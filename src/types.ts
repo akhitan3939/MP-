@@ -27,6 +27,7 @@ export interface UserProfile {
   isArchived?: boolean;
   archivedAt?: string;
   archiveReason?: string;
+  purchasedSeries?: string[];
 }
 
 export interface StoredFile {
