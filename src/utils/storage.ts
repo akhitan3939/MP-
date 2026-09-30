@@ -14,7 +14,8 @@ import {
   MockSetMetadata,
   NavigationMenuItem,
   WebsiteContentConfig,
-  SocialChannelConfig
+  SocialChannelConfig,
+  StoredFile
 } from '../types';
 import { 
   INITIAL_USERS, 
@@ -50,6 +51,10 @@ const STORAGE_KEYS = {
   NAV_MENUS: 'mp_setu_nav_menus_v2',
   HIT_COUNTER: 'mp_setu_hit_counter_v1',
   DELETED_USER_IDS: 'mp_setu_deleted_user_ids_v2',
+  STORED_FILES: 'mp_setu_stored_files_v1',
+  ARCHIVED_USERS: 'mp_setu_archived_users_v1',
+  ARCHIVED_ATTEMPTS: 'mp_setu_archived_attempts_v1',
+  DATA_LOCKED: 'mp_setu_data_locked_v1',
 };
 
 export const INITIAL_NAV_MENUS: NavigationMenuItem[] = [
@@ -755,5 +760,17 @@ export const StorageService = {
     const next = current + Math.max(1, step);
     StorageService.setHitCounter(next);
     return next;
-  }
+  },
+
+  getStoredFiles: (): StoredFile[] => getStorage(STORAGE_KEYS.STORED_FILES, []),
+  setStoredFiles: (files: StoredFile[]) => setStorage(STORAGE_KEYS.STORED_FILES, files),
+
+  getArchivedUsers: (): UserProfile[] => getStorage(STORAGE_KEYS.ARCHIVED_USERS, []),
+  setArchivedUsers: (users: UserProfile[]) => setStorage(STORAGE_KEYS.ARCHIVED_USERS, users),
+
+  getArchivedAttempts: (): TestAttempt[] => getStorage(STORAGE_KEYS.ARCHIVED_ATTEMPTS, []),
+  setArchivedAttempts: (attempts: TestAttempt[]) => setStorage(STORAGE_KEYS.ARCHIVED_ATTEMPTS, attempts),
+
+  isDataLocked: (): boolean => getStorage(STORAGE_KEYS.DATA_LOCKED, true),
+  setDataLocked: (locked: boolean) => setStorage(STORAGE_KEYS.DATA_LOCKED, locked)
 };

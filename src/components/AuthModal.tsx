@@ -188,7 +188,6 @@ export const AuthModal: React.FC = () => {
         StorageService.addDeletedUserId(staleUser.id);
         deletedIds.add(staleUser.id);
         activeUsers = activeUsers.filter(u => u.id !== staleUser.id);
-        setUsers(prev => prev.filter(u => u.id !== staleUser.id));
       }
 
       // Check if email already registered by an active non-deleted user

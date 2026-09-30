@@ -24,6 +24,23 @@ export interface UserProfile {
   grantReason?: string;
   isDummyUser?: boolean;
   userType?: 'authentic' | 'dummy';
+  isArchived?: boolean;
+  archivedAt?: string;
+  archiveReason?: string;
+}
+
+export interface StoredFile {
+  id: string;
+  name: string;
+  originalName: string;
+  size: number;
+  mimeType: string;
+  url: string;
+  dataBase64?: string;
+  category: 'pdf' | 'image' | 'doc' | 'other';
+  uploadedAt: string;
+  uploadedBy?: string;
+  isLocked?: boolean;
 }
 
 export type ExamCategory = 
@@ -287,6 +304,8 @@ export interface PlatformSettings {
   lastUpdatedDateEn?: string;
   showHitCounter?: boolean;
   showLastUpdated?: boolean;
+  isDataLocked?: boolean;
+  lastBackupAt?: string;
   websiteContent?: WebsiteContentConfig;
   socialChannels?: SocialChannelConfig[];
   popupConfig?: PopupNotificationConfig;
@@ -378,6 +397,9 @@ export interface TestAttempt {
   sectionScores: SectionScore[];
   aiReport?: AiEvaluationReport;
   certificateId: string;
+  isArchived?: boolean;
+  archivedAt?: string;
+  archiveReason?: string;
 }
 
 export interface ShareModalParams {

@@ -18,8 +18,8 @@ process.on('unhandledRejection', (reason) => {
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Immediate health check routes for deployment liveness & readiness probes
 app.get(['/health', '/api/health'], (req: Request, res: Response) => {
@@ -34,10 +34,17 @@ app.get(['/health', '/api/health'], (req: Request, res: Response) => {
 // Persistent Server-Side State Storage File
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STATE_FILE_PATH = path.join(DATA_DIR, 'app_state.json');
+const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 
 // Dedicated persistent uploads directory for uploaded PDFs, docs, & assets
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const PDF_DIR = path.join(UPLOADS_DIR, 'pdf_notes');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(BACKUPS_DIR)) {
+  fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+}
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
@@ -45,8 +52,9 @@ if (!fs.existsSync(PDF_DIR)) {
   fs.mkdirSync(PDF_DIR, { recursive: true });
 }
 
-// Serve uploaded files statically
+// Serve uploaded files statically across both /uploads and /api/uploads
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/api/uploads', express.static(UPLOADS_DIR));
 
 interface ServerAppState {
   testSeries?: any[];
@@ -60,7 +68,11 @@ interface ServerAppState {
   notes?: any[];
   questions?: any[];
   users?: any[];
+  archivedUsers?: any[];
   attempts?: any[];
+  archivedAttempts?: any[];
+  storedFiles?: any[];
+  isDataLocked?: boolean;
   orders?: any[];
   enrolledMap?: Record<string, string[]>;
   leaderboard?: any[];
@@ -308,6 +320,14 @@ function saveAppStateToDisk(state: ServerAppState) {
     const tempFile = `${STATE_FILE_PATH}.tmp`;
     fs.writeFileSync(tempFile, serialized, 'utf-8');
     fs.renameSync(tempFile, STATE_FILE_PATH);
+
+    // Also persist an automated rolling snapshot in backups folder
+    try {
+      const backupFile = path.join(BACKUPS_DIR, 'backup_auto.json');
+      fs.writeFileSync(backupFile, serialized, 'utf-8');
+    } catch (bErr) {
+      // safe fallback
+    }
   } catch (err) {
     try {
       fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), 'utf-8');
@@ -318,6 +338,20 @@ function saveAppStateToDisk(state: ServerAppState) {
 }
 
 let inMemoryAppState: ServerAppState = loadAppStateFromDisk();
+
+// Initialize archives and storedFiles if not yet present
+if (!Array.isArray(inMemoryAppState.archivedUsers)) {
+  inMemoryAppState.archivedUsers = [];
+}
+if (!Array.isArray(inMemoryAppState.archivedAttempts)) {
+  inMemoryAppState.archivedAttempts = [];
+}
+if (!Array.isArray(inMemoryAppState.storedFiles)) {
+  inMemoryAppState.storedFiles = [];
+}
+if (inMemoryAppState.isDataLocked === undefined) {
+  inMemoryAppState.isDataLocked = true;
+}
 
 // 1. Initialize and preserve users seed
 if (!Array.isArray(inMemoryAppState.deletedUserIds)) {
@@ -846,6 +880,327 @@ app.delete('/api/notes/storage-files/:fileName', (req: Request, res: Response) =
 });
 
 // ==========================================
+// UNIVERSAL MEDIA & FILE STORAGE ENDPOINTS (PDF, Images, Docs)
+// ==========================================
+// 1. List all stored files
+app.get('/api/storage/files', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    files: inMemoryAppState.storedFiles || [],
+    totalCount: (inMemoryAppState.storedFiles || []).length
+  });
+});
+
+// 2. Upload file (PDF, Image, Doc) with direct link generation
+app.post('/api/storage/upload', (req: Request, res: Response) => {
+  try {
+    const { name, originalName, mimeType, size, dataBase64, category } = req.body;
+    if (!name || !dataBase64) {
+      return res.status(400).json({ success: false, message: 'फ़ाइल नाम और डेटा आवश्यक है।' });
+    }
+
+    const cleanBase64 = dataBase64.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    
+    // Generate safe unique filename
+    const safeBase = (originalName || name).replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 50);
+    const ext = path.extname(safeBase) || (
+      mimeType?.includes('pdf') ? '.pdf' : 
+      mimeType?.includes('png') ? '.png' : 
+      mimeType?.includes('jpeg') || mimeType?.includes('jpg') ? '.jpg' : 
+      mimeType?.includes('webp') ? '.webp' : 
+      mimeType?.includes('svg') ? '.svg' : ''
+    );
+    const cleanFileName = `${Date.now()}_${path.basename(safeBase, ext)}${ext}`;
+    const filePath = path.join(UPLOADS_DIR, cleanFileName);
+
+    fs.writeFileSync(filePath, buffer);
+
+    const detectedCategory = category || (
+      mimeType?.includes('pdf') || ext.toLowerCase() === '.pdf' ? 'pdf' :
+      mimeType?.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif'].includes(ext.toLowerCase()) ? 'image' :
+      ['.doc', '.docx', '.xlsx', '.csv', '.txt'].includes(ext.toLowerCase()) ? 'doc' : 'other'
+    );
+
+    const fileRecord = {
+      id: `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: originalName || name,
+      originalName: originalName || name,
+      diskFileName: cleanFileName,
+      size: size || buffer.length,
+      mimeType: mimeType || 'application/octet-stream',
+      url: `/api/uploads/${cleanFileName}`,
+      dataBase64: buffer.length < 500000 ? dataBase64 : undefined, // Keep data url for small files as instant offline fallback
+      category: detectedCategory,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: 'Administrator'
+    };
+
+    if (!Array.isArray(inMemoryAppState.storedFiles)) {
+      inMemoryAppState.storedFiles = [];
+    }
+    inMemoryAppState.storedFiles = [fileRecord, ...inMemoryAppState.storedFiles];
+    saveAppStateToDisk(inMemoryAppState);
+
+    console.log(`[STORAGE] Uploaded file saved: ${cleanFileName} (${buffer.length} bytes, url: ${fileRecord.url})`);
+
+    res.json({
+      success: true,
+      file: fileRecord,
+      message: 'फ़ाइल सफलतापूर्वक अपलोड हो गई।'
+    });
+  } catch (err: any) {
+    console.error('[STORAGE UPLOAD ERROR]:', err);
+    res.status(500).json({ success: false, message: 'फ़ाइल अपलोड में त्रुटि: ' + (err.message || 'Unknown error') });
+  }
+});
+
+// 3. Delete stored file
+app.delete('/api/storage/files/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  let files = inMemoryAppState.storedFiles || [];
+  const target = files.find(f => f.id === id);
+  if (!target) return res.status(404).json({ success: false, message: 'फ़ाइल नहीं मिली।' });
+
+  if (target.diskFileName) {
+    const filePath = path.join(UPLOADS_DIR, target.diskFileName);
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch (e) { console.warn('Could not unlink file:', e); }
+    }
+  }
+
+  inMemoryAppState.storedFiles = files.filter(f => f.id !== id);
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({ success: true, message: 'फ़ाइल सफलतापूर्वक हटा दी गई।' });
+});
+
+// ==========================================
+// ARCHIVE, DATA LOCK & BACKUP RESTORE ENDPOINTS
+// ==========================================
+// 1. Archive User
+app.post('/api/users/archive/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { reason } = req.body || {};
+  if (id === 'usr_admin') return res.status(400).json({ success: false, message: 'एडमिन खाते को आर्काइव नहीं किया जा सकता।' });
+
+  if (!Array.isArray(inMemoryAppState.archivedUsers)) inMemoryAppState.archivedUsers = [];
+  let users = inMemoryAppState.users || [];
+  const target = users.find(u => u.id === id);
+  if (!target) return res.status(404).json({ success: false, message: 'यूज़र नहीं मिला।' });
+
+  const archivedItem = {
+    ...target,
+    isArchived: true,
+    archivedAt: new Date().toISOString(),
+    archiveReason: reason || 'Archived by Administrator'
+  };
+
+  inMemoryAppState.users = users.filter(u => u.id !== id);
+  inMemoryAppState.archivedUsers = [archivedItem, ...inMemoryAppState.archivedUsers.filter(u => u.id !== id)];
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({ success: true, message: 'छात्र को आर्काइव में सुरक्षित रख दिया गया है।', archivedItem });
+});
+
+// 2. Restore User from Archive
+app.post('/api/users/restore/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  let archived = inMemoryAppState.archivedUsers || [];
+  const target = archived.find(u => u.id === id);
+  if (!target) return res.status(404).json({ success: false, message: 'आर्काइव में छात्र नहीं मिला।' });
+
+  const restored = {
+    ...target,
+    isArchived: false,
+    restoredAt: new Date().toISOString()
+  };
+
+  inMemoryAppState.archivedUsers = archived.filter(u => u.id !== id);
+  inMemoryAppState.users = [restored, ...(inMemoryAppState.users || [])];
+  if (Array.isArray(inMemoryAppState.deletedUserIds)) {
+    inMemoryAppState.deletedUserIds = inMemoryAppState.deletedUserIds.filter(item => item !== id);
+  }
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({ success: true, message: 'छात्र को पुनः सक्रिय सूची में पुनर्स्थापित कर दिया गया है।', restored });
+});
+
+// 3. Archive Test Attempt / Report
+app.post('/api/attempts/archive/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { reason } = req.body || {};
+  if (!Array.isArray(inMemoryAppState.archivedAttempts)) inMemoryAppState.archivedAttempts = [];
+  let attempts = inMemoryAppState.attempts || [];
+  const target = attempts.find(a => a.id === id);
+  if (!target) return res.status(404).json({ success: false, message: 'टेस्ट परिणाम नहीं मिला।' });
+
+  const archivedItem = {
+    ...target,
+    isArchived: true,
+    archivedAt: new Date().toISOString(),
+    archiveReason: reason || 'Archived by Administrator'
+  };
+
+  inMemoryAppState.attempts = attempts.filter(a => a.id !== id);
+  inMemoryAppState.archivedAttempts = [archivedItem, ...inMemoryAppState.archivedAttempts.filter(a => a.id !== id)];
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({ success: true, message: 'टेस्ट परिणाम आर्काइव में सुरक्षित रख दिया गया है।', archivedItem });
+});
+
+// 4. Restore Test Attempt / Report from Archive
+app.post('/api/attempts/restore/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  let archived = inMemoryAppState.archivedAttempts || [];
+  const target = archived.find(a => a.id === id);
+  if (!target) return res.status(404).json({ success: false, message: 'आर्काइव में टेस्ट परिणाम नहीं मिला।' });
+
+  const restored = {
+    ...target,
+    isArchived: false,
+    restoredAt: new Date().toISOString()
+  };
+
+  inMemoryAppState.archivedAttempts = archived.filter(a => a.id !== id);
+  inMemoryAppState.attempts = [restored, ...(inMemoryAppState.attempts || [])];
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({ success: true, message: 'टेस्ट परिणाम पुनः सक्रिय रिपोर्ट में पुनर्स्थापित कर दिया गया है।', restored });
+});
+
+// 5. Sync Attempts Bidirectionally
+app.post('/api/attempts/sync', (req: Request, res: Response) => {
+  const { attempts } = req.body;
+  if (!Array.isArray(attempts)) {
+    return res.status(400).json({ success: false, message: 'Invalid attempts array' });
+  }
+
+  const existingMap = new Map<string, any>();
+  (inMemoryAppState.attempts || []).forEach(a => { if (a && a.id) existingMap.set(a.id, a); });
+  attempts.forEach(a => {
+    if (a && a.id) {
+      existingMap.set(a.id, { ...(existingMap.get(a.id) || {}), ...a });
+    }
+  });
+
+  inMemoryAppState.attempts = Array.from(existingMap.values()).sort((a, b) => {
+    const tA = new Date(a.completedAt || a.startedAt || 0).getTime();
+    const tB = new Date(b.completedAt || b.startedAt || 0).getTime();
+    return tB - tA;
+  });
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    totalAttempts: inMemoryAppState.attempts.length,
+    attempts: inMemoryAppState.attempts
+  });
+});
+
+// 6. Export Full System Backup
+app.get('/api/backup/export', (req: Request, res: Response) => {
+  const backup = {
+    version: '4.0.0',
+    site: 'MP Pariksha Setu',
+    exportedAt: new Date().toISOString(),
+    exportedBy: 'Super Admin (Akhilesh Korsne)',
+    stats: {
+      users: (inMemoryAppState.users || []).length,
+      archivedUsers: (inMemoryAppState.archivedUsers || []).length,
+      attempts: (inMemoryAppState.attempts || []).length,
+      archivedAttempts: (inMemoryAppState.archivedAttempts || []).length,
+      testSeries: (inMemoryAppState.testSeries || []).length,
+      questions: (inMemoryAppState.questions || []).length,
+      orders: (inMemoryAppState.orders || []).length,
+      storedFiles: (inMemoryAppState.storedFiles || []).length
+    },
+    data: inMemoryAppState
+  };
+  res.json({ success: true, backup });
+});
+
+// 7. Restore from Full System Backup
+app.post('/api/backup/restore', (req: Request, res: Response) => {
+  const { backupData } = req.body;
+  if (!backupData || typeof backupData !== 'object') {
+    return res.status(400).json({ success: false, message: 'अमान्य बैकअप डेटा फ़ाइल।' });
+  }
+
+  const payload = backupData.data || backupData;
+
+  // Safe merge of users
+  if (Array.isArray(payload.users)) {
+    const userMap = new Map<string, any>();
+    (inMemoryAppState.users || []).forEach(u => { if (u && u.id) userMap.set(u.id, u); });
+    payload.users.forEach((u: any) => { if (u && u.id) userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u }); });
+    inMemoryAppState.users = Array.from(userMap.values());
+  }
+
+  // Safe merge of attempts
+  if (Array.isArray(payload.attempts)) {
+    const attemptMap = new Map<string, any>();
+    (inMemoryAppState.attempts || []).forEach(a => { if (a && a.id) attemptMap.set(a.id, a); });
+    payload.attempts.forEach((a: any) => { if (a && a.id) attemptMap.set(a.id, { ...(attemptMap.get(a.id) || {}), ...a }); });
+    inMemoryAppState.attempts = Array.from(attemptMap.values());
+  }
+
+  // Merge archived records
+  if (Array.isArray(payload.archivedUsers)) {
+    const aUserMap = new Map<string, any>();
+    (inMemoryAppState.archivedUsers || []).forEach(u => { if (u && u.id) aUserMap.set(u.id, u); });
+    payload.archivedUsers.forEach((u: any) => { if (u && u.id) aUserMap.set(u.id, { ...(aUserMap.get(u.id) || {}), ...u }); });
+    inMemoryAppState.archivedUsers = Array.from(aUserMap.values());
+  }
+  if (Array.isArray(payload.archivedAttempts)) {
+    const aAttMap = new Map<string, any>();
+    (inMemoryAppState.archivedAttempts || []).forEach(a => { if (a && a.id) aAttMap.set(a.id, a); });
+    payload.archivedAttempts.forEach((a: any) => { if (a && a.id) aAttMap.set(a.id, { ...(aAttMap.get(a.id) || {}), ...a }); });
+    inMemoryAppState.archivedAttempts = Array.from(aAttMap.values());
+  }
+
+  // Merge stored files
+  if (Array.isArray(payload.storedFiles)) {
+    const fileMap = new Map<string, any>();
+    (inMemoryAppState.storedFiles || []).forEach(f => { if (f && f.id) fileMap.set(f.id, f); });
+    payload.storedFiles.forEach((f: any) => { if (f && f.id) fileMap.set(f.id, { ...(fileMap.get(f.id) || {}), ...f }); });
+    inMemoryAppState.storedFiles = Array.from(fileMap.values());
+  }
+
+  // Merge test series if present
+  if (Array.isArray(payload.testSeries) && payload.testSeries.length > 0) {
+    const seriesMap = new Map<string, any>();
+    (inMemoryAppState.testSeries || []).forEach(s => { if (s && s.id) seriesMap.set(s.id, s); });
+    payload.testSeries.forEach((s: any) => { if (s && s.id) seriesMap.set(s.id, { ...(seriesMap.get(s.id) || {}), ...s }); });
+    inMemoryAppState.testSeries = Array.from(seriesMap.values());
+  }
+
+  saveAppStateToDisk(inMemoryAppState);
+
+  res.json({
+    success: true,
+    message: 'डेटा बैकअप से सफलतापूर्वक रीस्टोर एवं सुरक्षित कर दिया गया है।',
+    stats: {
+      users: (inMemoryAppState.users || []).length,
+      archivedUsers: (inMemoryAppState.archivedUsers || []).length,
+      attempts: (inMemoryAppState.attempts || []).length,
+      archivedAttempts: (inMemoryAppState.archivedAttempts || []).length,
+      storedFiles: (inMemoryAppState.storedFiles || []).length
+    }
+  });
+});
+
+// 8. Data Lock Toggle
+app.post('/api/data/lock-toggle', (req: Request, res: Response) => {
+  const { locked } = req.body;
+  inMemoryAppState.isDataLocked = locked !== undefined ? Boolean(locked) : !inMemoryAppState.isDataLocked;
+  if (!inMemoryAppState.platformSettings) inMemoryAppState.platformSettings = {};
+  inMemoryAppState.platformSettings.isDataLocked = inMemoryAppState.isDataLocked;
+  saveAppStateToDisk(inMemoryAppState);
+  res.json({ success: true, isDataLocked: inMemoryAppState.isDataLocked });
+});
+
+// ==========================================
 // USER REGISTRATION, LOGIN & MANAGEMENT ENDPOINTS
 // ==========================================
 // Endpoint to check if phone is available for registration
@@ -1120,6 +1475,18 @@ app.delete('/api/users/:id', (req: Request, res: Response) => {
   const targetUser = users.find(u => u.id === id);
   const targetPhone = targetUser?.phone ? String(targetUser.phone).replace(/\D/g, '').slice(-10) : '';
   const targetEmail = targetUser?.email ? String(targetUser.email).toLowerCase().trim() : '';
+
+  // Preserve deleted user in archives so data is never permanently lost
+  if (targetUser) {
+    if (!Array.isArray(inMemoryAppState.archivedUsers)) inMemoryAppState.archivedUsers = [];
+    const archivedItem = {
+      ...targetUser,
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      archiveReason: 'Deleted / Moved to Archive by Administrator'
+    };
+    inMemoryAppState.archivedUsers = [archivedItem, ...inMemoryAppState.archivedUsers.filter(u => u.id !== id)];
+  }
 
   // Filter out target user and any duplicate matching phone/email
   users = users.filter(u => {
