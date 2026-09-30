@@ -596,26 +596,33 @@ export const StorageService = {
 
   getUsers: (): UserProfile[] => {
     const raw = getStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
-    const list = Array.isArray(raw) ? raw : INITIAL_USERS;
-    const deletedIds = new Set(StorageService.getDeletedUserIds());
-    return list
-      .filter(u => u && u.id && !deletedIds.has(u.id))
-      .map(u => {
-        if (u.role === 'admin' || u.id === 'usr_admin') {
-          return {
-            ...u,
-            name: 'प्रशासक (Akhilesh Korsne)',
-            username: 'akhitan_3939',
-            password: 'Tanmayee*1234',
-            email: 'akhitan3939@mppariksha.in',
-            role: 'admin' as const
-          };
-        }
+    const list: UserProfile[] = Array.isArray(raw) && raw.length > 0 ? raw : INITIAL_USERS;
+
+    // Ensure all registered students are always present and never suppressed
+    const userMap = new Map<string, UserProfile>();
+    INITIAL_USERS.forEach(u => userMap.set(u.id, u));
+    list.forEach(u => {
+      if (u && u.id) {
+        userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u });
+      }
+    });
+
+    return Array.from(userMap.values()).map(u => {
+      if (u.role === 'admin' || u.id === 'usr_admin') {
         return {
           ...u,
-          password: u.password || 'Student@123'
+          name: 'प्रशासक (Akhilesh Korsne)',
+          username: 'akhitan_3939',
+          password: 'Tanmayee*1234',
+          email: 'akhitan3939@mppariksha.in',
+          role: 'admin' as const
         };
-      });
+      }
+      return {
+        ...u,
+        password: u.password || 'Student@123'
+      };
+    });
   },
   setUsers: (users: UserProfile[]) => setStorage(STORAGE_KEYS.USERS, users),
 

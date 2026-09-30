@@ -421,6 +421,7 @@ export const AdminDashboardView: React.FC = () => {
   const [grantSeriesSearch, setGrantSeriesSearch] = useState<string>('');
   const [studentFilterType, setStudentFilterType] = useState<'all' | 'valid' | 'dummy' | 'granted' | 'standard' | 'archived' | 'tagged' | 'admin'>('all');
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [showAllPasswords, setShowAllPasswords] = useState<boolean>(true);
   const [credentialsModal, setCredentialsModal] = useState<{ user: UserProfile; password?: string } | null>(null);
   const [copiedCreds, setCopiedCreds] = useState(false);
 
@@ -1173,6 +1174,10 @@ export const AdminDashboardView: React.FC = () => {
                     key={item.id}
                     onClick={() => {
                       setActiveTab(item.id);
+                      if (item.id === 'STUDENTS') {
+                        setStudentFilterType('all');
+                        setSearchStudents('');
+                      }
                       setIsSidebarMobileOpen(false);
                     }}
                     className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all border-2 ${
@@ -1266,7 +1271,11 @@ export const AdminDashboardView: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-stone-100 dark:border-stone-800">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('STUDENTS')}
+                  onClick={() => {
+                    setActiveTab('STUDENTS');
+                    setStudentFilterType('all');
+                    setSearchStudents('');
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${
                     activeTab === 'STUDENTS' 
                       ? 'bg-blue-700 text-white shadow-sm' 
@@ -3014,47 +3023,62 @@ export const AdminDashboardView: React.FC = () => {
                   <div className="p-4 bg-white dark:bg-stone-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col justify-between space-y-3">
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-stone-800 dark:text-white">1. पंजीकृत छात्र रिपोर्ट</span>
+                        <span className="text-xs font-black text-stone-800 dark:text-white">1. 👥 समस्त छात्र मास्टर रिपोर्ट</span>
                         <Users className="w-4 h-4 text-blue-600" />
                       </div>
-                      <p className="text-[11px] text-stone-500 mt-1">छात्र नाम, मोबाइल, ईमेल, जिला, रोल व स्ट्रीक</p>
+                      <p className="text-[11px] text-stone-500 mt-1">ID, नाम, यूज़रनेम, लॉगिन पासवर्ड, मोबाइल, ईमेल, जिला, रोल व ऑल एक्सेस</p>
                     </div>
                     <div className="flex items-center gap-1.5 pt-2 border-t border-stone-100 dark:border-stone-800">
                       <button
                         onClick={() => {
-                          const data = users.map(u => ({
-                            'छात्र ID': u.id,
-                            'नाम': u.name,
-                            'ईमेल': u.email,
-                            'मोबाइल': u.phone,
-                            'गृह जिला': u.district,
-                            'लक्ष्य परीक्षा': u.targetExam,
-                            'रोल': u.role === 'admin' ? 'प्रशासक (Admin)' : 'छात्र (Student)',
-                            'लगातार दिन (Streak)': u.streak || 0,
-                            'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleDateString('hi-IN')
-                          }));
-                          exportToXls(data, `MP_Pariksha_Setu_Users_${new Date().toISOString().split('T')[0]}`);
-                          showToast('📊 छात्र रिपोर्ट Excel (.xls) डाउनलोड हो गई।');
+                          const data = users.map(u => {
+                            const userEnrolled = (enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || []);
+                            return {
+                              'छात्र ID': u.id,
+                              'नाम': u.name,
+                              'यूज़रनेम': u.username || `@user_${u.phone}`,
+                              'लॉगिन पासवर्ड': u.password || 'Student@123',
+                              'मोबाइल': u.phone,
+                              'ईमेल': u.email,
+                              'राज्य (State)': u.state || 'मध्यप्रदेश (MP)',
+                              'गृह जिला': u.district,
+                              'लक्ष्य परीक्षा': u.targetExam,
+                              'रोल': u.role === 'admin' ? 'प्रशासक (Admin)' : 'छात्र (Student)',
+                              'अनलॉक टेस्ट सीरीज़': u.role === 'admin' ? '🌟 पूर्ण पोर्टल एक्सेस (Admin)' : userEnrolled.length > 0 ? userEnrolled.join(', ') : 'सशुल्क (कोई मुफ़्त नहीं)',
+                              'टैग / छात्रवृत्ति': u.customTag || u.grantReason || 'सामान्य',
+                              'खाता प्रकार': u.isDummyUser ? 'डमी (Demo)' : 'सत्यापित (Authentic)',
+                              'स्ट्रीक (Streak)': u.streak || 0,
+                              'पंजीकरण दिनांक': new Date(u.joinedAt || u.createdAt || Date.now()).toLocaleString('hi-IN')
+                            };
+                          });
+                          exportToXls(data, `MP_Pariksha_Setu_Master_Users_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📊 समस्त छात्र मास्टर रिपोर्ट (ID, पासवर्ड, एक्सेस सहित) Excel (.xls) में डाउनलोड हो गई।');
                         }}
                         className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black text-center"
-                        title="Excel डाउनलोड"
+                        title="Excel डाउनलोड (पासवर्ड व एक्सेस सहित)"
                       >
                         Excel (.xls)
                       </button>
                       <button
                         onClick={() => {
-                          const data = users.map(u => ({
-                            'छात्र ID': u.id,
-                            'नाम': u.name,
-                            'ईमेल': u.email,
-                            'मोबाइल': u.phone,
-                            'गृह जिला': u.district,
-                            'लक्ष्य परीक्षा': u.targetExam,
-                            'रोल': u.role,
-                            'Streak': u.streak || 0
-                          }));
-                          exportToCsv(data, `MP_Pariksha_Setu_Users_${new Date().toISOString().split('T')[0]}`);
-                          showToast('📄 छात्र रिपोर्ट CSV डाउनलोड हो गई।');
+                          const data = users.map(u => {
+                            const userEnrolled = (enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || []);
+                            return {
+                              'छात्र ID': u.id,
+                              'नाम': u.name,
+                              'यूज़रनेम': u.username || `@user_${u.phone}`,
+                              'लॉगिन पासवर्ड': u.password || 'Student@123',
+                              'मोबाइल': u.phone,
+                              'ईमेल': u.email,
+                              'गृह जिला': u.district,
+                              'लक्ष्य परीक्षा': u.targetExam,
+                              'रोल': u.role,
+                              'अनलॉक सीरीज़': userEnrolled.join(', ') || 'None',
+                              'Streak': u.streak || 0
+                            };
+                          });
+                          exportToCsv(data, `MP_Pariksha_Setu_Master_Users_${new Date().toISOString().split('T')[0]}`);
+                          showToast('📄 छात्र मास्टर रिपोर्ट CSV (पासवर्ड सहित) डाउनलोड हो गई।');
                         }}
                         className="flex-1 py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-lg text-[10px] font-bold text-center"
                       >
@@ -3063,17 +3087,18 @@ export const AdminDashboardView: React.FC = () => {
                       <button
                         onClick={() => {
                           const cols = [
+                            { key: 'id', label: 'छात्र ID' },
                             { key: 'name', label: 'नाम' },
+                            { key: 'password', label: 'लॉगिन पासवर्ड' },
                             { key: 'phone', label: 'मोबाइल' },
-                            { key: 'email', label: 'ईमेल' },
                             { key: 'district', label: 'जिला' },
                             { key: 'targetExam', label: 'लक्ष्य परीक्षा' },
                             { key: 'role', label: 'रोल' }
                           ];
-                          exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु - समस्त पंजीकृत छात्र विवरण रिपोर्ट', cols, users);
+                          exportToPdfPrint('मध्य प्रदेश परीक्षा सेतु - समस्त पंजीकृत छात्र मास्टर रिपोर्ट (ID, पासवर्ड, संपर्क व रोल)', cols, users);
                         }}
                         className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black text-center"
-                        title="PDF प्रिंट"
+                        title="PDF प्रिंट (पासवर्ड सहित)"
                       >
                         PDF
                       </button>
@@ -3395,6 +3420,20 @@ export const AdminDashboardView: React.FC = () => {
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>तालिका XLS</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowAllPasswords(!showAllPasswords)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${
+                        showAllPasswords
+                          ? 'bg-amber-500 hover:bg-amber-600 text-black font-bold'
+                          : 'bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-500/50'
+                      }`}
+                      title={showAllPasswords ? "पासवर्ड छिपाएं" : "सभी पासवर्ड एक साथ देखें"}
+                    >
+                      {showAllPasswords ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      <span>{showAllPasswords ? '🙈 पासवर्ड छिपाएं' : '👁️ सभी पासवर्ड देखें'}</span>
                     </button>
                   </div>
                 </div>

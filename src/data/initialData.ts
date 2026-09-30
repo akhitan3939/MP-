@@ -29,7 +29,7 @@ export const INITIAL_USERS: UserProfile[] = [
     username: 'amit_kumar_mp',
     email: 'amit.kumar@gmail.com',
     phone: '9826011223',
-    password: 'Student@123',
+    password: 'Amit@2026',
     role: 'student',
     district: 'जबलपुर (Jabalpur)',
     state: 'मध्यप्रदेश (MP)',
@@ -38,7 +38,10 @@ export const INITIAL_USERS: UserProfile[] = [
     streak: 14,
     badges: ['🥈 Rank 2 (MP Topper)', '🔥 14-Day Streak', '🎯 40-Q Free Mock Master'],
     isDummyUser: false,
-    userType: 'authentic'
+    userType: 'authentic',
+    purchasedSeries: ['ts_patwari_2026'],
+    customTag: '🎁 विशेष छात्रवृत्ति (Free Access)',
+    grantReason: 'विशेष छात्रवृत्ति मेरिट कोटा'
   },
   {
     id: 'usr_student_2',
@@ -46,7 +49,7 @@ export const INITIAL_USERS: UserProfile[] = [
     username: 'priya_sharma_indore',
     email: 'priya.sharma99@gmail.com',
     phone: '9752044556',
-    password: 'Student@123',
+    password: 'Priya@2026',
     role: 'student',
     district: 'इंदौर (Indore)',
     state: 'मध्यप्रदेश (MP)',
@@ -55,7 +58,10 @@ export const INITIAL_USERS: UserProfile[] = [
     streak: 22,
     badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
     isDummyUser: false,
-    userType: 'authentic'
+    userType: 'authentic',
+    purchasedSeries: ['ts_mpsi_2026', 'ts_patwari_2026'],
+    customTag: '🌟 MP Topper VIP (अनलॉक)',
+    grantReason: 'ऑल एमपी रैंक 1 मेरिट स्कॉलरशिप'
   },
   {
     id: 'usr_student_3',
@@ -63,7 +69,7 @@ export const INITIAL_USERS: UserProfile[] = [
     username: 'rohit_verma_gwl',
     email: 'rohit.verma@yahoo.com',
     phone: '9425077889',
-    password: 'Student@123',
+    password: 'Rohit@2026',
     role: 'student',
     district: 'ग्वालियर (Gwalior)',
     state: 'मध्यप्रदेश (MP)',
@@ -72,7 +78,10 @@ export const INITIAL_USERS: UserProfile[] = [
     streak: 8,
     badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
     isDummyUser: false,
-    userType: 'authentic'
+    userType: 'authentic',
+    purchasedSeries: ['ts_vyapam_group4'],
+    customTag: '🎖️ पुलिस आरक्षक फ्री पैकेज',
+    grantReason: 'शहीद परिजन निःशुल्क छात्रवृत्ति'
   },
   {
     id: 'usr_student_4',
@@ -80,7 +89,7 @@ export const INITIAL_USERS: UserProfile[] = [
     username: 'anita_patel_ujjain',
     email: 'anita.patel@gmail.com',
     phone: '9827033445',
-    password: 'Student@123',
+    password: 'Anita@2026',
     role: 'student',
     district: 'उज्जैन (Ujjain)',
     state: 'मध्यप्रदेश (MP)',
@@ -89,7 +98,10 @@ export const INITIAL_USERS: UserProfile[] = [
     streak: 11,
     badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
     isDummyUser: false,
-    userType: 'authentic'
+    userType: 'authentic',
+    purchasedSeries: ['ts_constable_2026'],
+    customTag: '📜 MPPSC एस्पिरेंट स्कॉलरशिप',
+    grantReason: 'विशेष तैयारी प्रोत्साहन'
   },
   {
     id: 'usr_student_5',
@@ -97,7 +109,7 @@ export const INITIAL_USERS: UserProfile[] = [
     username: 'vikas_yadav_rewa',
     email: 'vikas.yadav@gmail.com',
     phone: '9179066778',
-    password: 'Student@123',
+    password: 'Vikas@2026',
     role: 'student',
     district: 'रीवा (Rewa)',
     state: 'मध्यप्रदेश (MP)',
@@ -106,7 +118,10 @@ export const INITIAL_USERS: UserProfile[] = [
     streak: 6,
     badges: ['🌱 Agri Warrior', '🎯 Free Mock Completed'],
     isDummyUser: false,
-    userType: 'authentic'
+    userType: 'authentic',
+    purchasedSeries: ['ts_patwari_2026'],
+    customTag: '🌱 कृषि छात्रवृत्ति',
+    grantReason: 'कृषि संवर्ग निःशुल्क कोटा'
   },
   {
     id: 'usr_sample_demo_1',

@@ -350,20 +350,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // 1d. Merge Active Users safely (preserving passwords, tags, and enrolled access)
         if (Array.isArray(s.users)) {
-          const serverDeleted: string[] = Array.isArray(s.deletedUserIds) ? s.deletedUserIds : [];
-          const localDeleted: string[] = StorageService.getDeletedUserIds();
-          const allDeleted = new Set([...serverDeleted, ...localDeleted]);
-
-          // Keep local deleted list in sync with server
-          serverDeleted.forEach(id => StorageService.addDeletedUserId(id));
-
           const localUsers = StorageService.getUsers() || [];
           const localUserMap = new Map(localUsers.map(u => [u.id, u]));
           const userMap = new Map<string, UserProfile>();
 
+          // Clean local deleted list so no valid users are suppressed
+          StorageService.setDeletedUserIds([]);
+
           // Merge server users with local data to never lose passwords or granted access
           s.users.forEach((srvUser: UserProfile) => {
-            if (!srvUser || !srvUser.id || allDeleted.has(srvUser.id)) return;
+            if (!srvUser || !srvUser.id) return;
             const loc = localUserMap.get(srvUser.id);
             const userSeries = Array.from(new Set([
               ...(Array.isArray(srvUser.purchasedSeries) ? srvUser.purchasedSeries : []),
@@ -384,9 +380,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
           });
 
-          // Also retain any active local users that haven't been deleted or synced yet
+          // Also retain any active local users that haven't been synced yet
           localUsers.forEach(locUser => {
-            if (!locUser || !locUser.id || allDeleted.has(locUser.id)) return;
+            if (!locUser || !locUser.id) return;
             if (!userMap.has(locUser.id)) {
               userMap.set(locUser.id, locUser);
             }
@@ -395,12 +391,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const authoritativeUsers: UserProfile[] = Array.from(userMap.values());
           setUsers(authoritativeUsers);
           StorageService.setUsers(authoritativeUsers);
-
-          // If current logged-in user was deleted, log out immediately
-          if (currentUserId && allDeleted.has(currentUserId)) {
-            setCurrentUserId('');
-            StorageService.setCurrentUserId('');
-          }
         }
 
         // 2. Merge Test Attempts

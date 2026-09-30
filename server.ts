@@ -384,15 +384,13 @@ if (inMemoryAppState.isDataLocked === undefined) {
 }
 
 // 1. Initialize and preserve users seed
-if (!Array.isArray(inMemoryAppState.deletedUserIds)) {
-  inMemoryAppState.deletedUserIds = [];
-}
+inMemoryAppState.deletedUserIds = [];
 
 if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 0) {
-  inMemoryAppState.users = INITIAL_DEFAULT_USERS.filter(u => !(inMemoryAppState.deletedUserIds || []).includes(u.id));
+  inMemoryAppState.users = [...INITIAL_DEFAULT_USERS];
 } else {
-  // Respect deletions: filter out any deleted user ids
-  const activeUsers = inMemoryAppState.users.filter(u => u && u.id && !(inMemoryAppState.deletedUserIds || []).includes(u.id));
+  // Ensure all registered users are active
+  const activeUsers = inMemoryAppState.users.filter(u => u && u.id);
   
   // Ensure default admin is always present and updated
   const adminEntry = activeUsers.find(u => u.id === 'usr_admin') || INITIAL_DEFAULT_USERS[0];
@@ -409,6 +407,13 @@ if (!Array.isArray(inMemoryAppState.users) || inMemoryAppState.users.length === 
     },
     ...withoutAdmin
   ];
+
+  // If any seed student was missing, re-add them
+  INITIAL_DEFAULT_USERS.forEach(seed => {
+    if (!inMemoryAppState.users!.some(u => u.id === seed.id)) {
+      inMemoryAppState.users!.push(seed);
+    }
+  });
 
   // Backfill missing fields (passwords, purchasedSeries, customTags) from INITIAL_DEFAULT_USERS
   inMemoryAppState.users.forEach(u => {
