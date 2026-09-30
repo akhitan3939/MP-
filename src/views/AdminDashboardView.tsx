@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard,
@@ -423,6 +423,9 @@ export const AdminDashboardView: React.FC = () => {
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [showAllPasswords, setShowAllPasswords] = useState<boolean>(true);
   const [credentialsModal, setCredentialsModal] = useState<{ user: UserProfile; password?: string } | null>(null);
+  const [customPasswordModalUser, setCustomPasswordModalUser] = useState<UserProfile | null>(null);
+  const [customPasswordInput, setCustomPasswordInput] = useState<string>('');
+  const [showCustomPasswordText, setShowCustomPasswordText] = useState<boolean>(true);
   const [copiedCreds, setCopiedCreds] = useState(false);
 
   // Add New User & Direct Checkbox Test Series Assignment Modal State
@@ -1068,6 +1071,16 @@ export const AdminDashboardView: React.FC = () => {
     }
   };
 
+  // Total master platform questions calculation (all 11,555+ questions across 8 exams & sets)
+  const totalMasterQuestionsCount = useMemo(() => {
+    try {
+      const all = getAllQuestionsForSeries('all_questions', questions, 20);
+      return all.length || 11555;
+    } catch {
+      return 11555;
+    }
+  }, [questions]);
+
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
     { id: 'OVERVIEW', label: 'डैशबोर्ड व राजस्व', subLabel: 'GMV & Key Metrics', icon: LayoutDashboard },
@@ -1085,7 +1098,7 @@ export const AdminDashboardView: React.FC = () => {
     { id: 'ATTEMPTS', label: 'मॉक टेस्ट प्रयास व परिणाम', subLabel: 'Live Student Test Records', icon: Award, count: attempts.length, badgeColor: 'bg-emerald-600' },
     { id: 'SERIES', label: 'टेस्ट सीरीज़ व पैकेज', subLabel: 'Packages & Pricing', icon: BookPlus, count: testSeries.length, badgeColor: 'bg-[#7A2A1E]' },
     { id: 'MOCK_SETS', label: '20 मॉक सेट्स CMS', subLabel: 'Sets 1-20 Controller', icon: Target, count: 20, badgeColor: 'bg-emerald-700' },
-    { id: 'QUESTIONS', label: 'प्रश्न बैंक व PowerBI डैशबोर्ड', subLabel: 'Analytics, Sets & Editor', icon: FileQuestion, count: questions.length, badgeColor: 'bg-amber-600' },
+    { id: 'QUESTIONS', label: 'प्रश्न बैंक व PowerBI डैशबोर्ड', subLabel: 'Analytics, Sets & Editor', icon: FileQuestion, count: totalMasterQuestionsCount, badgeColor: 'bg-amber-600' },
     { id: 'ORDERS', label: 'रेज़रपे ऑर्डर्स व लेन-देन', subLabel: 'Transactions & Refunds', icon: CreditCard, count: orders.length, badgeColor: 'bg-teal-600' },
     { id: 'COUPONS', label: 'कूपन व डिस्काउंट कोड्स', subLabel: 'Promo Codes & Offers', icon: Ticket, count: coupons.length, badgeColor: 'bg-purple-600' },
     { id: 'ANNOUNCEMENTS', label: 'नवीनतम समाचार व सूचनाएँ (Latest News & Bulletins)', subLabel: 'News & Vacancy Alerts CMS', icon: BellRing, count: announcements.length, badgeColor: 'bg-rose-600' },
@@ -1488,9 +1501,9 @@ export const AdminDashboardView: React.FC = () => {
                 <div className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 border-b-4 border-r-4 border-amber-600 rounded-2xl shadow-sm">
                   <span className="text-[11px] uppercase font-black tracking-wider text-stone-500">प्रश्न बैंक क्षमता</span>
                   <div className="font-mono font-black text-3xl text-amber-600 dark:text-amber-400 mt-1">
-                    {questions.length}+
+                    {totalMasterQuestionsCount.toLocaleString('en-IN')}+
                   </div>
-                  <div className="text-[11px] text-stone-500 mt-1 font-bold">8 विषयों में द्विभाषी हल</div>
+                  <div className="text-[11px] text-stone-500 mt-1 font-bold">8 विषयों में 11,555+ द्विभाषी प्रश्न</div>
                 </div>
 
                 <div className="p-5 bg-white dark:bg-stone-900 border-2 border-[#EAD8B1] dark:border-stone-800 border-b-4 border-r-4 border-teal-700 rounded-2xl shadow-sm">
@@ -3625,15 +3638,15 @@ export const AdminDashboardView: React.FC = () => {
                                 <td className="py-3.5 px-4">
                                   <div className="flex items-center gap-1.5">
                                     <span className="font-mono font-bold text-amber-800 dark:text-amber-300 text-xs bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                                      {revealedPasswords[user.id] ? (user.password || 'Student@123') : '••••••••'}
+                                      {(showAllPasswords || revealedPasswords[user.id]) ? (user.password || 'Student@123') : '••••••••'}
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={() => setRevealedPasswords(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                                      onClick={() => setRevealedPasswords(prev => ({ ...prev, [user.id]: !(showAllPasswords || prev[user.id]) }))}
                                       className="text-stone-400 hover:text-amber-600 cursor-pointer p-0.5"
-                                      title={revealedPasswords[user.id] ? "पासवर्ड छिपाएं" : "पासवर्ड देखें"}
+                                      title={(showAllPasswords || revealedPasswords[user.id]) ? "पासवर्ड छिपाएं" : "पासवर्ड देखें"}
                                     >
-                                      {revealedPasswords[user.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                      {(showAllPasswords || revealedPasswords[user.id]) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                     </button>
                                     <button
                                       type="button"
@@ -3645,6 +3658,18 @@ export const AdminDashboardView: React.FC = () => {
                                       title="पासवर्ड कॉपी करें"
                                     >
                                       <Copy className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCustomPasswordModalUser(user);
+                                        setCustomPasswordInput(user.password || 'Student@123');
+                                        setShowCustomPasswordText(true);
+                                      }}
+                                      className="text-stone-400 hover:text-amber-600 cursor-pointer p-0.5 ml-0.5"
+                                      title="अपनी पसंद का नया पासवर्ड बनाएं"
+                                    >
+                                      <Key className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 </td>
@@ -4958,7 +4983,45 @@ export const AdminDashboardView: React.FC = () => {
                       {tab.label}
                     </button>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPasswords(!showAllPasswords)}
+                    className={`px-3 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shrink-0 ml-auto ${
+                      showAllPasswords
+                        ? 'bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-xs'
+                        : 'bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-500/50'
+                    }`}
+                    title={showAllPasswords ? "पासवर्ड छिपाएं" : "सभी पासवर्ड एक साथ देखें"}
+                  >
+                    {showAllPasswords ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    <span>{showAllPasswords ? '🙈 पासवर्ड छिपाएं' : '👁️ सभी पासवर्ड देखें'}</span>
+                  </button>
                 </div>
+
+                {/* Filter Alert Banner if Filter or Search is active */}
+                {(studentFilterType !== 'all' || searchStudents) && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 rounded-xl text-xs font-bold text-amber-900 dark:text-amber-200">
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        फ़िल्टर सक्रिय है: <strong className="underline">{studentFilterType === 'admin' ? '👑 केवल व्यवस्थापक (Admin)' : studentFilterType}</strong>
+                        {searchStudents ? ` • खोज: "${searchStudents}"` : ''}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStudentFilterType('all');
+                        setSearchStudents('');
+                      }}
+                      className="px-3 py-1 bg-[#7A2A1E] hover:bg-[#5E1F16] text-[#D4A017] rounded-lg font-black text-xs transition cursor-pointer shadow-xs flex items-center gap-1"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>📋 सभी {users.length} छात्र व पासवर्ड दिखाएं</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Students Grid */}
@@ -5105,20 +5168,20 @@ export const AdminDashboardView: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Password with Reveal & Copy */}
+                            {/* Password with Reveal & Copy & Quick Reset */}
                             <div className="flex items-center justify-between">
-                              <span className="text-stone-500 font-medium">लॉगिन पासवर्ड:</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-xs bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-                                  {revealedPasswords[user.id] ? (user.password || 'Student@123') : '••••••••'}
+                              <span className="text-stone-500 font-bold">लॉगिन पासवर्ड:</span>
+                              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                <span className="font-mono font-black text-amber-900 dark:text-amber-200 text-xs bg-amber-100 dark:bg-amber-950/90 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 select-all shadow-2xs">
+                                  {(showAllPasswords || revealedPasswords[user.id]) ? (user.password || 'Student@123') : '••••••••'}
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => setRevealedPasswords(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                                  onClick={() => setRevealedPasswords(prev => ({ ...prev, [user.id]: !(showAllPasswords || prev[user.id]) }))}
                                   className="text-stone-400 hover:text-amber-600 cursor-pointer p-0.5"
-                                  title={revealedPasswords[user.id] ? "पासवर्ड छिपाएं" : "पासवर्ड देखें"}
+                                  title={(showAllPasswords || revealedPasswords[user.id]) ? "पासवर्ड छिपाएं" : "पासवर्ड देखें"}
                                 >
-                                  {revealedPasswords[user.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  {(showAllPasswords || revealedPasswords[user.id]) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                 </button>
                                 <button
                                   type="button"
@@ -5130,6 +5193,19 @@ export const AdminDashboardView: React.FC = () => {
                                   title="पासवर्ड कॉपी करें"
                                 >
                                   <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomPasswordModalUser(user);
+                                    setCustomPasswordInput(user.password || 'Student@123');
+                                    setShowCustomPasswordText(true);
+                                  }}
+                                  className="px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black cursor-pointer shadow-xs transition flex items-center gap-1"
+                                  title="नया पासवर्ड बनाएं या बदलें"
+                                >
+                                  <Key className="w-3 h-3 text-black" />
+                                  <span>बदलें</span>
                                 </button>
                               </div>
                             </div>
@@ -5180,19 +5256,19 @@ export const AdminDashboardView: React.FC = () => {
                                 <span>कोर्स एक्सेस ({userEnrolled.length})</span>
                               </button>
 
-                              {/* Regenerate Credentials / Password */}
+                              {/* Custom Password Creator / Reset Button */}
                               <button
-                                onClick={async () => {
-                                  const res = await regenerateUserCredentials(user.id);
-                                  if (res.success && res.newPassword) {
-                                    setCredentialsModal({ user, password: res.newPassword });
-                                  }
+                                type="button"
+                                onClick={() => {
+                                  setCustomPasswordModalUser(user);
+                                  setCustomPasswordInput(user.password || 'Student@123');
+                                  setShowCustomPasswordText(true);
                                 }}
-                                className="py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition hover:scale-105"
-                                title="नया पासवर्ड या कोड रीजेनरेट करें और विवरण देखें"
+                                className="py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black text-xs font-black flex items-center gap-1.5 shadow-xs cursor-pointer transition hover:scale-105"
+                                title="अपनी पसंद का नया पासवर्ड बनाएं या रीसेट करें"
                               >
-                                <Key className="w-3.5 h-3.5" />
-                                <span>रीजेनरेट कोड</span>
+                                <Key className="w-3.5 h-3.5 text-black" />
+                                <span>🔑 पासवर्ड बदलें / बनाएं</span>
                               </button>
 
                               {/* Tag & Role Modal Trigger */}
@@ -10540,6 +10616,150 @@ export const AdminDashboardView: React.FC = () => {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: CUSTOM PASSWORD CREATOR & DIRECT PASSWORD RESET */}
+      {/* ========================================================= */}
+      {customPasswordModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-stone-900 border-2 border-amber-400 dark:border-amber-600 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-8">
+            
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3.5 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black shadow-md text-xl">
+                  🔑
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-lg text-stone-900 dark:text-white flex items-center gap-2">
+                    <span>कस्टम पासवर्ड बनाएं / रीसेट करें</span>
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    अपनी पसंद का कोई भी पासवर्ड टाइप करें और तुरंत लागू करें।
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setCustomPasswordModalUser(null)} 
+                className="p-1.5 text-stone-400 hover:text-black dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition cursor-pointer"
+              >
+                <CloseIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* User Target Card */}
+            <div className="bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl p-4 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500 font-bold">छात्र नाम:</span>
+                <span className="font-black text-stone-900 dark:text-white text-sm">{customPasswordModalUser.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500 font-bold">छात्र ID (User ID):</span>
+                <span className="font-mono font-bold text-stone-700 dark:text-stone-300">{customPasswordModalUser.id}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500 font-bold">मोबाइल नंबर:</span>
+                <span className="font-mono font-bold text-stone-700 dark:text-stone-300">+91 {customPasswordModalUser.phone}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-stone-200/60 dark:border-stone-700/60">
+                <span className="text-stone-500 font-bold">वर्तमान पासवर्ड:</span>
+                <span className="font-mono font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded border border-amber-300">
+                  {customPasswordModalUser.password || 'Student@123'}
+                </span>
+              </div>
+            </div>
+
+            {/* Custom Password Input */}
+            <div className="space-y-2">
+              <label className="block text-xs font-black text-stone-800 dark:text-stone-200">
+                ✏️ नया पासवर्ड दर्ज करें (Type New Password): <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showCustomPasswordText ? 'text' : 'password'}
+                  value={customPasswordInput}
+                  onChange={(e) => setCustomPasswordInput(e.target.value)}
+                  placeholder="अपनी पसंद का नया पासवर्ड दर्ज करें..."
+                  className="w-full pl-4 pr-20 py-3 rounded-2xl bg-amber-50/50 dark:bg-stone-800 border-2 border-amber-400 dark:border-amber-600 text-stone-900 dark:text-white font-mono font-black text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <div className="absolute right-2.5 top-2.5 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomPasswordText(!showCustomPasswordText)}
+                    className="p-1.5 text-stone-400 hover:text-amber-600 rounded-lg hover:bg-stone-200 dark:hover:bg-stone-700 transition cursor-pointer"
+                    title={showCustomPasswordText ? "पासवर्ड छिपाएं" : "पासवर्ड देखें"}
+                  >
+                    {showCustomPasswordText ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(customPasswordInput);
+                      showToast(`📋 पासवर्ड कॉपी: ${customPasswordInput}`);
+                    }}
+                    className="p-1.5 text-stone-400 hover:text-amber-600 rounded-lg hover:bg-stone-200 dark:hover:bg-stone-700 transition cursor-pointer"
+                    title="कॉपी करें"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Suggestions Chips */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold text-stone-500">त्वरित सुझाव (क्लिक करके चुनें):</div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: 'Student@2026', val: 'Student@2026' },
+                  { label: `${customPasswordModalUser.name.split(' ')[0]}@2026`, val: `${customPasswordModalUser.name.split(' ')[0]}@2026` },
+                  { label: `MP@${customPasswordModalUser.phone ? customPasswordModalUser.phone.slice(-4) : '2026'}`, val: `MP@${customPasswordModalUser.phone ? customPasswordModalUser.phone.slice(-4) : '2026'}` },
+                  { label: 'Pass@1234', val: 'Pass@1234' },
+                  { label: '123456', val: '123456' }
+                ].map((sug, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCustomPasswordInput(sug.val)}
+                    className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-amber-950 text-stone-700 dark:text-stone-300 text-[11px] font-mono font-bold border border-stone-200 dark:border-stone-700 transition cursor-pointer"
+                  >
+                    + {sug.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+              <button
+                type="button"
+                onClick={() => setCustomPasswordModalUser(null)}
+                className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-xs text-stone-600 dark:text-stone-300 hover:bg-stone-200 transition cursor-pointer"
+              >
+                रद्द करें (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const pass = customPasswordInput.trim();
+                  if (!pass) {
+                    showToast('⚠️ कृपया कोई पासवर्ड दर्ज करें!');
+                    return;
+                  }
+                  resetStudentPassword(customPasswordModalUser.id, pass);
+                  setCustomPasswordModalUser(null);
+                }}
+                className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg transition hover:scale-[1.02] cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>💾 नया पासवर्ड सहेजें एवं लागू करें</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}

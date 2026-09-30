@@ -2,6 +2,7 @@ import { Question, TestSeries } from '../types';
 import { EXCLUSIVE_FREE_MOCK_QUESTIONS } from '../data/freeMockQuestions';
 import { getPatwariQuestionsForSet, ALL_20_PATWARI_SETS } from '../data/patwariSetsData';
 import { getAgriQuestionsForSet, ALL_20_AGRI_SETS } from '../data/agriSetsData';
+import { getPoliceQuestionsForSet, ALL_35_POLICE_SETS } from '../data/policeSetsData';
 
 export interface MockCategoryOption {
   id: string;
@@ -179,6 +180,10 @@ export function getSeriesAndSetInfo(
     seriesId = 'ts_agri_ext_2026';
     const match = qId.match(/agri_set_(\d+)_/);
     if (match && !setNumber) setNumber = parseInt(match[1], 10);
+  } else if (qId.startsWith('pol_set_')) {
+    seriesId = 'ts_police_si_2026';
+    const match = qId.match(/pol_set_(\d+)_/);
+    if (match && !setNumber) setNumber = parseInt(match[1], 10);
   } else if (qId.startsWith('free_q_') || seriesId === 'free_mock_40') {
     seriesId = 'free_mock_40';
     setNumber = 1;
@@ -312,11 +317,43 @@ export function getResolvedMockQuestions(
     return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
   }
 
+  if (mockType === 'ts_police_si_2026') {
+    const baseQuestions = getPoliceQuestionsForSet(targetSet).map(q => ({
+      ...q,
+      seriesId: 'ts_police_si_2026',
+      setNumber: targetSet
+    }));
+
+    const customMap = new Map<string, Question>();
+    appContextQuestions.forEach(cq => {
+      if (cq.seriesId === 'ts_police_si_2026' || cq.id.startsWith(`pol_set_${targetSet}_`)) {
+        customMap.set(cq.id, cq);
+      }
+    });
+
+    const resolvedBase = baseQuestions.map(bq => {
+      if (customMap.has(bq.id)) {
+        return { ...bq, ...customMap.get(bq.id), setNumber: targetSet };
+      }
+      return bq;
+    });
+
+    const baseIds = new Set(resolvedBase.map(q => q.id));
+    const extra = appContextQuestions.filter(cq => {
+      if (baseIds.has(cq.id)) return false;
+      if (cq.seriesId !== 'ts_police_si_2026' && !cq.id.startsWith('pol_set_')) return false;
+      const qSet = Number(cq.setNumber) || (cq.id.match(/pol_set_(\d+)_/) ? parseInt(cq.id.match(/pol_set_(\d+)_/)![1], 10) : 1);
+      return qSet === targetSet;
+    });
+
+    return [...resolvedBase, ...extra].sort((a, b) => (a.slotNumber || 9999) - (b.slotNumber || 9999));
+  }
+
   if (mockType === 'all_questions') {
     return getAllQuestionsForSeries('all_questions', appContextQuestions, 20);
   }
 
-  // ALL OTHER SERIES (e.g. ts_police_si_2026, ts_mppsc_pre_2026, ts_vyapam_group4_2026, etc.):
+  // ALL OTHER SERIES (e.g. ts_mppsc_pre_2026, ts_vyapam_group4_2026, etc.):
   // Strictly return only questions that match this mockType AND this targetSet!
   // NO FAKE FALLBACKS! Sets with no questions remain completely blank.
   const matching = appContextQuestions.filter(q => {
@@ -359,14 +396,26 @@ export function getAllQuestionsForSeries(
     return allAgri;
   }
 
+  if (seriesId === 'ts_police_si_2026') {
+    const allPol: Question[] = [];
+    const setsLimit = Math.max(1, totalSets === 20 ? 35 : totalSets);
+    for (let s = 1; s <= setsLimit; s++) {
+      const setQs = getResolvedMockQuestions('ts_police_si_2026', s, appContextQuestions);
+      allPol.push(...setQs.map(q => ({ ...q, setNumber: s })));
+    }
+    return allPol;
+  }
+
   if (seriesId === 'all_questions') {
     const allMaster: Question[] = [];
     allMaster.push(...getAllQuestionsForSeries('ts_patwari_2026', appContextQuestions, 20));
     allMaster.push(...getAllQuestionsForSeries('ts_agri_ext_2026', appContextQuestions, 20));
+    allMaster.push(...getAllQuestionsForSeries('ts_police_si_2026', appContextQuestions, 35));
     allMaster.push(...getResolvedMockQuestions('free_mock_40', 1, appContextQuestions));
     const others = appContextQuestions.filter(q => 
       q.seriesId !== 'ts_patwari_2026' && 
       q.seriesId !== 'ts_agri_ext_2026' && 
+      q.seriesId !== 'ts_police_si_2026' &&
       q.seriesId !== 'free_mock_40'
     );
     allMaster.push(...others);

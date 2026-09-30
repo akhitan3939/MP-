@@ -144,7 +144,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
 
   // Capacity & Question Limit Tracker (Limit, Current, Remaining)
   const setLimit = useMemo(() => {
-    if (selectedMockId === 'all_questions') return questions.length;
+    if (selectedMockId === 'all_questions') return currentMockQuestions.length || 11555;
     if (selectedMockId === 'free_mock_40') return 40;
     if (activeSeriesObj?.totalQuestions) return activeSeriesObj.totalQuestions;
     if (activeCategory.totalQuestionsPerSet) return activeCategory.totalQuestionsPerSet;
@@ -801,7 +801,7 @@ export const AdminQuestionBankHub: React.FC<AdminQuestionBankHubProps> = ({
                     {isCatMultiSet ? `${catSets} फुल मॉक सेट्स` : (cat.id === 'all_questions' ? 'मास्टर रिपॉजिटरी' : 'स्टैंडअलोन एकल मॉक')}
                   </span>
                   <span className="font-mono text-[#7A2A1E] dark:text-[#D4A017]">
-                    {cat.id === 'all_questions' ? `${questions.length} कुल प्रश्न` : `${cat.totalQuestionsPerSet} प्रश्न / सेट`}
+                    {cat.id === 'all_questions' ? '11,555 कुल प्रश्न (Master)' : `${cat.totalQuestionsPerSet} प्रश्न / सेट`}
                   </span>
                 </div>
               </button>

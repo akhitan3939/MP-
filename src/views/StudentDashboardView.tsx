@@ -28,7 +28,8 @@ import {
   Layers,
   BarChart3,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Key
 } from 'lucide-react';
 import { ALL_20_PATWARI_SETS } from '../data/patwariSetsData';
 import { ALL_20_AGRI_SETS } from '../data/agriSetsData';
@@ -50,11 +51,18 @@ export const StudentDashboardView: React.FC = () => {
     openNotesModal, 
     openRemindersModal,
     openShareModal,
-    showToast
+    showToast,
+    resetPassword
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'ENROLLED' | 'PAID_REPORTS' | 'ATTEMPTS' | 'BOOKMARKS' | 'COUPONS'>('PAID_REPORTS');
   const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [selfNewPassword, setSelfNewPassword] = useState('');
+  const [selfConfirmPassword, setSelfConfirmPassword] = useState('');
+  const [showSelfPasswordText, setShowSelfPasswordText] = useState(false);
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
   const [selectedSetPerSeries, setSelectedSetPerSeries] = useState<{ [key: string]: number }>({
     'ts_patwari_2026': 1
   });
@@ -139,13 +147,50 @@ export const StudentDashboardView: React.FC = () => {
               <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
                 लक्ष्य: <strong className="text-stone-800 dark:text-stone-200">{currentUser?.targetExam}</strong> • {currentUser?.email}
               </p>
+              
+              {/* Login Password Display & Quick Reset */}
+              <div className="flex items-center gap-2 mt-1.5 text-xs flex-wrap">
+                <span className="text-stone-500 font-bold">🔑 लॉगिन पासवर्ड:</span>
+                <span className="font-mono font-black text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 select-all">
+                  {currentUser?.password || 'Student@123'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelfNewPassword('');
+                    setSelfConfirmPassword('');
+                    setPasswordChangeSuccess('');
+                    setPasswordChangeError('');
+                    setIsChangePasswordModalOpen(true);
+                  }}
+                  className="px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black text-[11px] font-black cursor-pointer shadow-xs transition flex items-center gap-1"
+                  title="अपना पासवर्ड खुद बदलें या नया बनाएं"
+                >
+                  <Key className="w-3 h-3 text-black" />
+                  <span>पासवर्ड बदलें (Reset)</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                setSelfNewPassword('');
+                setSelfConfirmPassword('');
+                setPasswordChangeSuccess('');
+                setPasswordChangeError('');
+                setIsChangePasswordModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black shadow transition cursor-pointer"
+            >
+              <Key className="w-4 h-4" />
+              <span>{lang === 'hi' ? '🔑 पासवर्ड बदलें' : 'Change Password'}</span>
+            </button>
+
             <button
               onClick={() => openRemindersModal()}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-800 dark:text-stone-200 text-xs font-bold transition"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-800 dark:text-stone-200 text-xs font-bold transition"
             >
               <Bell className="w-4 h-4 text-amber-500" />
               <span>{lang === 'hi' ? 'स्टडी रिमाइंडर' : 'Reminders'}</span>
@@ -153,7 +198,7 @@ export const StudentDashboardView: React.FC = () => {
 
             <button
               onClick={() => openNotesModal()}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-extrabold shadow transition"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow transition"
             >
               <Download className="w-4 h-4" />
               <span>{lang === 'hi' ? 'ई-नोट्स (PDF)' : 'E-Notes'}</span>
@@ -944,6 +989,163 @@ export const StudentDashboardView: React.FC = () => {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Change / Reset Password Modal for Student */}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 border-2 border-amber-500 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative animate-in fade-in duration-200">
+            <div className="flex items-start justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black shadow text-lg">
+                  🔑
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-base text-stone-900 dark:text-white">
+                    {lang === 'hi' ? 'अपना पासवर्ड बदलें / रीसेट करें' : 'Change / Reset Your Password'}
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    {lang === 'hi' ? 'अपनी पसंद का कोई भी नया पासवर्ड बनाएं' : 'Create any custom password of your choice'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordModalOpen(false)}
+                className="p-1 text-stone-400 hover:text-black dark:hover:text-white rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {passwordChangeError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/80 border border-rose-300 text-rose-700 dark:text-rose-200 text-xs font-bold">
+                {passwordChangeError}
+              </div>
+            )}
+
+            {passwordChangeSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 text-emerald-700 dark:text-emerald-200 text-xs font-bold">
+                {passwordChangeSuccess}
+              </div>
+            )}
+
+            <div className="bg-stone-50 dark:bg-stone-800/60 p-3 rounded-xl border border-stone-200 dark:border-stone-700 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-stone-500">पंजीकृत नाम:</span>
+                <span className="font-bold text-stone-900 dark:text-white">{currentUser?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">वर्तमान पासवर्ड:</span>
+                <span className="font-mono font-bold text-amber-700 dark:text-amber-300">{currentUser?.password || '••••••••'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-black text-stone-700 dark:text-stone-300 mb-1">
+                  नया पासवर्ड दर्ज करें (New Password) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showSelfPasswordText ? 'text' : 'password'}
+                    value={selfNewPassword}
+                    onChange={(e) => setSelfNewPassword(e.target.value)}
+                    placeholder="उदा. MP@2026 या आपका मनपसंद पासवर्ड"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-mono text-sm focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSelfPasswordText(!showSelfPasswordText)}
+                    className="absolute right-3 top-2.5 text-stone-400 hover:text-amber-600 text-xs cursor-pointer font-bold"
+                  >
+                    {showSelfPasswordText ? 'छिपाएं' : 'देखें'}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-stone-700 dark:text-stone-300 mb-1">
+                  पासवर्ड की पुष्टि करें (Confirm New Password) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type={showSelfPasswordText ? 'text' : 'password'}
+                  value={selfConfirmPassword}
+                  onChange={(e) => setSelfConfirmPassword(e.target.value)}
+                  placeholder="दोबारा वही नया पासवर्ड लिखें"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 font-mono text-sm focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Quick Suggestions Chips */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-stone-400">त्वरित सुझाव (क्लिक करें):</div>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    'Patwari@2026',
+                    'Setu@2026',
+                    `${currentUser?.name?.split(' ')[0] || 'Student'}@2026`,
+                    'MP@12345'
+                  ].map((sug, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSelfNewPassword(sug);
+                        setSelfConfirmPassword(sug);
+                      }}
+                      className="px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 hover:bg-amber-100 dark:hover:bg-amber-950 text-stone-700 dark:text-stone-300 text-[10px] font-mono font-bold border border-stone-200 dark:border-stone-700 cursor-pointer"
+                    >
+                      + {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-3 border-t border-stone-200 dark:border-stone-800">
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordModalOpen(false)}
+                className="w-1/3 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 font-bold text-xs text-stone-600 dark:text-stone-300 hover:bg-stone-200 cursor-pointer"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!selfNewPassword.trim()) {
+                    setPasswordChangeError('कृपया नया पासवर्ड दर्ज करें!');
+                    return;
+                  }
+                  if (selfNewPassword.trim().length < 4) {
+                    setPasswordChangeError('पासवर्ड कम से कम 4 अक्षरों का होना चाहिए!');
+                    return;
+                  }
+                  if (selfNewPassword !== selfConfirmPassword) {
+                    setPasswordChangeError('दोनों पासवर्ड मेल नहीं खाते! कृपया दोनों खानों में एक जैसा पासवर्ड लिखें।');
+                    return;
+                  }
+                  if (!currentUser) return;
+                  const res = resetPassword(currentUser.email || currentUser.phone || currentUser.username || currentUser.id, selfNewPassword.trim());
+                  if (res.success) {
+                    setPasswordChangeSuccess('✅ आपका पासवर्ड सफलतापूर्वक बदल दिया गया है!');
+                    setPasswordChangeError('');
+                    showToast('✅ पासवर्ड सफलतापूर्वक अपडेट हो गया!');
+                    setTimeout(() => {
+                      setIsChangePasswordModalOpen(false);
+                    }, 1200);
+                  } else {
+                    setPasswordChangeError(res.message);
+                  }
+                }}
+                className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition hover:scale-102"
+              >
+                💾 पासवर्ड सहेजें
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

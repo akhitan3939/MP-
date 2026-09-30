@@ -2564,13 +2564,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetStudentPassword = (userId: string, newPass: string) => {
     let targetUpdated: UserProfile | undefined;
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        targetUpdated = { ...u, password: newPass };
-        return targetUpdated;
-      }
-      return u;
-    }));
+    setUsers(prev => {
+      const updated = prev.map(u => {
+        if (u.id === userId) {
+          targetUpdated = { ...u, password: newPass };
+          return targetUpdated;
+        }
+        return u;
+      });
+      StorageService.setUsers(updated);
+      return updated;
+    });
     if (targetUpdated) {
       fetch('/api/users/update', {
         method: 'POST',
@@ -2578,7 +2582,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         body: JSON.stringify(targetUpdated)
       }).catch(err => console.warn('User pass update sync error:', err));
     }
-    showToast(lang === 'hi' ? 'पासवर्ड सफलतापूर्वक रीसेट हुआ' : 'Password reset successfully');
+    showToast(lang === 'hi' ? `✅ नया पासवर्ड सफलतापुर्वक सेट हुआ: ${newPass}` : `Password updated to: ${newPass}`);
   };
 
   const regenerateUserCredentials = async (userId: string, customPass?: string): Promise<{ success: boolean; user?: UserProfile; newPassword?: string }> => {
