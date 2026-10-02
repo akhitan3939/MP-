@@ -45,7 +45,7 @@ export const TARGET_EXAMS_LIST = [
 ];
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, closeAuthModal, authModalMode, login, register, resetPassword, users, lang, pendingPurchaseSeries } = useApp();
+  const { isAuthModalOpen, closeAuthModal, authModalMode, login, register, resetPassword, users, lang, pendingPurchaseSeries, navigate } = useApp();
   
   // Split modes: 'login' | 'register' | 'admin' | 'forgot'
   const [mode, setMode] = useState<'login' | 'register' | 'admin' | 'forgot'>('login');
