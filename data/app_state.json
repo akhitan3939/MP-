@@ -17,11 +17,12 @@
     "telegramUrl": "https://t.me/mpparikshasetu_mp",
     "youtubeUrl": "https://youtube.com/@mpparikshasetu",
     "whatsappCommunityUrl": "https://chat.whatsapp.com/mpparikshasetu",
-    "visitorHitsCount": 52,
+    "visitorHitsCount": 53,
     "lastUpdatedDateHi": "01 सितम्बर 2026",
     "lastUpdatedDateEn": "01 September 2026",
     "showHitCounter": true,
-    "showLastUpdated": true
+    "showLastUpdated": true,
+    "portalDesignStyle": "design2"
   },
   "users": [
     {
@@ -43,7 +44,37 @@
         "📊 Analytics Lead"
       ],
       "isDummyUser": false,
-      "userType": "authentic"
+      "userType": "authentic",
+      "isLocked": true
+    },
+    {
+      "id": "usr_sample_demo_1",
+      "name": "डेमो छात्र टेस्ट (Demo Aspirant)",
+      "username": "demo_test_user",
+      "email": "demo.student@mppariksha.in",
+      "phone": "9000000001",
+      "role": "student",
+      "district": "भोपाल (Bhopal)",
+      "state": "मध्यप्रदेश (MP)",
+      "targetExam": "MP व्यापम सैंपल टेस्ट",
+      "joinedAt": "2025-02-10T12:00:00.000Z",
+      "streak": 1,
+      "badges": [
+        "🧪 Demo Sample"
+      ],
+      "isDummyUser": true,
+      "userType": "dummy",
+      "password": "student123",
+      "purchasedSeries": [
+        "ts_patwari_2026"
+      ],
+      "customTag": "🧪 डेमो छात्र",
+      "grantReason": "सैंपल टेस्ट एक्सेस",
+      "isLocked": true,
+      "isArchived": false,
+      "archivedAt": "2026-10-02T09:13:45.395Z",
+      "archiveReason": "Test Archive Flow",
+      "restoredAt": "2026-10-02T09:13:45.435Z"
     },
     {
       "id": "usr_student_1",
@@ -69,7 +100,12 @@
         "ts_patwari_2026"
       ],
       "customTag": "🎁 विशेष छात्रवृत्ति (Free Access)",
-      "grantReason": "विशेष छात्रवृत्ति मेरिट कोटा"
+      "grantReason": "विशेष छात्रवृत्ति मेरिट कोटा",
+      "isLocked": true,
+      "isArchived": false,
+      "archivedAt": "2026-09-30T12:17:22.969Z",
+      "archiveReason": "Test archiving verification",
+      "restoredAt": "2026-09-30T12:17:22.995Z"
     },
     {
       "id": "usr_student_2",
@@ -92,11 +128,12 @@
       "userType": "authentic",
       "password": "Priya@2026",
       "purchasedSeries": [
-        "ts_mpsi_2026",
+        "ts_police_si_2026",
         "ts_patwari_2026"
       ],
       "customTag": "🌟 MP Topper VIP (अनलॉक)",
-      "grantReason": "ऑल एमपी रैंक 1 मेरिट स्कॉलरशिप"
+      "grantReason": "ऑल एमपी रैंक 1 मेरिट स्कॉलरशिप",
+      "isLocked": true
     },
     {
       "id": "usr_student_3",
@@ -118,10 +155,11 @@
       "userType": "authentic",
       "password": "Rohit@2026",
       "purchasedSeries": [
-        "ts_vyapam_group4"
+        "ts_vyapam_group4_2026"
       ],
       "customTag": "🎖️ पुलिस आरक्षक फ्री पैकेज",
-      "grantReason": "शहीद परिजन निःशुल्क छात्रवृत्ति"
+      "grantReason": "शहीद परिजन निःशुल्क छात्रवृत्ति",
+      "isLocked": true
     },
     {
       "id": "usr_student_4",
@@ -143,10 +181,11 @@
       "userType": "authentic",
       "password": "Anita@2026",
       "purchasedSeries": [
-        "ts_constable_2026"
+        "ts_police_si_2026"
       ],
       "customTag": "📜 MPPSC एस्पिरेंट स्कॉलरशिप",
-      "grantReason": "विशेष तैयारी प्रोत्साहन"
+      "grantReason": "विशेष तैयारी प्रोत्साहन",
+      "isLocked": true
     },
     {
       "id": "usr_student_5",
@@ -171,26 +210,8 @@
         "ts_patwari_2026"
       ],
       "customTag": "🌱 कृषि छात्रवृत्ति",
-      "grantReason": "कृषि संवर्ग निःशुल्क कोटा"
-    },
-    {
-      "id": "usr_sample_demo_1",
-      "name": "डेमो छात्र टेस्ट (Demo Aspirant)",
-      "username": "demo_test_user",
-      "email": "demo.student@mppariksha.in",
-      "phone": "9000000001",
-      "role": "student",
-      "district": "भोपाल (Bhopal)",
-      "state": "मध्यप्रदेश (MP)",
-      "targetExam": "MP व्यापम सैंपल टेस्ट",
-      "joinedAt": "2025-02-10T12:00:00.000Z",
-      "streak": 1,
-      "badges": [
-        "🧪 Demo Sample"
-      ],
-      "isDummyUser": true,
-      "userType": "dummy",
-      "password": "student123"
+      "grantReason": "कृषि संवर्ग निःशुल्क कोटा",
+      "isLocked": true
     }
   ],
   "attempts": [
@@ -349,7 +370,7 @@
       "userPhone": "9752044556",
       "userDistrict": "इंदौर (Indore)",
       "userState": "मध्यप्रदेश (MP)",
-      "seriesId": "ts_mpsi_2026",
+      "seriesId": "ts_police_si_2026",
       "seriesTitle": "MP पुलिस सब-इंस्पेक्टर (SI) 2026",
       "amount": 299,
       "discount": 299,
@@ -395,7 +416,7 @@
       "userPhone": "9425077889",
       "userDistrict": "ग्वालियर (Gwalior)",
       "userState": "मध्यप्रदेश (MP)",
-      "seriesId": "ts_vyapam_group4",
+      "seriesId": "ts_vyapam_group4_2026",
       "seriesTitle": "ts_vyapam_group4",
       "amount": 299,
       "discount": 299,
@@ -418,7 +439,7 @@
       "userPhone": "9827033445",
       "userDistrict": "उज्जैन (Ujjain)",
       "userState": "मध्यप्रदेश (MP)",
-      "seriesId": "ts_constable_2026",
+      "seriesId": "ts_police_si_2026",
       "seriesTitle": "MP पुलिस आरक्षक 2026",
       "amount": 299,
       "discount": 299,
@@ -460,16 +481,19 @@
       "ts_patwari_2026"
     ],
     "usr_student_2": [
-      "ts_mpsi_2026",
+      "ts_police_si_2026",
       "ts_patwari_2026"
     ],
     "usr_student_3": [
-      "ts_vyapam_group4"
+      "ts_vyapam_group4_2026"
     ],
     "usr_student_4": [
-      "ts_constable_2026"
+      "ts_police_si_2026"
     ],
     "usr_student_5": [
+      "ts_patwari_2026"
+    ],
+    "usr_sample_demo_1": [
       "ts_patwari_2026"
     ]
   },

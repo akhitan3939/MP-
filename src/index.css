@@ -168,3 +168,79 @@
   transform: translateY(1px) scale(0.97);
 }
 
+/* Flagship Mobile & Tech Micro-Animations (Design 2) */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.5deg);
+  }
+}
+
+@keyframes floatReverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes shimmerSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes screenGlow {
+  0%, 100% {
+    box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.25), 0 0 15px -3px rgba(6, 182, 212, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 55px 0px rgba(16, 185, 129, 0.4), 0 0 25px 2px rgba(6, 182, 212, 0.35);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+.animate-screen-glow {
+  animation: screenGlow 4s ease-in-out infinite;
+}
+
+.tech-glass-card {
+  background: rgba(18, 24, 38, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tech-glass-card:hover {
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+

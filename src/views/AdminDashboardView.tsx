@@ -102,6 +102,7 @@ import { DynamicNavIcon, NAV_ICON_MAP, NavIconKey } from '../utils/navIcons';
 import { AdminQuestionBankHub } from '../components/admin/AdminQuestionBankHub';
 import { AdminNotesPdfManager } from '../components/admin/AdminNotesPdfManager';
 import { AdminStorageManager } from '../components/AdminStorageManager';
+import { DesignSwitcherPill } from '../components/DesignSwitcherPill';
 import { getAllQuestionsForSeries, getSeriesAndSetInfo, getResolvedMockQuestions } from '../utils/questionBankHelper';
 import { reconcileOrdersAndUsers } from '../context/AppContext';
 
@@ -193,7 +194,9 @@ export const AdminDashboardView: React.FC = () => {
     showToast,
     navigate,
     currentUser,
-    openAuthModal
+    openAuthModal,
+    portalDesignStyle,
+    setPortalDesignStyle
   } = useApp();
 
   // Strict Admin Security Guard: Verify administrator role
@@ -409,10 +412,11 @@ export const AdminDashboardView: React.FC = () => {
     setTagModalUser(null);
   };
 
-  const handleDeleteUserConfirmed = () => {
+  const handleDeleteUserConfirmed = async () => {
     if (!deleteConfirmUser) return;
-    deleteUser(deleteConfirmUser.id);
+    const targetUser = deleteConfirmUser;
     setDeleteConfirmUser(null);
+    await archiveUser(targetUser.id, 'एडमिन द्वारा आर्काइव में सुरक्षित किया गया');
   };
 
   // Free Access Grant Modal State (Checkbox-based & Single-click)
@@ -463,9 +467,60 @@ export const AdminDashboardView: React.FC = () => {
     setIsAddUserModalOpen(true);
   };
 
+  // Helper to normalize legacy or mismatch series IDs
+  const normalizeSeriesId = (id: string): string => {
+    if (!id) return '';
+    const clean = String(id).trim();
+    if (clean === 'ts_mpsi_2026' || clean === 'ts_police_constable_2026' || clean === 'ts_constable_2026') return 'ts_police_si_2026';
+    if (clean === 'ts_vyapam_group4') return 'ts_vyapam_group4_2026';
+    return clean;
+  };
+
+  // Accurate Unified User Effective Series Calculation (combines enrolledMap, purchasedSeries, and verified orders)
+  const getUserEffectiveSeries = useCallback((u: UserProfile): string[] => {
+    if (u.role === 'admin' || u.id === 'usr_admin') {
+      return testSeries.map(s => s.id);
+    }
+
+    const validCatalogIds = new Set(testSeries.map(s => s.id));
+
+    // 1. Authoritative check: If admin has explicitly saved enrollment in enrolledMap
+    if (u.id in enrolledMap && Array.isArray(enrolledMap[u.id])) {
+      const explicit = enrolledMap[u.id];
+      if (explicit.includes('all_series_vip')) {
+        return testSeries.map(s => s.id);
+      }
+      return Array.from(new Set(
+        explicit
+          .map(normalizeSeriesId)
+          .filter(id => validCatalogIds.has(id))
+      ));
+    }
+
+    // 2. Otherwise combine user profile's purchasedSeries with verified successful orders
+    const fromPurchased = (Array.isArray(u.purchasedSeries) ? u.purchasedSeries : []).map(normalizeSeriesId);
+    const cleanPhone = u.phone ? String(u.phone).replace(/\D/g, '').slice(-10) : '';
+
+    const fromOrders = orders
+      .filter(o => 
+        o.status === 'SUCCESS' && 
+        (o.userId === u.id || 
+         (cleanPhone.length >= 10 && o.userPhone && String(o.userPhone).replace(/\D/g, '').slice(-10) === cleanPhone)
+        )
+      )
+      .map(o => normalizeSeriesId(o.seriesId))
+      .filter(Boolean);
+
+    const combined = Array.from(new Set([...fromPurchased, ...fromOrders]));
+    if (combined.includes('all_series_vip')) {
+      return testSeries.map(s => s.id);
+    }
+    return combined.filter(id => validCatalogIds.has(id));
+  }, [enrolledMap, orders, testSeries]);
+
   const handleOpenGrantModal = (user: UserProfile) => {
     setGrantModalUser(user);
-    const existing = enrolledMap[user.id] || [];
+    const existing = getUserEffectiveSeries(user);
     setGrantSelectedSeries([...existing]);
     setGrantSeriesSearch('');
   };
@@ -1082,10 +1137,10 @@ export const AdminDashboardView: React.FC = () => {
     }
   }, [questions]);
 
-  // Synchronized & Locked Users List: Reconcile all users from orders with users state so no user is ever missing
+  // Synchronized & Locked Users List: Reconcile all users from orders with users state so no user is ever missing (excluding archived)
   const allPortalUsers = useMemo(() => {
-    return reconcileOrdersAndUsers(orders, users);
-  }, [orders, users]);
+    return reconcileOrdersAndUsers(orders, users, archivedUsers);
+  }, [orders, users, archivedUsers]);
 
   // Navigation Items for the LEFT SIDEBAR
   const SIDEBAR_NAV_ITEMS: { id: AdminModuleTab; label: string; subLabel: string; icon: React.FC<any>; count?: number; badgeColor?: string }[] = [
@@ -1340,6 +1395,14 @@ export const AdminDashboardView: React.FC = () => {
                 >
                   <span>{isDataLocked ? '🔒 डेटा लॉक: सक्रिय' : '🔓 डेटा लॉक: निष्क्रिय'}</span>
                 </button>
+
+                {/* Global Website Design Switcher (Admin Exclusive Control) */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-2xl bg-amber-500/10 border border-amber-500/40">
+                  <span className="text-[11px] font-black text-amber-900 dark:text-amber-200">
+                    🎨 वेबसाइट स्टाइल:
+                  </span>
+                  <DesignSwitcherPill compact />
+                </div>
               </div>
             </div>
 
@@ -3577,7 +3640,7 @@ export const AdminDashboardView: React.FC = () => {
                             if (studentFilterType === 'valid') return matchesSearch && !isDummy;
                             if (studentFilterType === 'dummy') return matchesSearch && isDummy;
                             
-                            const userGranted = (enrolledMap[u.id] || []).length > 0 || (Array.isArray(u.purchasedSeries) && u.purchasedSeries.length > 0) || u.role === 'admin';
+                            const userGranted = getUserEffectiveSeries(u).length > 0;
                             if (studentFilterType === 'granted') return matchesSearch && userGranted;
                             if (studentFilterType === 'standard') return matchesSearch && u.role !== 'admin' && !userGranted;
                             return matchesSearch;
@@ -3585,9 +3648,9 @@ export const AdminDashboardView: React.FC = () => {
                           .map(user => {
                             const isAdmin = user.role === 'admin';
                             const isDummy = user.isDummyUser === true;
-                            const grantedList = enrolledMap[user.id] || user.purchasedSeries || [];
-                            const isVipAll = grantedList.includes('all_series_vip');
-                            const isArchived = Boolean(user.isArchived);
+                            const grantedList = getUserEffectiveSeries(user);
+                            const isVipAll = isAdmin || (enrolledMap[user.id] || []).includes('all_series_vip') || (user.purchasedSeries || []).includes('all_series_vip');
+                            const isArchived = Boolean(user.isArchived) || studentFilterType === 'archived';
 
                             return (
                               <tr key={user.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
@@ -4970,7 +5033,7 @@ export const AdminDashboardView: React.FC = () => {
                   </span>
                   {[
                     { id: 'all', label: `📋 सभी छात्र (${allPortalUsers.length})` },
-                    { id: 'granted', label: `🎁 मुफ़्त / अनलॉक एक्सेस (${allPortalUsers.filter(u => (((enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || [])).length > 0) || orders.some(o => o.userId === u.id && o.status === 'SUCCESS') || u.role === 'admin').length})` },
+                    { id: 'granted', label: `🎁 मुफ़्त / अनलॉक एक्सेस (${allPortalUsers.filter(u => getUserEffectiveSeries(u).length > 0 || u.role === 'admin').length})` },
                     { id: 'valid', label: `✅ वास्तविक छात्र (${allPortalUsers.filter(u => !u.isDummyUser).length})` },
                     { id: 'archived', label: `📦 आर्काइव छात्र (${archivedUsers.length})` },
                     { id: 'tagged', label: `🏷️ टैग प्राप्त (${allPortalUsers.filter(u => Boolean(u.customTag || u.grantReason)).length})` },
@@ -5059,9 +5122,8 @@ export const AdminDashboardView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(studentFilterType === 'archived' ? archivedUsers : allPortalUsers)
                   .filter(u => {
-                    const userEnrolled = (enrolledMap[u.id] && enrolledMap[u.id].length > 0) ? enrolledMap[u.id] : (u.purchasedSeries || []);
-                    const isGranted = userEnrolled.length > 0 || 
-                      orders.some(o => o.userId === u.id && o.status === 'SUCCESS') || 
+                    const effectiveSeries = getUserEffectiveSeries(u);
+                    const isGranted = effectiveSeries.length > 0 || 
                       u.role === 'admin' || 
                       Boolean(u.customTag || u.grantReason);
 
@@ -5095,8 +5157,10 @@ export const AdminDashboardView: React.FC = () => {
                   .map(user => {
                     const isAdmin = user.role === 'admin';
                     const isDummy = user.isDummyUser === true;
-                    const isArchived = Boolean(user.isArchived);
-                    const userEnrolled = (enrolledMap[user.id] && enrolledMap[user.id].length > 0) ? enrolledMap[user.id] : (user.purchasedSeries || []);
+                    const isArchived = Boolean(user.isArchived) || studentFilterType === 'archived';
+                    const userEffectiveSeries = getUserEffectiveSeries(user);
+                    const isVipOrAdmin = isAdmin || (enrolledMap[user.id] || []).includes('all_series_vip') || (user.purchasedSeries || []).includes('all_series_vip');
+                    const userEnrolled = userEffectiveSeries;
                     const displayTag = user.customTag || user.grantReason;
 
                     return (
@@ -5283,7 +5347,7 @@ export const AdminDashboardView: React.FC = () => {
                             <div className="flex items-center justify-between">
                               <span className="text-stone-500">अनलॉक टेस्ट सीरीज़:</span>
                               <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                                {userEnrolled.length > 0 ? `${userEnrolled.length} सीरीज़ सक्रिय` : 'कोई मुफ़्त पैकेज नहीं'}
+                                {isVipOrAdmin ? `🌟 सभी ${testSeries.length} सीरीज़ सक्रिय` : userEffectiveSeries.length > 0 ? `✅ ${userEffectiveSeries.length} सीरीज़ सक्रिय` : '🔒 कोई सक्रिय पैकेज नहीं'}
                               </span>
                             </div>
                           </div>
@@ -5305,11 +5369,11 @@ export const AdminDashboardView: React.FC = () => {
                               {/* Grant / Revoke Series */}
                               <button
                                 onClick={() => handleOpenGrantModal(user)}
-                                className="flex-1 min-w-[110px] py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition"
+                                className="flex-1 min-w-[110px] py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition hover:scale-102"
                                 title="टेस्ट सीरीज़ एक्सेस असाइन या लॉक करें"
                               >
                                 <Unlock className="w-3.5 h-3.5" />
-                                <span>कोर्स एक्सेस ({userEnrolled.length})</span>
+                                <span>कोर्स एक्सेस ({isVipOrAdmin ? `${testSeries.length} (सभी)` : userEffectiveSeries.length})</span>
                               </button>
 
                               {/* Custom Password Creator / Reset Button */}
@@ -7265,6 +7329,74 @@ export const AdminDashboardView: React.FC = () => {
                 }}
                 className="space-y-4 text-xs"
               >
+                {/* Global Website Design Selection (Admin Control Exclusive) */}
+                <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-500/10 via-emerald-500/10 to-teal-500/10 border-2 border-[#D4A017] space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-black text-sm text-[#7A2A1E] dark:text-[#D4A017] flex items-center gap-2">
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span>ग्लोबल वेबसाइट डिज़ाइन व थीम नियंत्रण (Design Switcher — Admin Exclusive)</span>
+                      </h4>
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
+                        यह स्विच केवल एडमिन के पास उपलब्ध है। आप यहाँ से जो डिज़ाइन चुनेंगे, वही संपूर्ण वेबसाइट पर सभी सामान्य विज़िटर्स और छात्रों को लाइव दिखाई देगा।
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      <DesignSwitcherPill compact={false} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                    {/* Design 1 Card */}
+                    <div 
+                      onClick={() => setPortalDesignStyle('design1')}
+                      className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
+                        portalDesignStyle === 'design1'
+                          ? 'bg-amber-100/90 dark:bg-amber-950/70 border-amber-600 shadow-md ring-2 ring-amber-500/40'
+                          : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700 hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-black text-stone-900 dark:text-white flex items-center gap-1.5">
+                          <span>🏛️ Design 1: हेरिटेज क्लासिक</span>
+                        </div>
+                        {portalDesignStyle === 'design1' && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-mono text-[10px] font-black">
+                            सक्रिय (Live)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400 mt-1.5 leading-relaxed">
+                        मध्य प्रदेश शासकीय परीक्षाओं का मूल प्रतिष्ठित क्लासिक लुक, सांस्कृतिक हेडर व सुव्यवस्थित सरकारी पोर्टल लेआउट।
+                      </p>
+                    </div>
+
+                    {/* Design 2 Card */}
+                    <div 
+                      onClick={() => setPortalDesignStyle('design2')}
+                      className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
+                        portalDesignStyle === 'design2'
+                          ? 'bg-emerald-950/60 border-emerald-500 shadow-md ring-2 ring-emerald-500/40 text-white'
+                          : 'bg-white dark:bg-stone-800/80 border-stone-200 dark:border-stone-700 hover:border-emerald-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-black text-stone-900 dark:text-white flex items-center gap-1.5">
+                          <span>⚡ Design 2: मोबाइल टेक & एनिमेशन</span>
+                        </div>
+                        {portalDesignStyle === 'design2' && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-mono text-[10px] font-black">
+                            सक्रिय (Live)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-400 dark:text-stone-300 mt-1.5 leading-relaxed">
+                        Apple / Nothing / OnePlus फ्लैगशिप कंपनी स्टाइल — 3D स्मार्टफोन लाइव शोकेस, OMR सिमुलेशन, टाइमर व क्वांटम लेटेंसी एनिमेशन।
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Logo Management Section */}
                 <div className="p-5 rounded-3xl bg-amber-50/60 dark:bg-amber-950/30 border-2 border-[#D4A017]/60 space-y-4 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

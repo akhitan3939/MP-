@@ -1,5 +1,6 @@
 export type Language = 'hi' | 'en';
 export type ThemeMode = 'light' | 'dark';
+export type PortalDesignStyle = 'design1' | 'design2';
 
 export type UserRole = 'student' | 'admin';
 
@@ -312,6 +313,7 @@ export interface PlatformSettings {
   websiteContent?: WebsiteContentConfig;
   socialChannels?: SocialChannelConfig[];
   popupConfig?: PopupNotificationConfig;
+  portalDesignStyle?: 'design1' | 'design2';
 }
 
 export interface MockSetMetadata {

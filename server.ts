@@ -527,15 +527,41 @@ if (Array.isArray(inMemoryAppState.orders)) {
   });
 }
 
-// 4b. AUTO-LOCK & RECONCILE: Every user in Orders or Attempts MUST exist in Users list & be locked permanently!
+// 4b. AUTO-LOCK & RECONCILE: Every active user in Orders or Attempts MUST exist in Users list & be locked permanently!
 function reconcileUsersAndOrdersState() {
   if (!Array.isArray(inMemoryAppState.users)) inMemoryAppState.users = [];
   if (!Array.isArray(inMemoryAppState.orders)) inMemoryAppState.orders = [];
+  if (!Array.isArray(inMemoryAppState.archivedUsers)) inMemoryAppState.archivedUsers = [];
+
+  const archivedUsers = inMemoryAppState.archivedUsers || [];
+  const isArchived = (userId?: string, phone?: string, email?: string) => {
+    const cleanP = phone ? String(phone).replace(/\D/g, '').slice(-10) : '';
+    const cleanE = email ? String(email).toLowerCase().trim() : '';
+    return archivedUsers.some(au =>
+      (userId && au.id === userId) ||
+      (cleanP.length >= 10 && au.phone && String(au.phone).replace(/\D/g, '').slice(-10) === cleanP) ||
+      (cleanE && au.email && String(au.email).toLowerCase().trim() === cleanE)
+    );
+  };
 
   inMemoryAppState.orders.forEach(ord => {
     if (!ord || !ord.userId) return;
     const cleanPhone = ord.userPhone ? String(ord.userPhone).replace(/\D/g, '').slice(-10) : '';
     const cleanEmail = ord.userEmail ? String(ord.userEmail).toLowerCase().trim() : '';
+
+    // If user is archived, do NOT resurrect them back into active users!
+    if (isArchived(ord.userId, ord.userPhone, ord.userEmail)) {
+      const archTarget = archivedUsers.find(au =>
+        au.id === ord.userId ||
+        (cleanPhone.length >= 10 && au.phone && String(au.phone).replace(/\D/g, '').slice(-10) === cleanPhone) ||
+        (cleanEmail && au.email && String(au.email).toLowerCase().trim() === cleanEmail)
+      );
+      if (archTarget && ord.seriesId) {
+        archTarget.purchasedSeries = Array.from(new Set([...(archTarget.purchasedSeries || []), ord.seriesId]));
+      }
+      return;
+    }
+
     let target = (inMemoryAppState.users || []).find(u => 
       u.id === ord.userId || 
       (cleanPhone.length >= 10 && u.phone && String(u.phone).replace(/\D/g, '').slice(-10) === cleanPhone) ||
@@ -704,6 +730,9 @@ if (!inMemoryAppState.platformSettings) {
   }
   if (inMemoryAppState.platformSettings.showLastUpdated === undefined) {
     inMemoryAppState.platformSettings.showLastUpdated = true;
+  }
+  if (!inMemoryAppState.platformSettings.portalDesignStyle) {
+    inMemoryAppState.platformSettings.portalDesignStyle = 'design2';
   }
 }
 
@@ -1215,7 +1244,33 @@ app.post('/api/users/archive/:id', (req: Request, res: Response) => {
 
   if (!Array.isArray(inMemoryAppState.archivedUsers)) inMemoryAppState.archivedUsers = [];
   let users = inMemoryAppState.users || [];
-  const target = users.find(u => u.id === id);
+  let target = users.find(u => u.id === id);
+  if (!target) {
+    const ord = (inMemoryAppState.orders || []).find(o => o.userId === id);
+    if (ord) {
+      target = {
+        id: ord.userId,
+        name: ord.userName || 'पंजीकृत छात्र',
+        username: ord.userPhone ? `user_${String(ord.userPhone).replace(/\D/g, '').slice(-10)}` : `user_${ord.userId}`,
+        email: ord.userEmail || `${ord.userId}@mppariksha.in`,
+        phone: ord.userPhone || '',
+        password: 'Student@123',
+        role: 'student',
+        district: ord.userDistrict || 'मध्यप्रदेश (MP)',
+        state: ord.userState || 'मध्यप्रदेश (MP)',
+        targetExam: ord.seriesTitle || 'MP पटवारी 2026',
+        joinedAt: ord.createdAt || new Date().toISOString(),
+        streak: 5,
+        badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र', '🔒 लॉक्ड खाता'],
+        purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+        isDummyUser: ord.isDummyUser === true,
+        userType: ord.isDummyUser ? 'dummy' : 'authentic',
+        customTag: '💳 ऑर्डर सत्यापित छात्र',
+        grantReason: `ऑर्डर: ${ord.orderId || ord.id}`,
+        isLocked: true
+      };
+    }
+  }
   if (!target) return res.status(404).json({ success: false, message: 'यूज़र नहीं मिला।' });
 
   const archivedItem = {

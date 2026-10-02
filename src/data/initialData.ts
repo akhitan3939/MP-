@@ -59,7 +59,7 @@ export const INITIAL_USERS: UserProfile[] = [
     badges: ['👑 All MP Rank 1', '⭐ Top Scorer', '⚡ Fast Solver'],
     isDummyUser: false,
     userType: 'authentic',
-    purchasedSeries: ['ts_mpsi_2026', 'ts_patwari_2026'],
+    purchasedSeries: ['ts_police_si_2026', 'ts_patwari_2026'],
     customTag: '🌟 MP Topper VIP (अनलॉक)',
     grantReason: 'ऑल एमपी रैंक 1 मेरिट स्कॉलरशिप'
   },
@@ -79,7 +79,7 @@ export const INITIAL_USERS: UserProfile[] = [
     badges: ['🎖️ Police Fighter', '⭐ Top 5 Aspirant'],
     isDummyUser: false,
     userType: 'authentic',
-    purchasedSeries: ['ts_vyapam_group4'],
+    purchasedSeries: ['ts_vyapam_group4_2026'],
     customTag: '🎖️ पुलिस आरक्षक फ्री पैकेज',
     grantReason: 'शहीद परिजन निःशुल्क छात्रवृत्ति'
   },
@@ -99,7 +99,7 @@ export const INITIAL_USERS: UserProfile[] = [
     badges: ['📜 MPPSC Aspirant', '🎯 Top 10 Qualifier'],
     isDummyUser: false,
     userType: 'authentic',
-    purchasedSeries: ['ts_constable_2026'],
+    purchasedSeries: ['ts_mppsc_pre_2026'],
     customTag: '📜 MPPSC एस्पिरेंट स्कॉलरशिप',
     grantReason: 'विशेष तैयारी प्रोत्साहन'
   },
@@ -1201,8 +1201,8 @@ export const INITIAL_ORDERS: OrderTransaction[] = [
     userPhone: '9425077889',
     userDistrict: 'ग्वालियर (Gwalior)',
     userState: 'मध्यप्रदेश (MP)',
-    seriesId: 'ts_police_constable_2026',
-    seriesTitle: 'MP पुलिस आरक्षक 2026 (15 टेस्ट)',
+    seriesId: 'ts_police_si_2026',
+    seriesTitle: 'MP पुलिस आरक्षक & SI 2026 भर्ती टेस्ट सीरीज़',
     amount: 299,
     discount: 50,
     gstAmount: 45,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { DesignSwitcherPill } from './DesignSwitcherPill';
 import { 
   ShieldAlert, 
   Sun, 
@@ -105,6 +106,11 @@ export const Header: React.FC = () => {
                 </>
               )}
             </div>
+
+            {/* Design Style Switcher Pill (Admin Only) */}
+            {currentUser?.role === 'admin' && (
+              <DesignSwitcherPill compact className="hidden md:inline-flex" />
+            )}
 
             {/* Language Switcher */}
             <button
@@ -354,7 +360,15 @@ export const Header: React.FC = () => {
 
       {/* Mobile Navigation Drawer for Handhelds */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-[#963E2F] py-3 space-y-1.5 bg-[#5E1F16] px-3 shadow-2xl animate-fadeIn">
+        <div className="md:hidden border-t border-[#963E2F] py-3 space-y-2 bg-[#5E1F16] px-3 shadow-2xl animate-fadeIn">
+          {/* Mobile Design Switcher (Admin Only) */}
+          {currentUser?.role === 'admin' && (
+            <div className="p-2 rounded-xl bg-black/20 border border-[#D4A017]/30 flex items-center justify-between">
+              <span className="text-xs font-black text-[#EAD8B1]">पोर्टल स्टाइल / थीम (Admin Only):</span>
+              <DesignSwitcherPill compact />
+            </div>
+          )}
+
           <div className="text-[10px] uppercase font-mono font-bold text-[#EAD8B1] px-2 mb-1 flex items-center justify-between">
             <span>{lang === 'hi' ? 'नेविगेशन मेन्यू (Top Menu)' : 'Navigation Menu'}</span>
             <span className="text-[9px] text-[#D4A017]">{topNavItems.length} लिंक</span>

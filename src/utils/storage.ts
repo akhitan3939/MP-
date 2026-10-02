@@ -55,6 +55,7 @@ const STORAGE_KEYS = {
   ARCHIVED_USERS: 'mp_setu_archived_users_v1',
   ARCHIVED_ATTEMPTS: 'mp_setu_archived_attempts_v1',
   DATA_LOCKED: 'mp_setu_data_locked_v1',
+  PORTAL_DESIGN_THEME: 'mp_setu_portal_design_theme_v1',
 };
 
 export const INITIAL_NAV_MENUS: NavigationMenuItem[] = [
@@ -595,23 +596,43 @@ export const StorageService = {
   },
 
   getUsers: (): UserProfile[] => {
+    const archivedUsers = getStorage<UserProfile[]>(STORAGE_KEYS.ARCHIVED_USERS, []);
+    const archivedIds = new Set((archivedUsers || []).map(u => u.id));
+    const archivedPhones = new Set((archivedUsers || []).map(u => u.phone ? u.phone.replace(/\D/g, '').slice(-10) : '').filter(p => p.length >= 10));
+    const archivedEmails = new Set((archivedUsers || []).map(u => u.email ? u.email.toLowerCase().trim() : '').filter(Boolean));
+
+    const isUserArchived = (id?: string, phone?: string, email?: string) => {
+      if (id && archivedIds.has(id)) return true;
+      const cleanP = phone ? phone.replace(/\D/g, '').slice(-10) : '';
+      if (cleanP && archivedPhones.has(cleanP)) return true;
+      const cleanE = email ? email.toLowerCase().trim() : '';
+      if (cleanE && archivedEmails.has(cleanE)) return true;
+      return false;
+    };
+
     const raw = getStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
     const list: UserProfile[] = Array.isArray(raw) && raw.length > 0 ? raw : INITIAL_USERS;
 
-    // Ensure all registered students are always present and never suppressed
+    // Ensure all registered students are always present and never suppressed, unless archived
     const userMap = new Map<string, UserProfile>();
-    INITIAL_USERS.forEach(u => userMap.set(u.id, { ...u, isLocked: true }));
+    INITIAL_USERS.forEach(u => {
+      if (!isUserArchived(u.id, u.phone, u.email)) {
+        userMap.set(u.id, { ...u, isLocked: true });
+      }
+    });
     list.forEach(u => {
-      if (u && u.id) {
+      if (u && u.id && !isUserArchived(u.id, u.phone, u.email)) {
         userMap.set(u.id, { ...(userMap.get(u.id) || {}), ...u, isLocked: true });
       }
     });
 
-    // Reconcile and Auto-Lock any users appearing in Orders so they always show in Students & Role Access
+    // Reconcile and Auto-Lock any active users appearing in Orders so they always show in Students & Role Access
     const rawOrders = getStorage<OrderTransaction[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
     const orderList: OrderTransaction[] = Array.isArray(rawOrders) ? rawOrders : INITIAL_ORDERS;
     orderList.forEach(ord => {
       if (!ord || !ord.userId) return;
+      if (isUserArchived(ord.userId, ord.userPhone, ord.userEmail)) return;
+
       const cleanPhone = ord.userPhone ? ord.userPhone.replace(/\D/g, '').slice(-10) : '';
       const cleanEmail = ord.userEmail ? ord.userEmail.toLowerCase().trim() : '';
       const existingKey = Array.from(userMap.keys()).find(k => {
@@ -637,7 +658,11 @@ export const StorageService = {
           joinedAt: ord.createdAt || new Date().toISOString(),
           streak: 5,
           badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र'],
-          purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+          purchasedSeries: ord.seriesId ? [
+            ord.seriesId === 'ts_mpsi_2026' || ord.seriesId === 'ts_police_constable_2026' || ord.seriesId === 'ts_constable_2026' 
+              ? 'ts_police_si_2026' 
+              : (ord.seriesId === 'ts_vyapam_group4' ? 'ts_vyapam_group4_2026' : ord.seriesId)
+          ] : [],
           isDummyUser: ord.isDummyUser === true,
           userType: ord.isDummyUser ? 'dummy' : 'authentic',
           customTag: '💳 ऑर्डर सत्यापित छात्र',
@@ -646,8 +671,11 @@ export const StorageService = {
         });
       } else {
         const u = userMap.get(existingKey)!;
-        if (ord.seriesId && (!u.purchasedSeries || !u.purchasedSeries.includes(ord.seriesId))) {
-          u.purchasedSeries = Array.from(new Set([...(u.purchasedSeries || []), ord.seriesId]));
+        const normId = ord.seriesId === 'ts_mpsi_2026' || ord.seriesId === 'ts_police_constable_2026' || ord.seriesId === 'ts_constable_2026' 
+          ? 'ts_police_si_2026' 
+          : (ord.seriesId === 'ts_vyapam_group4' ? 'ts_vyapam_group4_2026' : ord.seriesId);
+        if (normId && (!u.purchasedSeries || !u.purchasedSeries.includes(normId))) {
+          u.purchasedSeries = Array.from(new Set([...(u.purchasedSeries || []), normId]));
         }
         u.isLocked = true;
       }
@@ -829,5 +857,8 @@ export const StorageService = {
   setArchivedAttempts: (attempts: TestAttempt[]) => setStorage(STORAGE_KEYS.ARCHIVED_ATTEMPTS, attempts),
 
   isDataLocked: (): boolean => getStorage(STORAGE_KEYS.DATA_LOCKED, true),
-  setDataLocked: (locked: boolean) => setStorage(STORAGE_KEYS.DATA_LOCKED, locked)
+  setDataLocked: (locked: boolean) => setStorage(STORAGE_KEYS.DATA_LOCKED, locked),
+
+  getPortalDesignTheme: (): 'design1' | 'design2' => getStorage<'design1' | 'design2'>(STORAGE_KEYS.PORTAL_DESIGN_THEME, 'design2'),
+  setPortalDesignTheme: (theme: 'design1' | 'design2') => setStorage(STORAGE_KEYS.PORTAL_DESIGN_THEME, theme)
 };

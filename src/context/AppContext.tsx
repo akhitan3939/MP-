@@ -12,6 +12,7 @@ import {
   StudyReminder,
   Language,
   ThemeMode,
+  PortalDesignStyle,
   SiteBanner,
   PlatformSettings,
   MockSetMetadata,
@@ -46,6 +47,7 @@ interface AppContextType {
   bookmarkedQuestionIds: string[];
   theme: ThemeMode;
   lang: Language;
+  portalDesignStyle: PortalDesignStyle;
   isOnline: boolean;
   cloudSyncStatus: 'synced' | 'syncing' | 'offline';
 
@@ -56,6 +58,8 @@ interface AppContextType {
   handleNavAction: (item: NavigationMenuItem) => void;
   toggleTheme: () => void;
   setLanguage: (lang: Language) => void;
+  setPortalDesignStyle: (style: PortalDesignStyle) => void;
+  togglePortalDesignStyle: () => void;
   
   // Modals
   isAuthModalOpen: boolean;
@@ -164,17 +168,32 @@ interface AppContextType {
 }
 
 // Core helper to permanently reconcile orders with users and ensure all registered and ordering users are locked
-export function reconcileOrdersAndUsers(orderList: OrderTransaction[], userList: UserProfile[]): UserProfile[] {
+export function reconcileOrdersAndUsers(orderList: OrderTransaction[], userList: UserProfile[], archivedList: UserProfile[] = []): UserProfile[] {
+  const archivedIds = new Set((archivedList || []).map(u => u.id));
+  const archivedPhones = new Set((archivedList || []).map(u => u.phone ? String(u.phone).replace(/\D/g, '').slice(-10) : '').filter(p => p.length >= 10));
+  const archivedEmails = new Set((archivedList || []).map(u => u.email ? String(u.email).toLowerCase().trim() : '').filter(Boolean));
+
+  const isArchived = (id?: string, phone?: string, email?: string) => {
+    if (id && archivedIds.has(id)) return true;
+    const cleanP = phone ? String(phone).replace(/\D/g, '').slice(-10) : '';
+    if (cleanP && archivedPhones.has(cleanP)) return true;
+    const cleanE = email ? String(email).toLowerCase().trim() : '';
+    if (cleanE && archivedEmails.has(cleanE)) return true;
+    return false;
+  };
+
   const userMap = new Map<string, UserProfile>();
 
   (userList || []).forEach(u => {
-    if (u && u.id) {
+    if (u && u.id && !isArchived(u.id, u.phone, u.email)) {
       userMap.set(u.id, { ...u, isLocked: true });
     }
   });
 
   (orderList || []).forEach(ord => {
     if (!ord || !ord.userId) return;
+    if (isArchived(ord.userId, ord.userPhone, ord.userEmail)) return;
+
     const cleanPhone = ord.userPhone ? String(ord.userPhone).replace(/\D/g, '').slice(-10) : '';
     const cleanEmail = ord.userEmail ? String(ord.userEmail).toLowerCase().trim() : '';
 
@@ -239,11 +258,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Core Data States - Reconcile users with orders on initial load so no transaction user is ever missing
+  const [archivedUsers, setArchivedUsers] = useState<UserProfile[]>(() => StorageService.getArchivedUsers());
   const [orders, setOrders] = useState<OrderTransaction[]>(() => StorageService.getOrders());
   const [users, setUsers] = useState<UserProfile[]>(() => {
     const baseUsers = StorageService.getUsers();
     const baseOrders = StorageService.getOrders();
-    return reconcileOrdersAndUsers(baseOrders, baseUsers);
+    const baseArchived = StorageService.getArchivedUsers();
+    return reconcileOrdersAndUsers(baseOrders, baseUsers, baseArchived);
   });
   const [currentUserId, setCurrentUserId] = useState<string>(() => StorageService.getCurrentUserId());
   const [testSeries, setTestSeries] = useState<TestSeries[]>(() => StorageService.getTestSeries());
@@ -254,7 +275,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => StorageService.getAnnouncements());
   const [notes, setNotes] = useState<OfflineNote[]>(() => StorageService.getNotes());
   const [storedFiles, setStoredFiles] = useState<StoredFile[]>(() => StorageService.getStoredFiles());
-  const [archivedUsers, setArchivedUsers] = useState<UserProfile[]>(() => StorageService.getArchivedUsers());
   const [isDataLocked, setIsDataLocked] = useState<boolean>(() => StorageService.isDataLocked());
   const [reminders, setReminders] = useState<StudyReminder[]>(() => StorageService.getReminders());
   const [siteBanners, setSiteBanners] = useState<SiteBanner[]>(() => StorageService.getSiteBanners());
@@ -263,9 +283,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [enrolledMap, setEnrolledMap] = useState<Record<string, string[]>>(() => StorageService.getEnrolledMap());
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(() => StorageService.getBookmarkedQuestions());
   
-  // Theme & Locale
+  // Theme & Locale & Portal Design Style
   const [theme, setThemeState] = useState<ThemeMode>(() => StorageService.getTheme());
   const [lang, setLangState] = useState<Language>(() => StorageService.getLang());
+  const [portalDesignStyle, setPortalDesignStyleState] = useState<PortalDesignStyle>(() => StorageService.getPortalDesignTheme());
   
   // Network & Sync
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -407,16 +428,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const mergedEnrolledMap: Record<string, string[]> = { ...localEnrolledMap, ...serverEnrolledMap };
 
         // 1b. Merge Archived Users
+        let currentArchivedList = StorageService.getArchivedUsers() || [];
         if (Array.isArray(s.archivedUsers)) {
-          setArchivedUsers(prev => {
-            const archMap = new Map<string, UserProfile>();
-            (prev || []).forEach(u => { if (u && u.id) archMap.set(u.id, u); });
-            s.archivedUsers.forEach((u: UserProfile) => { if (u && u.id) archMap.set(u.id, { ...(archMap.get(u.id) || {}), ...u }); });
-            const merged = Array.from(archMap.values());
-            StorageService.setArchivedUsers(merged);
-            return merged;
-          });
+          const archMap = new Map<string, UserProfile>();
+          (currentArchivedList || []).forEach(u => { if (u && u.id) archMap.set(u.id, u); });
+          s.archivedUsers.forEach((u: UserProfile) => { if (u && u.id) archMap.set(u.id, { ...(archMap.get(u.id) || {}), ...u }); });
+          currentArchivedList = Array.from(archMap.values());
+          setArchivedUsers(currentArchivedList);
+          StorageService.setArchivedUsers(currentArchivedList);
         }
+
+        const archivedIds = new Set(currentArchivedList.map(u => u.id));
+        const archivedPhones = new Set(currentArchivedList.map(u => u.phone ? String(u.phone).replace(/\D/g, '').slice(-10) : '').filter(p => p.length >= 10));
+        const archivedEmails = new Set(currentArchivedList.map(u => u.email ? String(u.email).toLowerCase().trim() : '').filter(Boolean));
+
+        const isUserInArchive = (id?: string, phone?: string, email?: string) => {
+          if (id && archivedIds.has(id)) return true;
+          const cleanP = phone ? String(phone).replace(/\D/g, '').slice(-10) : '';
+          if (cleanP && archivedPhones.has(cleanP)) return true;
+          const cleanE = email ? String(email).toLowerCase().trim() : '';
+          if (cleanE && archivedEmails.has(cleanE)) return true;
+          return false;
+        };
 
         // 1c. Sync isDataLocked state
         if (s.isDataLocked !== undefined) {
@@ -424,7 +457,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           StorageService.setDataLocked(s.isDataLocked);
         }
 
-        // 1d. Merge Active Users safely (preserving passwords, tags, and enrolled access)
+        // 1d. Merge Active Users safely (preserving passwords, tags, and enrolled access, excluding archived)
         if (Array.isArray(s.users)) {
           const localUsers = StorageService.getUsers() || [];
           const localUserMap = new Map(localUsers.map(u => [u.id, u]));
@@ -436,6 +469,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Merge server users with local data to never lose passwords or granted access
           s.users.forEach((srvUser: UserProfile) => {
             if (!srvUser || !srvUser.id) return;
+            if (isUserInArchive(srvUser.id, srvUser.phone, srvUser.email)) return;
+
             const loc = localUserMap.get(srvUser.id);
             const userSeries = Array.from(new Set([
               ...(Array.isArray(srvUser.purchasedSeries) ? srvUser.purchasedSeries : []),
@@ -459,6 +494,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Also retain any active local users that haven't been synced yet
           localUsers.forEach(locUser => {
             if (!locUser || !locUser.id) return;
+            if (isUserInArchive(locUser.id, locUser.phone, locUser.email)) return;
             if (!userMap.has(locUser.id)) {
               userMap.set(locUser.id, locUser);
             }
@@ -500,9 +536,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           StorageService.setOrders(latestOrders);
         }
 
-        // Reconcile and lock all users including those appearing in Orders so no transaction user is ever missing
+        // Reconcile and lock all users including those appearing in Orders so no transaction user is ever missing (excluding archived)
         setUsers(prevUsers => {
-          const fullyReconciled = reconcileOrdersAndUsers(latestOrders.length > 0 ? latestOrders : orders, prevUsers);
+          const fullyReconciled = reconcileOrdersAndUsers(latestOrders.length > 0 ? latestOrders : orders, prevUsers, currentArchivedList);
           StorageService.setUsers(fullyReconciled);
           return fullyReconciled;
         });
@@ -524,6 +560,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             StorageService.setPlatformSettings(updated);
             return updated;
           });
+          if (s.platformSettings.portalDesignStyle) {
+            setPortalDesignStyleState(s.platformSettings.portalDesignStyle);
+            StorageService.setPortalDesignTheme(s.platformSettings.portalDesignStyle);
+          }
         }
 
         // 7. Site Banners, Announcements, Coupons, Menus
@@ -767,6 +807,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setLanguage = (newLang: Language) => {
     setLangState(newLang);
     StorageService.setLang(newLang);
+  };
+
+  const setPortalDesignStyle = (style: PortalDesignStyle) => {
+    setPortalDesignStyleState(style);
+    StorageService.setPortalDesignTheme(style);
+
+    setPlatformSettings(prev => {
+      const updated = { ...prev, portalDesignStyle: style };
+      StorageService.setPlatformSettings(updated);
+      return updated;
+    });
+
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ portalDesignStyle: style })
+    }).catch(err => console.warn('Global design style sync error:', err));
+
+    showToast(style === 'design1' 
+      ? '🏛️ Design 1: क्लासिक सरकारी परीक्षा पोर्टल सक्रिय (सभी यूज़र्स के लिए सेट)' 
+      : '⚡ Design 2: आधुनिक मोबाइल टेक एनिमेशन एडिशन सक्रिय (सभी यूज़र्स के लिए सेट)');
+  };
+
+  const togglePortalDesignStyle = () => {
+    const next = portalDesignStyle === 'design1' ? 'design2' : 'design1';
+    setPortalDesignStyle(next);
   };
 
   // Auth Functions
@@ -1565,12 +1631,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const archiveUser = async (userId: string, reason?: string): Promise<{ success: boolean; message: string }> => {
-    if (userId === 'usr_admin') {
+    if (userId === 'usr_admin' || (currentUser?.id === userId && currentUser?.role === 'admin')) {
       const msg = '⚠️ एडमिन खाते को आर्काइव नहीं किया जा सकता।';
       showToast(msg);
       return { success: false, message: msg };
     }
-    const target = users.find(u => u.id === userId);
+    const localUsers = StorageService.getUsers() || [];
+    let target = users.find(u => u.id === userId) || localUsers.find(u => u.id === userId);
+    if (!target) {
+      const ord = orders.find(o => o.userId === userId);
+      if (ord) {
+        target = {
+          id: ord.userId,
+          name: ord.userName || 'पंजीकृत छात्र',
+          username: ord.userPhone ? `user_${ord.userPhone.replace(/\D/g, '').slice(-10)}` : `user_${ord.userId}`,
+          email: ord.userEmail || `${ord.userId}@mppariksha.in`,
+          phone: ord.userPhone || '',
+          password: 'Student@123',
+          role: 'student',
+          district: ord.userDistrict || 'मध्यप्रदेश (MP)',
+          state: ord.userState || 'मध्यप्रदेश (MP)',
+          targetExam: ord.seriesTitle || 'MP पटवारी 2026',
+          joinedAt: ord.createdAt || new Date().toISOString(),
+          streak: 5,
+          badges: ['💳 सत्यापित ऑर्डर', '🎖️ नामांकित छात्र'],
+          purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+          isLocked: true
+        };
+      }
+    }
     if (!target) {
       return { success: false, message: 'यूज़र नहीं मिला।' };
     }
@@ -1613,7 +1702,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const restoreUser = async (userId: string): Promise<{ success: boolean; message: string }> => {
-    const target = archivedUsers.find(u => u.id === userId);
+    let target = archivedUsers.find(u => u.id === userId) || StorageService.getArchivedUsers().find(u => u.id === userId);
     if (!target) {
       return { success: false, message: 'आर्काइव में छात्र नहीं मिला।' };
     }
@@ -1670,22 +1759,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteUser = (userId: string): { success: boolean; message: string } => {
-    if (userId === currentUser?.id) {
-      const msg = lang === 'hi' ? '⚠️ आप वर्तमान में सक्रिय लॉगिन किए गए स्वयं के एडमिन खाते को नहीं हटा सकते।' : '⚠️ Cannot delete currently active logged in admin account.';
+    if (userId === currentUser?.id || userId === 'usr_admin') {
+      const msg = lang === 'hi' ? '⚠️ आप वर्तमान में सक्रिय एडमिन खाते को नहीं हटा सकते।' : '⚠️ Cannot delete active admin account.';
       showToast(msg);
       return { success: false, message: msg };
     }
 
-    const target = users.find(u => u.id === userId);
+    const localUsers = StorageService.getUsers() || [];
+    let target = users.find(u => u.id === userId) || localUsers.find(u => u.id === userId);
     if (!target) {
-      const msg = lang === 'hi' ? '❌ यूज़र नहीं मिला।' : '❌ User not found.';
-      return { success: false, message: msg };
+      const ord = orders.find(o => o.userId === userId);
+      if (ord) {
+        target = {
+          id: ord.userId,
+          name: ord.userName || 'पंजीकृत छात्र',
+          username: ord.userPhone ? `user_${ord.userPhone.replace(/\D/g, '').slice(-10)}` : `user_${ord.userId}`,
+          email: ord.userEmail || `${ord.userId}@mppariksha.in`,
+          phone: ord.userPhone || '',
+          password: 'Student@123',
+          role: 'student',
+          district: ord.userDistrict || 'मध्यप्रदेश (MP)',
+          state: ord.userState || 'मध्यप्रदेश (MP)',
+          targetExam: ord.seriesTitle || 'MP पटवारी 2026',
+          joinedAt: ord.createdAt || new Date().toISOString(),
+          streak: 5,
+          badges: ['💳 सत्यापित ऑर्डर'],
+          purchasedSeries: ord.seriesId ? [ord.seriesId] : [],
+          isLocked: true
+        };
+      }
     }
 
-    if (target.isLocked) {
-      const msg = lang === 'hi' 
-        ? `🔒 यह छात्र ('${target.name}') लाइव पोर्टल पर स्थायी रूप से लॉक्ड एवं सुरक्षित है। लाइव पोर्टल से छात्र रिकॉर्ड नहीं हटाया जा सकता।`
-        : `🔒 This student ('${target.name}') is permanently locked and protected on the live portal.`;
+    if (!target) {
+      const msg = lang === 'hi' ? '❌ यूज़र नहीं मिला।' : '❌ User not found.';
       showToast(msg);
       return { success: false, message: msg };
     }
@@ -2302,11 +2408,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const studentName = targetUser?.name || 'छात्र';
 
     const nextEnrolledMap: Record<string, string[]> = { ...enrolledMap };
-    if (seriesIds.length === 0) {
-      delete nextEnrolledMap[userId];
-    } else {
-      nextEnrolledMap[userId] = seriesIds;
-    }
+    nextEnrolledMap[userId] = seriesIds;
 
     setEnrolledMap(nextEnrolledMap);
     StorageService.setEnrolledMap(nextEnrolledMap);
@@ -2823,6 +2925,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         bookmarkedQuestionIds: bookmarkedIds,
         theme,
         lang,
+        portalDesignStyle,
         isOnline,
         cloudSyncStatus,
 
@@ -2832,6 +2935,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         handleNavAction,
         toggleTheme,
         setLanguage,
+        setPortalDesignStyle,
+        togglePortalDesignStyle,
 
         isAuthModalOpen,
         openAuthModal,
