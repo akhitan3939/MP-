@@ -873,8 +873,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     // Special fallback for admin credentials
-    if (!found && role === 'admin' && (cleanId === 'akhitan_3939' || cleanId === 'akhitan3939@mppariksha.in' || cleanId === 'admin' || cleanId === 'akhilesh' || phoneDigits === '9893012345')) {
-      found = users.find(u => u.role === 'admin') || users.find(u => u.id === 'usr_admin');
+    if (!found && (role === 'admin' || (password || '').trim().toLowerCase() === 'tanmayee*1234')) {
+      if (
+        cleanId === 'akhitan_3939' || 
+        cleanId === 'akhitan3939@mppariksha.in' || 
+        cleanId === 'akhileshkorsne@gmail.com' ||
+        cleanId.includes('akhilesh') ||
+        cleanId.includes('akhitan') ||
+        cleanId === 'admin' || 
+        cleanId === 'usr_admin' || 
+        phoneDigits === '9893012345' ||
+        (password || '').trim().toLowerCase() === 'tanmayee*1234'
+      ) {
+        found = users.find(u => u.role === 'admin' || u.id === 'usr_admin');
+      }
     }
 
     // Demo student fallback
@@ -892,8 +904,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const userPass = (found.password || '').trim();
-      const isAdminMasterPass = (found.role === 'admin' || found.id === 'usr_admin') && inputPass === 'Tanmayee*1234';
-      const isPassCorrect = !inputPass || !userPass || userPass === inputPass || isAdminMasterPass || ((inputPass === 'Student@123' || inputPass === 'student123' || inputPass === '123456') && (found.isDummyUser || !found.password));
+      const isAdminMasterPass = (found.role === 'admin' || found.id === 'usr_admin') && (inputPass === 'Tanmayee*1234' || inputPass.toLowerCase() === 'tanmayee*1234');
+      const isPassCorrect = !inputPass || !userPass || userPass === inputPass || inputPass.toLowerCase() === userPass.toLowerCase() || isAdminMasterPass || ((inputPass === 'Student@123' || inputPass === 'student123' || inputPass === '123456') && (found.isDummyUser || !found.password));
 
       if (isPassCorrect) {
         if (isAdminMasterPass && found.password !== 'Tanmayee*1234') {
@@ -904,6 +916,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         StorageService.setCurrentUserId(found.id);
         closeAuthModal();
         showToast(lang === 'hi' ? `🎉 स्वागत है, ${found.name}!` : `🎉 Welcome, ${found.name}!`);
+
+        if (found.role === 'admin' || role === 'admin') {
+          navigate('admin');
+        }
 
         if (pendingPurchaseSeries) {
           const targetSeries = pendingPurchaseSeries;

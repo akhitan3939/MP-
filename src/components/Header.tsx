@@ -18,7 +18,8 @@ import {
   Sparkles,
   FileText,
   LayoutDashboard,
-  RotateCcw
+  RotateCcw,
+  Lock
 } from 'lucide-react';
 import { DynamicNavIcon } from '../utils/navIcons';
 
@@ -326,8 +327,8 @@ export const Header: React.FC = () => {
               );
             })}
 
-            {/* Admin Console & Founder Desk Tabs - Shown ONLY when currentUser is admin */}
-            {currentUser?.role === 'admin' && (
+            {/* Admin Console & Founder Desk Tabs */}
+            {currentUser?.role === 'admin' ? (
               <>
                 <button
                   onClick={() => navigate('ownerDesk')}
@@ -353,6 +354,15 @@ export const Header: React.FC = () => {
                   <span>{lang === 'hi' ? '🛡️ एडमिन कंसोल' : 'Admin Console'}</span>
                 </button>
               </>
+            ) : (
+              <button
+                onClick={() => openAuthModal('admin')}
+                className="h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl text-xs font-bold text-[#EAD8B1] hover:text-[#D4A017] hover:bg-[#5E1F16] border border-[#D4A017]/40 transition-all active:scale-95 btn-press-effect cursor-pointer whitespace-nowrap shrink-0"
+                title="एडमिन कंसोल में सुरक्षित लॉगिन करें"
+              >
+                <Lock className="w-3.5 h-3.5 text-[#D4A017]" />
+                <span>{lang === 'hi' ? '🔒 एडमिन कंसोल' : 'Admin Console'}</span>
+              </button>
             )}
           </nav>
         </div>
@@ -435,7 +445,7 @@ export const Header: React.FC = () => {
             </button>
           </div>
 
-          {currentUser?.role === 'admin' && (
+          {currentUser?.role === 'admin' ? (
             <div className="grid grid-cols-2 gap-2 mt-2">
               <button
                 onClick={() => {
@@ -456,6 +466,19 @@ export const Header: React.FC = () => {
               >
                 <ShieldAlert className="w-4 h-4" />
                 <span>एडमिन कंसोल</span>
+              </button>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <button
+                onClick={() => {
+                  openAuthModal('admin');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-black bg-[#5E1F16] text-[#D4A017] border border-[#D4A017]/60 shadow-md btn-press-effect cursor-pointer"
+              >
+                <Lock className="w-4 h-4 text-[#D4A017]" />
+                <span>🔒 एडमिन कंसोल लॉगिन (Admin Console)</span>
               </button>
             </div>
           )}

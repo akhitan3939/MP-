@@ -334,7 +334,10 @@ export const AuthModal: React.FC = () => {
     setIsLoggingIn(true);
     try {
       const res = await login(adminUsername.trim(), adminPassword.trim(), 'admin');
-      if (!res.success) {
+      if (res.success) {
+        closeAuthModal();
+        navigate('admin');
+      } else {
         setErrorMsg(res.message || (lang === 'hi' ? '❌ गलत एडमिन यूज़रनेम या पासवर्ड।' : '❌ Invalid admin credentials.'));
       }
     } catch (err) {
